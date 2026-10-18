@@ -263,7 +263,7 @@ export default function DashboardHome() {
   const [authForm, setAuthForm] = useState(null);
   // Group sending (2-10 people, one shared occasion).
   const [groupReviewOpen, setGroupReviewOpen] = useState(false);
-  const [pendingRun, setPendingRun] = useState(() => { const r = loadRun(window.localStorage); return r && !runSummary(r).done ? r : null; });
+  const [pendingRun, setPendingRun] = useState(() => { const r = loadRun(window.localStorage, user?.id); return r && !runSummary(r).done ? r : null; });
   const [resumeRun, setResumeRun] = useState(null);
   const [groupDefaultGift, setGroupDefaultGift] = useState(null); // scheduled groups: the gift for everyone
   const [groupResults, setGroupResults] = useState({}); // scheduled groups: per-person save outcome
@@ -982,6 +982,8 @@ export default function DashboardHome() {
             words={resumeRun ? resumeRun.words : words}
             defaultGiftChoice={gift === 'qrcash' ? { type: 'qrcash', amount: 25 } : gift === 'gift' ? { type: 'other' } : null}
             senderPhotoMissing={!photoDone}
+            senderVoiceMissing={!voiceDone}
+            userId={user?.id}
             initialRun={resumeRun}
             buildPayload={(item, run) => {
               const contact = contacts.find((c) => c.id === item.contactId);
@@ -989,7 +991,7 @@ export default function DashboardHome() {
               // Each card uses that person's own saved memory photos; photos added on this page are for single sends.
               return buildGreetingPayload({ user, contact, formData: { occasionType: run.occasion, customMessage: run.words, tone: 'warm' }, memoryPhotos: [], useMemoryPhotos: true, excludedMemoryPhotos: new Set(), giftSettings: null, maxPhotos: HANDOFF_MAX_PHOTOS });
             }}
-            onClose={() => { setGroupReviewOpen(false); setResumeRun(null); const r = loadRun(window.localStorage); setPendingRun(r && !runSummary(r).done ? r : null); }}
+            onClose={() => { setGroupReviewOpen(false); setResumeRun(null); const r = loadRun(window.localStorage, user?.id); setPendingRun(r && !runSummary(r).done ? r : null); }}
             onDone={() => { setPendingRun(null); fetchDashboardData(); }}
           />
         ) : null}

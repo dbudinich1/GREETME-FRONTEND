@@ -36,7 +36,7 @@ function addressFor(contact) {
   };
 }
 
-export default function GroupReview({ recipients, occasion, words, defaultGiftChoice, buildPayload, senderPhotoMissing = false, initialRun = null, onClose, onDone }) {
+export default function GroupReview({ recipients, occasion, words, defaultGiftChoice, buildPayload, senderPhotoMissing = false, senderVoiceMissing = false, userId = null, initialRun = null, onClose, onDone }) {
   const [preflight, setPreflight] = useState(null);
   const [card, setCard] = useState(undefined); // undefined = loading, null = none
   const [cardExpired, setCardExpired] = useState(false); // charge-now does not refuse an expired card itself
@@ -88,7 +88,12 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
   const boxItems = items.filter((i) => i.gift.type === 'gift_box');
   const paidCount = items.filter((i) => i.gift.type !== 'none').length;
   const sizeOk = included.length >= 2 && included.length <= GROUP_MAX;
+  // Everything that would stop the group part-way is checked here, before any charge: the account, the sender's voice
+  // and photo, the sends left and today's AI greetings. The hourly limit cannot be read in advance (see the note).
+  const ownerMismatch = Boolean(run && (!userId || String(run.userId) !== String(userId)));
   const blockers = [
+    ...(!userId || ownerMismatch ? ['Sign in again to send to a group.'] : []),
+    ...(senderVoiceMissing ? ['Every Greet-Me uses your recorded voice. Record it first (Re-record on the dashboard).'] : []),
     ...(senderPhotoMissing ? ['Every Greet-Me includes your photo so the recipient knows it is from you. Add a profile photo first.'] : []),
     ...(!sizeOk ? [included.length > GROUP_MAX ? `A group is up to ${GROUP_MAX} people.` : 'A group needs at least two people. Send to one person with Send Now.'] : []),
     ...allowance.reasons,
@@ -117,6 +122,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
     saveRun(window.localStorage, r);
     const stripe = stripePromise ? await stripePromise : null;
     await runGroup(r, {
+      userId,
       api,
       buildPayload: (it) => buildPayload(it, r),
       confirmCardPayment: async (cs) => (stripe ? stripe.confirmCardPayment(cs) : { error: { message: 'Card confirmation is unavailable right now.' } }),
@@ -130,7 +136,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
     // A stale gift-box price is never charged: the sender gets fresh prices to look at first.
     if (boxItems.some((i) => isGiftBoxQuoteExpired(i.quote))) { setExpiredNote(true); return; }
     await execute(createGroupRun({
-      occasion, words,
+      userId, occasion, words,
       recipients: included.map((p) => ({ contactId: p.id, name: p.name, email: p.email })),
       defaultGift, overrides, addresses, quotes,
     }));
@@ -191,7 +197,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
                     <button type="button" className={`box ${out ? '' : 'on'}`} aria-pressed={!out} aria-label={out ? `Include ${r.name}` : `Leave out ${r.name}`} onClick={() => setLeft((cur) => (out ? cur.filter((x) => x !== r.id) : [...cur, r.id]))}><Check size={12} /></button>
                     <div className="grv-who"><b>{r.name}</b><span>{r.email}</span></div>
                     <select aria-label={`Gift for ${r.name}`} disabled={out} value={overrides[r.id] ? giftValue(groupGift(overrides[r.id])) : 'default'} onChange={(e) => { clearQuote(r.id); setOverrides((cur) => { const n = { ...cur }; if (e.target.value === 'default') delete n[r.id]; else n[r.id] = giftFromValue(e.target.value); return n; }); }}>
-                      <option value="default">Same as everyone ({giftLabel(groupGift(defaultGift))})</option>
+                      <option value="default">Same as everyone</option>
                       {giftOptions.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
                     </select>
                     <span className="grv-cost">{out ? 'Left out'
@@ -220,12 +226,14 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
             </div>
 
             <div className="grv-total" data-testid="grv-total">
-              <span>{costs.totalCents || costs.unpriced
-                ? `${costs.feeCents ? `Gifts ${centsToDollarString(costs.giftCents)} + QR Cash fees ${centsToDollarString(costs.feeCents)} = ` : 'Total '}${centsToDollarString(costs.totalCents)}${costs.unpriced ? ` (+ ${costs.unpriced} gift box${costs.unpriced === 1 ? '' : 'es'} not priced yet)` : ''}`
-                : 'No gifts: nothing is charged.'}</span>
+              <span>{costs.unpriced
+                ? `The total is shown once the ${costs.unpriced === 1 ? 'gift box is' : `${costs.unpriced} gift boxes are`} priced.`
+                : costs.totalCents
+                  ? `${costs.feeCents ? `Gifts ${centsToDollarString(costs.giftCents)} + QR Cash fees ${centsToDollarString(costs.feeCents)} = ` : 'Total '}${centsToDollarString(costs.totalCents)}`
+                  : 'No gifts: nothing is charged.'}</span>
               {needsCard ? <span className="sub">{card === undefined ? 'Checking your saved card…' : card ? `Charged to your saved ${card.brand ? card.brand.charAt(0).toUpperCase() + card.brand.slice(1) : 'card'} •••• ${card.last4 || ''}, one charge per person.` : ''}</span> : null}
             </div>
-            {paidCount ? <div className="sub" data-testid="grv-rate-note">Payments are limited to 20 requests an hour, shared by QR Cash and gift boxes. This group needs {paidCount} (up to {paidCount * 2} if your bank asks to confirm a payment). If the limit is reached, sending stops and nobody is lost; you can continue later.{paidCount * 2 > 20 ? ' This group may reach the limit.' : ''}</div> : null}
+            {paidCount ? <div className="sub" data-testid="grv-rate-note">Payments are limited to 20 requests an hour, shared by QR Cash and gift boxes and counting any payments you made in the last hour. This group makes {paidCount} (up to {paidCount * 2} if your bank asks to confirm). Greetings are limited to 20 an hour. If a limit is reached, sending stops before anyone else is charged and nobody is lost; you can continue later.</div> : null}
             {blockers.length ? <div className="warn" data-testid="grv-blockers"><AlertCircle size={16} style={{ flex: 'none', marginTop: 2 }} /><span>{blockers.join(' ')}</span></div> : null}
             <div className="grv-actions">
               <span className="sub">{boxItems.length ? 'Prices are the gift-box checkout’s own and valid for 2 minutes. ' : ''}Nothing is charged or sent until you press Send.</span>
@@ -239,6 +247,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
           </>
         ) : (
           <>
+            {ownerMismatch ? <div className="warn" data-testid="grv-owner"><AlertCircle size={16} style={{ flex: 'none', marginTop: 2 }} /><span>This group send belongs to a different account and can&rsquo;t be continued here.</span></div> : null}
             {run.stopped ? <div className="warn" data-testid="grv-stopped"><AlertCircle size={16} style={{ flex: 'none', marginTop: 2 }} /><span>Stopped: {run.stopped.message} Nobody after this was charged or sent; nothing was lost.</span></div> : null}
             <div className="grv-list" data-testid="grv-results">
               {run.items.map((it) => {
@@ -260,12 +269,12 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
               <div className="sub" data-testid="grv-run-fresh-prices">New prices — {freshlyPriced.map((i) => `${i.name}: ${fourLines(i.quote.display)}`).join(' · ')}</div>
             ) : null}
             <div className="grv-actions">
-              <span className="sub">{summary.done ? 'All sent. You’ll see them under Past Occasions.'
+              <span className="sub">{summary.done ? 'All accepted for sending. You\u2019ll see each one under Past Occasions as it goes out.'
                 : summary.held || summary.unknown ? 'A held or unconfirmed gift order is never placed again; check your orders, or send that greeting without the gift.'
                   : summary.failed ? 'A gift that was paid for stays with its person and is not charged again on retry.' : ''}</span>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {summary.needsQuote ? <button type="button" className="btn btn-line" data-testid="grv-refresh-run-prices" disabled={quoting || running} onClick={refreshRunPrices}>{quoting ? 'Getting prices…' : 'Get fresh prices'}</button> : null}
-                {!summary.done ? <button type="button" className="btn btn-primary" data-testid="grv-retry" disabled={running || quoting || summary.needsQuote > 0} onClick={() => execute(run)}><RotateCcw size={16} /> {run.stopped || summary.failed ? 'Try the rest again' : 'Continue'}</button>
+                {!summary.done ? <button type="button" className="btn btn-primary" data-testid="grv-retry" disabled={running || quoting || summary.needsQuote > 0 || ownerMismatch} onClick={() => execute(run)}><RotateCcw size={16} /> {run.stopped || summary.failed ? 'Try the rest again' : 'Continue'}</button>
                   : <button type="button" className="btn btn-primary" onClick={onClose}><Check size={16} /> Done</button>}
               </div>
             </div>

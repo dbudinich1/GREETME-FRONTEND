@@ -162,7 +162,7 @@ async function mount({ contacts = CONTACTS(), upcoming = UPCOMING(), sent = SENT
   if (currentRoot) { const r = currentRoot; currentRoot = null; await act(async () => { r.unmount(); }); }
   globalThis.__data = { contacts, upcoming, sent, tiles, saveResult, card, preflight, sendFail, boxes };
   globalThis.__quotes = []; globalThis.__boxCharges = [];
-  globalThis.__user = user || { name: "Alex Rivera", voiceId: "v1", photoUrl: "p.jpg" };
+  globalThis.__user = user || { id: "u1", name: "Alex Rivera", voiceId: "v1", photoUrl: "p.jpg" };
   globalThis.__nav = []; globalThis.__saves = []; globalThis.__toasts = []; globalThis.__calls = []; globalThis.__sends = []; globalThis.__charges = [];
   window.sessionStorage.clear(); window.localStorage.clear();
   document.body.innerHTML = "";
@@ -633,4 +633,38 @@ test("group: an expired saved card is named as expired (charge-now would decline
   assert.match($("[data-testid=grv-blockers]").textContent, /saved card has expired/);
   await setValue($("[data-testid=grv-default-gift]"), "none");
   assert.equal($("[data-testid=grv-send]").disabled, false, "a group with no paid gift can still go");
+});
+
+test("H-1 (rendered): an unfinished group run from another account is never offered or resumed, and is discarded", async () => {
+  window.localStorage.clear();
+  const foreign = { runId: "r-a", userId: "userA", occasion: "Birthday", words: "", items: [
+    { contactId: "c1", name: "Theresa Morgan", email: "t@example.com", gift: { type: "qrcash", amount: 25 }, sendRequestId: "s1", giftRequestId: "g1", status: "pending" },
+    { contactId: "c2", name: "Margaret Rivera", email: "m@example.com", gift: { type: "qrcash", amount: 25 }, sendRequestId: "s2", giftRequestId: "g2", status: "pending" } ] };
+  globalThis.__data = { contacts: CONTACTS(), upcoming: [], sent: [], tiles: { ok: true, tiles: [] }, card: VALID_CARD, preflight: PREFLIGHT, boxes: BOXES };
+  // mount() clears storage, so plant the foreign run between the clear and the render
+  if (currentRoot) { const r = currentRoot; currentRoot = null; await act(async () => { r.unmount(); }); }
+  globalThis.__user = { id: "userB", name: "Bea", voiceId: "v", photoUrl: "p.jpg" };
+  globalThis.__nav = []; globalThis.__saves = []; globalThis.__toasts = []; globalThis.__calls = []; globalThis.__sends = []; globalThis.__charges = [];
+  window.localStorage.setItem("gm_group_run_v1", JSON.stringify(foreign));
+  document.body.innerHTML = "";
+  const host = document.createElement("div"); document.body.appendChild(host);
+  const root = createRoot(host); currentRoot = root;
+  await act(async () => { root.render(React.createElement(DashboardHome)); });
+  await settle();
+  assert.equal($("[data-testid=gx-group-resume]"), null, "no resume offer for another account's run");
+  assert.equal(window.localStorage.getItem("gm_group_run_v1"), null, "the foreign run is discarded");
+  assert.equal(document.body.textContent.includes("t@example.com"), false, "nothing of it is shown");
+  assert.equal(globalThis.__charges.length, 0);
+});
+
+test("group: a sender without a recorded voice is stopped at review, before any charge", async () => {
+  await mount({ user: { id: "u1", name: "Alex Rivera", photoUrl: "p.jpg" } });
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await click(byText(".track button", "Everyone"));
+  await click($("[data-testid=gx-who-done]"));
+  await click(state().cont);
+  await settle();
+  assert.equal($("[data-testid=grv-send]").disabled, true);
+  assert.match($("[data-testid=grv-blockers]").textContent, /recorded voice/);
 });

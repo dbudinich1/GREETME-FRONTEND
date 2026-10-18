@@ -97,7 +97,11 @@ export async function quoteGroupGiftBoxes(items, { api, now = () => Date.now() }
  */
 export function groupAllowance(preflight, n) {
   const reasons = [];
-  if (preflight && preflight.canSendGreeting === false) reasons.push(preflight.message || 'You don’t have a send available right now.');
+  // Fail closed: a pre-check that could not be read (no answer, or the server's own PREFLIGHT_UNAVAILABLE) blocks, and
+  // says so — it never claims the sender has no send.
+  const unreadable = !preflight || (preflight.ok === false && (preflight.reasonCode === 'PREFLIGHT_UNAVAILABLE' || preflight.canSendGreeting !== true));
+  if (unreadable) reasons.push('We couldn\u2019t check your sends just now. Please try again in a moment.');
+  else if (preflight.canSendGreeting === false) reasons.push(preflight.message || 'You don\u2019t have a send available right now.');
   const unlimited = preflight && preflight.sendLimitUnlimited === true;
   const remaining = preflight && typeof preflight.remaining === 'number' ? preflight.remaining : null;
   if (!unlimited && remaining !== null && n > remaining) reasons.push(`You have ${remaining} send${remaining === 1 ? '' : 's'} left; this group needs ${n}.`);
@@ -111,7 +115,9 @@ export function groupAllowance(preflight, n) {
 }
 
 /** A new run: every recipient gets its own stable keys, created once and persisted with the run. */
-export function createGroupRun({ occasion, words, recipients, defaultGift, overrides = {}, addresses = {}, quotes = {} }) {
+export function createGroupRun({ userId, occasion, words, recipients, defaultGift, overrides = {}, addresses = {}, quotes = {} }) {
+  // H-1: a run belongs to the signed-in account that created it. It is never loaded, resumed or run for another.
+  if (!userId) { const e = new Error('Sign in again to send to a group.'); e.code = 'OWNER_REQUIRED'; throw e; }
   if (!Array.isArray(recipients) || recipients.length < GROUP_MIN || recipients.length > GROUP_MAX) {
     const e = new Error(`A group is ${GROUP_MIN} to ${GROUP_MAX} people.`); e.code = 'GROUP_SIZE'; throw e;
   }
@@ -119,6 +125,7 @@ export function createGroupRun({ occasion, words, recipients, defaultGift, overr
   for (const r of recipients) { if (ids.has(r.contactId)) { const e = new Error('Each person can be in a group once.'); e.code = 'GROUP_DUPLICATE'; throw e; } ids.add(r.contactId); }
   return {
     runId: newId(),
+    userId: String(userId),
     createdAt: Date.now(),
     occasion,
     words: String(words || ''),
@@ -153,26 +160,43 @@ function failure(res, fallback) {
 }
 const tagged = (err, props) => Object.assign(err instanceof Error ? err : new Error(String(err)), props);
 
+// The single send's QR Cash key rule: the key is replaced only after an outcome that is DEFINITELY not a charge (a
+// decline, a refused request, a 3-D Secure check that failed); after an unknown outcome it is kept, so a retry can
+// never become a second charge.
+const QR_UNKNOWN_MESSAGE = 'We couldn\u2019t confirm whether this gift payment went through. Trying again uses the same payment key, so it can\u2019t be charged twice.';
 async function chargeQrCash(item, { api, confirmCardPayment }) {
   const amount = groupGift(item.gift).amount;
   const giftAmountCents = Math.round(amount * 100);
-  // G3: the saved card, on the existing charge route, with this recipient's own stable giftRequestId.
-  const res = await api.chargeGift({
-    giftAmountCents, recipientEmail: item.email, recipientName: item.name,
-    useSavedPaymentMethod: true, giftRequestId: item.giftRequestId,
-  });
-  if (!res || res.networkError) throw failure(res || { networkError: true }, 'We couldn\u2019t confirm the gift payment.');
+  // G3: the saved card, on the existing charge route, with this recipient's own giftRequestId.
+  let res;
+  try {
+    res = await api.chargeGift({
+      giftAmountCents, recipientEmail: item.email, recipientName: item.name,
+      useSavedPaymentMethod: true, giftRequestId: item.giftRequestId,
+    });
+  } catch (err) {
+    if (!err || err.status >= 500 || !err.status) throw tagged(err || new Error(''), { outcomeUnknown: true, message: QR_UNKNOWN_MESSAGE }); // keep the key
+    if (err.code === 'PAYMENT_ALREADY_IN_PROGRESS') throw err; // an attempt under this key is still open: keep it
+    item.giftRequestId = newId(); // refused before any charge, or declined: definitely not charged
+    throw err;
+  }
+  if (!res || res.networkError) throw tagged(new Error(QR_UNKNOWN_MESSAGE), { outcomeUnknown: true }); // keep the key
   if (res.requiresAction && res.clientSecret) {
     // 3-D Secure: the same confirmation the send page performs, then the existing /finalize.
     const { error, paymentIntent } = await confirmCardPayment(res.clientSecret);
     if (error || !paymentIntent || paymentIntent.status !== 'succeeded') {
-      const e = new Error((error && error.message) || 'Your bank didn\u2019t confirm the payment.'); e.code = 'CARD_AUTH_FAILED'; throw e;
+      item.giftRequestId = newId(); // not charged
+      const e = new Error((error && error.message) || 'Your bank didn\u2019t confirm the payment.'); e.code = 'CARD_AUTH_FAILED'; e.declined = true; throw e;
     }
-    const fin = await api.finalizeGift({ paymentIntentId: res.paymentIntentId, recipientEmail: item.email, recipientName: item.name, giftAmountCents });
-    if (!fin || !fin.ok || !fin.gift) throw failure(fin, 'The gift payment couldn\u2019t be completed.');
+    let fin;
+    try { fin = await api.finalizeGift({ paymentIntentId: res.paymentIntentId, recipientEmail: item.email, recipientName: item.name, giftAmountCents }); } catch { fin = null; }
+    // The bank confirmed, so the money may be taken: an unfinished finalize is an unknown outcome (key kept).
+    if (!fin || !fin.ok || !fin.gift) throw tagged(new Error(QR_UNKNOWN_MESSAGE), { outcomeUnknown: true });
     return qrCashGiftForPayload(amount, fin.gift);
   }
   if (res.ok && res.gift) return qrCashGiftForPayload(amount, res.gift);
+  // 401 / 404 resolve rather than throw (api.js) before the route ran: nothing was charged.
+  item.giftRequestId = newId();
   throw failure(res, 'The gift payment didn\u2019t go through.');
 }
 
@@ -261,19 +285,20 @@ async function placeGiftBox(item, { api, confirmCardPayment, now = () => Date.no
   throw failure(res, 'We couldn\u2019t complete this gift box purchase.');
 }
 
-const GIFT_SKIP = new Set(['sent', 'held', 'unknown', 'needs_quote']);
-
 /**
- * Send (or resume, or retry) a run in two passes, one recipient at a time:
- *   1. gifts — every QR Cash charge and gift-box order is placed first (gift-box prices are valid for 2 minutes);
- *   2. greetings — each recipient whose gift is ready (or who has none) is sent.
- * A recipient whose gift failed is not sent without it (they stay for retry, or "send without the gift"). A run-wide
- * refusal stops the run before anything further is charged or sent, and records why.
- * deps: { api, buildPayload(item) -> payload | null, confirmCardPayment(clientSecret), onChange(run), now() }
+ * Send (or resume, or retry) a run, one recipient at a time and in order: that person's gift is placed (QR Cash
+ * charged, or a gift-box order CONFIRMED), then that person's greeting is sent, before the next person. A person whose
+ * gift is not ready is never sent without it silently (they stay for retry, or "send without the gift"). A run-wide
+ * refusal stops the run before anyone further is charged or sent, and records why.
+ * deps: { userId, api, buildPayload(item) -> payload | null, confirmCardPayment(clientSecret), onChange(run), now() }
  */
 export async function runGroup(run, deps) {
   const { api, buildPayload, onChange = () => {} } = deps;
   if (!run || !Array.isArray(run.items) || run.items.length > GROUP_MAX) throw new Error('Invalid group run');
+  // H-1: only the account that created the run may run it.
+  if (!run.userId || !deps.userId || String(deps.userId) !== String(run.userId)) {
+    const e = new Error('This group send belongs to a different account.'); e.code = 'OWNER_MISMATCH'; throw e;
+  }
   run.stopped = null;
 
   const stop = (item, err, status) => {
@@ -284,33 +309,34 @@ export async function runGroup(run, deps) {
     return false;
   };
 
-  // Pass 1 — gifts.
   for (const item of run.items) {
-    if (item.status === 'sent' || item.giftPayload) continue;
+    if (item.status === 'sent') continue;
     const g = groupGift(item.gift);
-    if (g.type === 'none') continue;
-    if ((item.status === 'held' && !item.paymentIntentId) || item.status === 'unknown') continue; // never re-placed
-    try {
-      item.status = 'charging'; item.error = null; onChange(run);
-      if (g.type === 'qrcash') {
-        item.giftPayload = await chargeQrCash(item, deps);
-      } else {
-        const r = await placeGiftBox(item, deps);
-        if (r.held) { item.status = 'held'; item.error = { message: r.held, refused: Boolean(r.refused), giftCharged: true }; onChange(run); continue; }
-        item.giftPayload = r.giftPayload;
-      }
-      item.status = 'ready'; onChange(run);
-    } catch (err) {
-      const status = err.needsQuote ? 'needs_quote' : err.outcomeUnknown ? 'unknown' : 'failed';
-      if (stop(item, err, status)) return run;
-    }
-  }
+    // A gift-box order that is held without a payment handle, or whose outcome is unknown, is never placed again.
+    if (g.type === 'gift_box' && !item.giftPayload && ((item.status === 'held' && !item.paymentIntentId) || item.status === 'unknown')) continue;
 
-  // Pass 2 — greetings.
-  for (const item of run.items) {
-    if (GIFT_SKIP.has(item.status)) continue;
-    const g = groupGift(item.gift);
-    if (g.type !== 'none' && !item.giftPayload) continue; // its gift isn't ready: never sent without it silently
+    // 1. This person's gift.
+    if (g.type !== 'none' && !item.giftPayload) {
+      try {
+        item.status = 'charging'; item.error = null; onChange(run);
+        if (g.type === 'qrcash') {
+          item.giftPayload = await chargeQrCash(item, deps);
+        } else {
+          const r = await placeGiftBox(item, deps);
+          if (r.held) { item.status = 'held'; item.error = { message: r.held, refused: Boolean(r.refused), giftCharged: true }; onChange(run); continue; }
+          item.giftPayload = r.giftPayload;
+        }
+        item.status = 'ready'; onChange(run);
+      } catch (err) {
+        // An unknown QR Cash outcome is retried later with the SAME key (it cannot charge twice); an unknown gift-box
+        // outcome is never re-placed.
+        const status = err.needsQuote ? 'needs_quote' : (err.outcomeUnknown && g.type === 'gift_box') ? 'unknown' : 'failed';
+        if (stop(item, err, status)) return run;
+        continue;
+      }
+    }
+
+    // 2. This person's greeting.
     try {
       const base = buildPayload(item);
       if (!base) { const e = new Error('This person is no longer in your recipients.'); e.code = 'RECIPIENT_MISSING'; throw e; }
@@ -349,10 +375,16 @@ export function runSummary(run) {
 }
 
 export function saveRun(storage, run) { try { storage.setItem(GROUP_RUN_KEY, JSON.stringify(run)); return true; } catch { return false; } }
-export function loadRun(storage) {
-  try {
-    const r = JSON.parse(storage.getItem(GROUP_RUN_KEY) || 'null');
-    return r && Array.isArray(r.items) && r.items.length >= GROUP_MIN && r.items.length <= GROUP_MAX ? r : null;
-  } catch { return null; }
+/**
+ * H-1: the stored run is returned ONLY to the account that created it. A run owned by another account, or with no
+ * owner (stored before owners were recorded), is discarded — never shown, resumed or charged.
+ */
+export function loadRun(storage, userId) {
+  let r = null;
+  try { r = JSON.parse(storage.getItem(GROUP_RUN_KEY) || 'null'); } catch { r = null; }
+  if (!r) return null;
+  const valid = Array.isArray(r.items) && r.items.length >= GROUP_MIN && r.items.length <= GROUP_MAX;
+  if (!valid || !r.userId || !userId || String(r.userId) !== String(userId)) { clearRun(storage); return null; }
+  return r;
 }
 export function clearRun(storage) { try { storage.removeItem(GROUP_RUN_KEY); } catch { /* unavailable */ } }

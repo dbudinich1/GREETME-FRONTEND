@@ -46,25 +46,25 @@ function fakeApi({ sendFail = {}, chargeFail = {}, requiresAction = new Set() } 
     charged,
   };
 }
-const deps = (api, extra = {}) => ({ api, buildPayload: (it) => ({ contactId: it.contactId, recipientName: it.name, recipientEmail: it.email, occasionType: "Birthday" }), confirmCardPayment: async () => ({ paymentIntent: { status: "succeeded" } }), ...extra });
+const deps = (api, extra = {}) => ({ userId: "u1", api, buildPayload: (it) => ({ contactId: it.contactId, recipientName: it.name, recipientEmail: it.email, occasionType: "Birthday" }), confirmCardPayment: async () => ({ paymentIntent: { status: "succeeded" } }), ...extra });
 
 test("groups are 2 to 10 people; 11 is refused; a person can be in a group once", () => {
   assert.equal(G.GROUP_MAX, 10);
-  assert.throws(() => G.createGroupRun({ occasion: "Birthday", recipients: people(11) }), (e) => e.code === "GROUP_SIZE");
-  assert.throws(() => G.createGroupRun({ occasion: "Birthday", recipients: people(1) }), (e) => e.code === "GROUP_SIZE");
+  assert.throws(() => G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(11) }), (e) => e.code === "GROUP_SIZE");
+  assert.throws(() => G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(1) }), (e) => e.code === "GROUP_SIZE");
   const dup = [...people(2), people(1)[0]];
-  assert.throws(() => G.createGroupRun({ occasion: "Birthday", recipients: dup }), (e) => e.code === "GROUP_DUPLICATE");
-  assert.equal(G.createGroupRun({ occasion: "Birthday", recipients: people(10) }).items.length, 10);
+  assert.throws(() => G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: dup }), (e) => e.code === "GROUP_DUPLICATE");
+  assert.equal(G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(10) }).items.length, 10);
 });
 
 test("each recipient gets its own stable send and gift keys", () => {
-  const run = G.createGroupRun({ occasion: "Birthday", recipients: people(3) });
+  const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(3) });
   const keys = run.items.flatMap((i) => [i.sendRequestId, i.giftRequestId]);
   assert.equal(new Set(keys).size, 6);
 });
 
 test("gift default for everyone, individual override per person; only supported gifts (none / QR Cash at the composer's amounts)", () => {
-  const run = G.createGroupRun({ occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 25 },
+  const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 25 },
     overrides: { c2: { type: "none" }, c3: { type: "qrcash", amount: 50 } } });
   assert.deepEqual(run.items.map((i) => i.gift), [{ type: "qrcash", amount: 25 }, { type: "none" }, { type: "qrcash", amount: 50 }]);
   assert.deepEqual(G.groupGift({ type: "merch" }), { type: "none" }, "an unsupported group gift is never attached");
@@ -72,7 +72,7 @@ test("gift default for everyone, individual override per person; only supported 
 });
 
 test("costs: per recipient and total, with the backend's fee arithmetic ($1.99 + 3%)", () => {
-  const run = G.createGroupRun({ occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 25 }, overrides: { c2: { type: "none" } } });
+  const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 25 }, overrides: { c2: { type: "none" } } });
   const c = G.groupCosts(run.items);
   assert.deepEqual(c.rows[0], { contactId: "c1", kind: "qrcash", giftCents: 2500, feeCents: 274, totalCents: 2774 });
   assert.deepEqual(c.rows[1], { contactId: "c2", kind: "none", giftCents: 0, feeCents: 0, totalCents: 0 });
@@ -89,7 +89,7 @@ test("current rules decide: not enough sends, or not enough AI greetings today, 
 
 test("happy path: each recipient charged once (QR Cash ones only) then sent once with its gift attached", async () => {
   const { api, calls } = fakeApi();
-  const run = G.createGroupRun({ occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 25 }, overrides: { c2: { type: "none" } } });
+  const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 25 }, overrides: { c2: { type: "none" } } });
   await G.runGroup(run, deps(api));
   const sum = G.runSummary(run);
   assert.equal(sum.sent, 3); assert.equal(sum.failed, 0); assert.equal(sum.done, true);
@@ -104,7 +104,7 @@ test("happy path: each recipient charged once (QR Cash ones only) then sent once
 test("partial failure: one recipient fails, the rest still send; retry sends only the failed one, reusing its keys", async () => {
   let failOnce = true;
   const { api, calls } = fakeApi({ sendFail: { c2: () => (failOnce ? (failOnce = false, { throw: { status: 400, code: "INVALID" } }) : null) } });
-  const run = G.createGroupRun({ occasion: "Birthday", recipients: people(3) });
+  const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(3) });
   await G.runGroup(run, deps(api));
   assert.deepEqual(run.items.map((i) => i.status), ["sent", "failed", "sent"]);
   const key = run.items[1].sendRequestId;
@@ -117,7 +117,7 @@ test("partial failure: one recipient fails, the rest still send; retry sends onl
 test("a charged gift is kept when its send fails; retry re-attaches it and never charges again", async () => {
   let failOnce = true;
   const { api, calls } = fakeApi({ sendFail: { c1: () => (failOnce ? (failOnce = false, { throw: { status: 500, code: "SERVER_ERROR" } }) : null) } });
-  const run = G.createGroupRun({ occasion: "Birthday", recipients: people(2), defaultGift: { type: "qrcash", amount: 25 } });
+  const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(2), defaultGift: { type: "qrcash", amount: 25 } });
   await G.runGroup(run, deps(api));
   assert.equal(run.items[0].status, "failed"); assert.equal(run.items[0].error.giftCharged, true);
   await G.runGroup(run, deps(api));
@@ -135,11 +135,12 @@ test("run-wide refusals STOP the run and keep every unsent recipient: rate limit
   ]) {
     const opts = where === "send" ? { sendFail: { c2: () => fail } } : { chargeFail: { "p2@example.com": fail } };
     const { api, calls } = fakeApi(opts);
-    const run = G.createGroupRun({ occasion: "Birthday", recipients: people(4), defaultGift: where === "charge" ? { type: "qrcash", amount: 25 } : undefined });
+    const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(4), defaultGift: where === "charge" ? { type: "qrcash", amount: 25 } : undefined });
     await G.runGroup(run, deps(api));
     // A refusal while placing gifts stops before any greeting is sent (gifts are placed first); the first person's
     // charged gift is kept with them. A refusal while sending stops the remaining sends.
-    assert.deepEqual(run.items.map((i) => i.status), where === "charge" ? ["ready", "failed", "pending", "pending"] : ["sent", "failed", "pending", "pending"], label);
+    // Each person's gift is placed and their greeting sent before the next person; a refusal stops everyone after it.
+    assert.deepEqual(run.items.map((i) => i.status), ["sent", "failed", "pending", "pending"], label);
     assert.ok(run.stopped, `${label}: the run says why it stopped`);
     assert.equal(calls.send.some((p) => p.contactId === "c3"), false, `${label}: nothing after the refusal was attempted`);
   }
@@ -148,7 +149,7 @@ test("run-wide refusals STOP the run and keep every unsent recipient: rate limit
 test("3-D Secure: the same card confirmation then the existing /finalize; a declined confirmation fails that person only", async () => {
   const { api, calls } = fakeApi({ requiresAction: new Set(["p1@example.com", "p2@example.com"]) });
   let n = 0;
-  const run = G.createGroupRun({ occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 50 } });
+  const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 50 } });
   await G.runGroup(run, deps(api, { confirmCardPayment: async () => (++n === 2 ? { error: { message: "declined" } } : { paymentIntent: { status: "succeeded" } }) }));
   assert.deepEqual(run.items.map((i) => i.status), ["sent", "failed", "sent"]);
   assert.equal(calls.finalize.length, 1);
@@ -159,21 +160,21 @@ test("3-D Secure: the same card confirmation then the existing /finalize; a decl
 test("resume: a saved run picks up where it stopped; already-sent recipients are not sent again", async () => {
   const store = new Map(); const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
   const { api, calls } = fakeApi({ sendFail: { c2: () => ({ throw: { status: 429, code: "RATE_LIMIT_GREETING" } }) } });
-  const run = G.createGroupRun({ occasion: "Birthday", recipients: people(3) });
+  const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(3) });
   await G.runGroup(run, deps(api, { onChange: (r) => G.saveRun(storage, r) }));
-  const resumed = G.loadRun(storage);
+  const resumed = G.loadRun(storage, "u1");
   assert.equal(resumed.runId, run.runId);
   const { api: api2, calls: calls2 } = fakeApi();
   await G.runGroup(resumed, deps(api2));
   assert.deepEqual(resumed.items.map((i) => i.status), ["sent", "sent", "sent"]);
   assert.equal(calls2.send.some((p) => p.contactId === "c1"), false, "the already-sent recipient was skipped");
   assert.equal(calls.send.length + calls2.send.length, 4);
-  G.clearRun(storage); assert.equal(G.loadRun(storage), null);
+  G.clearRun(storage); assert.equal(G.loadRun(storage, "u1"), null);
 });
 
 test("a missing recipient fails on its own; the controller refuses a run over 10", async () => {
   const { api } = fakeApi();
-  const run = G.createGroupRun({ occasion: "Birthday", recipients: people(2) });
+  const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(2) });
   await G.runGroup(run, deps(api, { buildPayload: (it) => (it.contactId === "c1" ? null : { contactId: it.contactId }) }));
   assert.deepEqual(run.items.map((i) => i.status), ["failed", "sent"]);
   const big = { items: people(11).map((p) => ({ ...p, status: "pending", gift: { type: "none" } })) };
@@ -200,7 +201,7 @@ function boxApi({ chargeOutcome = {}, quote = () => QUOTE_RES() } = {}) {
     chargeGift: async () => ({ ok: true, gift: GIFT_OBJ }),
   } };
 }
-const boxRun = (n = 3, extra = {}) => G.createGroupRun({ occasion: "Birthday", recipients: people(n), defaultGift: BOX,
+const boxRun = (n = 3, extra = {}) => G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(n), defaultGift: BOX,
   addresses: Object.fromEntries(people(n).map((p) => [p.contactId, { ...ADDR, firstName: p.name.split(" ")[0] }])), ...extra });
 
 test("G7: same gift box for everyone with individual overrides; a gift box is a supported group gift", () => {
@@ -323,7 +324,7 @@ test("saved card switched off (503 SAVED_PAYMENT_METHOD_DISABLED) or missing (40
     assert.equal(calls.charge.length, 1, `${code}: nobody else is charged`);
     assert.equal(calls.send.length, 0);
     const q = fakeApi({ chargeFail: { "p1@example.com": { throw: { status, code } } } });
-    const qr = G.createGroupRun({ occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 25 } });
+    const qr = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 25 } });
     await G.runGroup(qr, deps(q.api));
     assert.ok(qr.stopped, `${code}: QR Cash run stops too`);
     assert.equal(q.calls.charge.length, 1);
@@ -339,7 +340,7 @@ test("G4: 999 is a real cap; an unreadable AI count is 'unknown' and never block
 
 test("409 PAYMENT_ALREADY_IN_PROGRESS stops the run (never retried as a new charge)", async () => {
   const q = fakeApi({ chargeFail: { "p1@example.com": { throw: { status: 409, code: "PAYMENT_ALREADY_IN_PROGRESS" } } } });
-  const run = G.createGroupRun({ occasion: "Birthday", recipients: people(2), defaultGift: { type: "qrcash", amount: 25 } });
+  const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(2), defaultGift: { type: "qrcash", amount: 25 } });
   await G.runGroup(run, deps(q.api));
   assert.ok(run.stopped); assert.equal(q.calls.charge.length, 1);
 });
@@ -350,7 +351,7 @@ test("G7 quote expiry: an expired quote is refreshed for that person; an UNCHANG
   let total = 4599;
   const { api, calls } = boxApi({ quote: () => QUOTE_RES(total) });
   await G.quoteGroupGiftBoxes(seed.items, { api, now: () => t });
-  const fromSeed = () => G.createGroupRun({ occasion: "Birthday", recipients: people(2), defaultGift: BOX,
+  const fromSeed = () => G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(2), defaultGift: BOX,
     addresses: Object.fromEntries(seed.items.map((i) => [i.contactId, i.address])), quotes: Object.fromEntries(seed.items.map((i) => [i.contactId, i.quote])) });
   const run2 = fromSeed();
   t = 3 * 60 * 1000; // every quote expired
@@ -377,7 +378,7 @@ test("G7 quote expiry from the server (409 gift_box_quote_expired): refreshed on
     return realCharge(b);
   };
   await G.quoteGroupGiftBoxes(seed.items, { api });
-  const r = G.createGroupRun({ occasion: "Birthday", recipients: people(2), defaultGift: BOX,
+  const r = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(2), defaultGift: BOX,
     addresses: Object.fromEntries(seed.items.map((i) => [i.contactId, i.address])), quotes: Object.fromEntries(seed.items.map((i) => [i.contactId, i.quote])) });
   await G.runGroup(r, deps(api));
   assert.deepEqual(r.items.map((i) => i.status), ["sent", "sent"]);
@@ -390,7 +391,7 @@ test("binding: each recipient's claim token goes only with that recipient's own 
   const run = boxRun(3);
   const { api, calls } = boxApi();
   await G.quoteGroupGiftBoxes(run.items, { api });
-  const r = G.createGroupRun({ occasion: "Birthday", recipients: people(3), defaultGift: BOX,
+  const r = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(3), defaultGift: BOX,
     addresses: Object.fromEntries(run.items.map((i) => [i.contactId, i.address])), quotes: Object.fromEntries(run.items.map((i) => [i.contactId, i.quote])) });
   await G.runGroup(r, deps(api));
   for (const it of r.items) {
@@ -399,4 +400,92 @@ test("binding: each recipient's claim token goes only with that recipient's own 
     assert.equal(send.gift.claimToken, `box-${it.contactId}`);
   }
   assert.equal(new Set(r.items.map((i) => i.giftRequestId)).size, 3, "a distinct giftRequestId per recipient");
+});
+
+// ── Team 5 fixes (Report 112) ───────────────────────────────────────────────────────────────────────────────
+function memStore() { const m = new Map(); return { m, getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; }
+
+test("H-1: a run belongs to its creator — another account can neither load it nor run it, and it is discarded", async () => {
+  const store = memStore();
+  const run = G.createGroupRun({ userId: "userA", occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 25 } });
+  G.saveRun(store, run);
+  assert.equal(G.loadRun(store, "userB"), null, "user B never sees user A's run");
+  assert.equal(store.m.size, 0, "and it is discarded");
+  const { api, calls } = fakeApi();
+  await assert.rejects(() => G.runGroup(run, { ...deps(api), userId: "userB" }), (e) => e.code === "OWNER_MISMATCH");
+  assert.equal(calls.charge.length + calls.send.length, 0, "nothing charged or sent for the wrong account");
+  G.saveRun(store, run);
+  assert.equal(G.loadRun(store, "userA").runId, run.runId, "the owner still resumes it");
+});
+
+test("H-1: a stored run with no owner (from before owners were recorded) is discarded; a run cannot be created without one", () => {
+  const store = memStore();
+  const legacy = { runId: "old", occasion: "Birthday", items: people(2).map((p) => ({ ...p, gift: { type: "qrcash", amount: 25 }, status: "pending" })) };
+  store.setItem(G.GROUP_RUN_KEY, JSON.stringify(legacy));
+  assert.equal(G.loadRun(store, "u1"), null);
+  assert.equal(store.m.size, 0);
+  assert.throws(() => G.createGroupRun({ occasion: "Birthday", recipients: people(2) }), (e) => e.code === "OWNER_REQUIRED");
+  assert.equal(G.loadRun(store, null), null, "no signed-in account: nothing is loaded");
+});
+
+test("M-1: QR Cash gets a FRESH key after a definite non-charge (decline, refused request, 3-D Secure failed) and KEEPS it after an unknown outcome", async () => {
+  for (const [label, fail, fresh] of [
+    ["402 decline", { throw: { status: 402, code: "GIFT_CHARGE_FAILED" } }, true],
+    ["409 entitlement", { throw: { status: 409, code: "SEND_ENTITLEMENT_AT_RISK" } }, true],
+    ["500 unknown", { throw: { status: 500, code: "SERVER_ERROR" } }, false],
+    ["network unknown", { ok: false, networkError: true }, false],
+    ["payment in progress", { throw: { status: 409, code: "PAYMENT_ALREADY_IN_PROGRESS" } }, false],
+  ]) {
+    const { api } = fakeApi({ chargeFail: { "p1@example.com": fail } });
+    const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(2), defaultGift: { type: "qrcash", amount: 25 } });
+    const before = run.items[0].giftRequestId;
+    await G.runGroup(run, deps(api));
+    assert.equal(run.items[0].giftRequestId !== before, fresh, label);
+  }
+  const { api } = fakeApi({ requiresAction: new Set(["p1@example.com"]) });
+  const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(2), defaultGift: { type: "qrcash", amount: 25 } });
+  const before = run.items[0].giftRequestId;
+  await G.runGroup(run, deps(api, { confirmCardPayment: async () => ({ error: { message: "no" } }) }));
+  assert.notEqual(run.items[0].giftRequestId, before, "3-D Secure failed: not charged, fresh key");
+});
+
+test("M-2: a QR Cash 500 is an unknown outcome — the run stops, the person is marked unknown and nobody after is charged", async () => {
+  const { api, calls } = fakeApi({ chargeFail: { "p2@example.com": { throw: { status: 500, code: "SERVER_ERROR" } } } });
+  const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(4), defaultGift: { type: "qrcash", amount: 25 } });
+  await G.runGroup(run, deps(api));
+  assert.ok(run.stopped);
+  assert.equal(run.items[1].status, "failed"); assert.equal(run.items[1].error.unknown, true);
+  assert.match(run.items[1].error.message, /same payment key/);
+  assert.equal(calls.charge.length, 2, "nobody after them is charged");
+  const key = run.items[1].giftRequestId;
+  const ok = fakeApi();
+  await G.runGroup(run, deps(ok.api));
+  assert.equal(ok.calls.charge[0].giftRequestId, key, "the retry uses the same key");
+});
+
+test("M-3: each person's gift is charged and their greeting sent before the next person", async () => {
+  const order = [];
+  const { api } = fakeApi();
+  const wrapped = { ...api,
+    chargeGift: async (p) => { order.push(`charge:${p.recipientEmail}`); return api.chargeGift(p); },
+    sendGreeting: async (p) => { order.push(`send:${p.contactId}`); return api.sendGreeting(p); } };
+  const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 25 } });
+  await G.runGroup(run, deps(wrapped));
+  assert.deepEqual(order, ["charge:p1@example.com", "send:c1", "charge:p2@example.com", "send:c2", "charge:p3@example.com", "send:c3"]);
+});
+
+test("M-3: a send refusal after a charge stops the run — the next person is NOT charged", async () => {
+  const { api, calls } = fakeApi({ sendFail: { c1: () => ({ throw: { status: 429, code: "AI_DAILY_LIMIT" } }) } });
+  const run = G.createGroupRun({ userId: "u1", occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 25 } });
+  await G.runGroup(run, deps(api));
+  assert.equal(calls.charge.length, 1, "only the first person was charged");
+  assert.equal(run.items[0].error.giftCharged, true, "their paid gift is kept for the retry");
+});
+
+test("L-3: a pre-check that could not be read blocks and says so (never 'no send available')", () => {
+  const a = G.groupAllowance(null, 3);
+  assert.equal(a.ok, false); assert.match(a.reasons[0], /couldn.t check your sends/);
+  const b = G.groupAllowance({ ok: false, canSendGreeting: false, reasonCode: "PREFLIGHT_UNAVAILABLE" }, 3);
+  assert.match(b.reasons[0], /couldn.t check your sends/);
+  assert.equal(G.groupAllowance({ ok: true, canSendGreeting: true, remaining: 5, aiDaily: { limit: 5, used: 0, remaining: 5 } }, 3).ok, true);
 });
