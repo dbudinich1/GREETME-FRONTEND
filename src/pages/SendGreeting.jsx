@@ -10,8 +10,13 @@
 //   3. Pass scripts/verify-creditclaim-viral-loop-lock.mjs
 //   4. Fail build if guard violates
 // Last reviewed: 2026-05-27 (Stage 3 implementation)
+// 2026-10-18 (dashboard package, Report 103): dashboard hand-off only: ?occasion= is honoured together with
+//   ?contactId= (matched to this page's own options), four approved occasions are added to the list, and the
+//   dashboard's optional words/memory photos are read once. Affected locked milestones: 4c29ace8, 01d93f5f,
+//   1c43a750, f98ffdb5. The verification gate, voice-missing recovery, review, payment and send paths are unchanged.
 
 import { useState, useEffect } from 'react';
+import { SEND_OCCASION_OPTIONS, SEND_OCCASION_KEY_OVERRIDES, matchSendOccasion, takeDashboardHandoff } from '../utils/dashboardSendHandoff';
 import { getPhotoSrc } from '../utils/getPhotoSrc';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Send, Edit3, Gift, ArrowLeft, Camera, Plus, X, Check } from 'lucide-react';
@@ -701,9 +706,32 @@ export default function SendGreeting() {
     const params = new URLSearchParams(location.search);
     const occasion = params.get('occasion');
     if (!occasion) return;
-    // Only prefill if no contact is also specified (draft restore handles that case)
-    if (params.get('contactId')) return;
+    // With a contact also specified (dashboard hand-off, Upcoming rows), the occasion is set only when it is one of
+    // this page's own options; a saved draft for the same pair is restored by the draft effect above as before.
+    if (params.get('contactId')) {
+      const option = matchSendOccasion(occasion);
+      if (option) setFormData(prev => ({ ...prev, occasionType: option }));
+      return;
+    }
     setFormData(prev => ({ ...prev, occasionType: occasion }));
+  }, [location.search]);
+
+  // Dashboard hand-off: the sender's optional words and memory photos, read once for this same recipient and
+  // occasion. Runs after the draft restore above so the dashboard's fresh input wins; photos are added up to the
+  // existing memory-photo limit, never replacing photos already present.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('from') !== 'dashboard') return;
+    const contactId = params.get('contactId');
+    const occasion = matchSendOccasion(params.get('occasion'));
+    if (!contactId || !occasion) return;
+    const handoff = takeDashboardHandoff(window.sessionStorage, { contactId, occasion });
+    if (!handoff) return;
+    if (handoff.words.trim()) setFormData(prev => ({ ...prev, customMessage: handoff.words }));
+    if (handoff.memoryPhotos.length) {
+      setMemoryPhotos(prev => [...prev, ...handoff.memoryPhotos.filter((ph) => !prev.includes(ph))].slice(0, MAX_MEMORY_PHOTOS));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
   // TEAM 1 — gift/entitlement safety, canonical QR Cash entry contract. Any "Send QR Cash" entry
@@ -713,10 +741,15 @@ export default function SendGreeting() {
   // charges via /api/gifts/charge-now and is gated by the same entitlement check as an attached
   // gift from a full greeting composition. Fires once per arrival; does not re-fire on an
   // in-composer state change.
+  //
+  // The same entry also serves the dashboard's "Add a gift" (gift carousel, ?gift=choose): the chooser opens with
+  // nothing pre-set, exactly as this composer's own "Add a Gift" button opens it. Nothing is chosen or charged here.
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    if (params.get('giftType') !== 'qrcash') return;
-    setGiftSettings(prev => ({ ...prev, type: 'qrcash' }));
+    const qrCashEntry = params.get('giftType') === 'qrcash';
+    const dashboardChooseEntry = params.get('gift') === 'choose' && !params.get('giftType');
+    if (!qrCashEntry && !dashboardChooseEntry) return;
+    if (qrCashEntry) setGiftSettings(prev => ({ ...prev, type: 'qrcash' }));
     setIsGiftModalOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
@@ -1268,7 +1301,7 @@ export default function SendGreeting() {
       greetingText: formData.customMessage || '',
       voiceId: user?.voiceId || '',
       photoUrl: effectivePhotoUrl,
-      occasionKey: normalizeOccasionKey(formData.occasionType) || formData.occasionType,
+      occasionKey: SEND_OCCASION_KEY_OVERRIDES[formData.occasionType] || normalizeOccasionKey(formData.occasionType) || formData.occasionType,
       occasionType: formData.occasionType,
       relationshipKey: selectedContact.relationship || 'friend',
       relationshipNote: selectedContact.relationshipContext || '',
@@ -3073,11 +3106,7 @@ if (typeof window !== "undefined") {
               }}
             >
               <option value="">Select an occasion</option>
-              <option value="Birthday">Birthday</option>
-              <option value="Anniversary">Anniversary</option>
-              <option value="Thank You">Thank You</option>
-              <option value="Congratulations">Congratulations</option>
-              <option value="Just Because">Just Because</option>
+              {SEND_OCCASION_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
             </select>
             {errors.occasionType && <p style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.occasionType}</p>}
           </div>
