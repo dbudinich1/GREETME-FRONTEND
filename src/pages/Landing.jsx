@@ -66,7 +66,7 @@ const CSS = `
   .gm-menu-page { top: .9rem; right: 1.25rem; }
   .gm-menu-card { top: .55rem; right: .55rem; display: none; }
   @media (max-width: 699px) { .gm-menu-page { display: none; } .gm-menu-card { display: block; } }
-  .gm-menu-btn { width: 44px; height: 44px; min-width: 44px; border-radius: 50%; padding: 0; cursor: pointer; display: inline-flex; flex-direction: column;
+  .gm-menu-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; max-height: 44px; border-radius: 50%; padding: 0; cursor: pointer; display: inline-flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 4px; background: transparent; }
   .gm-menu-page .gm-menu-btn { border: 1.5px solid rgba(239,234,255,.55); }
   .gm-menu-page .gm-menu-btn span { background: ${C.onPage}; }
@@ -181,38 +181,42 @@ export default function Landing() {
     const ro = typeof window.ResizeObserver === 'function' ? new window.ResizeObserver(fit) : null; ro?.observe(panel);
     window.addEventListener('resize', fit);
     document.fonts?.ready?.then(fit).catch(() => {});
-    const t1 = setTimeout(fit, 300); const t2 = setTimeout(fit, 1200);
-    return () => { ro?.disconnect(); window.removeEventListener('resize', fit); clearTimeout(t1); clearTimeout(t2); };
+    // Layout settles for about a second after load (fonts, media metadata); re-check on animation frames meanwhile.
+    // Layout only: playback is never started or delayed here.
+    let frames = 0; let raf = 0;
+    const settle = () => { fit(); if (++frames < 90 && window.requestAnimationFrame) raf = window.requestAnimationFrame(settle); };
+    settle();
+    return () => { ro?.disconnect(); window.removeEventListener('resize', fit); if (raf && window.cancelAnimationFrame) window.cancelAnimationFrame(raf); };
   }, [SHOW_SAMPLE_ENTRY]);
 
   // Hamburger menu (one open state; only one of the two placements is visible at a time).
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(null);   // 'page' | 'card' | null: only the tapped menu renders its items
   const menuRefs = useRef([]);
   useEffect(() => {
     if (!menuOpen) return undefined;
-    const onDown = (e) => { if (!menuRefs.current.some((el) => el && el.contains(e.target))) setMenuOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') { setMenuOpen(false); menuRefs.current.forEach((el) => el?.offsetParent && el.querySelector('button')?.focus()); } };
+    const onDown = (e) => { if (!menuRefs.current.some((el) => el && el.contains(e.target))) setMenuOpen(null); };
+    const onKey = (e) => { if (e.key === 'Escape') { setMenuOpen(null); menuRefs.current.forEach((el) => el?.offsetParent && el.querySelector('button')?.focus()); } };
     document.addEventListener('mousedown', onDown); document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
   }, [menuOpen]);
   const videoCardRef = useRef(null);
   const playDemo = () => {
-    setMenuOpen(false);
+    setMenuOpen(null);
     videoCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     if (!intro.playing) { focusBarRef.current = true; intro.tap(); }
   };
   const renderMenu = (placement, i) => (
     <div className={`gm-menu gm-menu-${placement}`} ref={(el) => { menuRefs.current[i] = el; }} data-testid={`landing-menu-${placement}`}>
-      <button type="button" className="gm-menu-btn" aria-label="Menu" aria-haspopup="true" aria-expanded={menuOpen}
-        aria-controls={`landing-menu-list-${placement}`} data-testid={`landing-menu-btn-${placement}`} onClick={() => setMenuOpen((o) => !o)}>
+      <button type="button" className="gm-menu-btn" aria-label="Menu" aria-haspopup="true" aria-expanded={menuOpen === placement}
+        aria-controls={`landing-menu-list-${placement}`} data-testid={`landing-menu-btn-${placement}`} onClick={() => setMenuOpen((o) => (o === placement ? null : placement))}>
         <span /><span /><span />
       </button>
-      {menuOpen ? (
+      {menuOpen === placement ? (
         <nav className="gm-menu-list" id={`landing-menu-list-${placement}`} aria-label="Greet-Me menu">
           <Link to="/login" className="gm-menu-item" data-testid="landing-signin">Sign in</Link>
           <Link to="/register" className="gm-menu-item primary" data-testid="landing-register-top">{REGISTER_LABEL}</Link>
           {SHOW_SAMPLE_ENTRY ? (
-            <button type="button" className="gm-menu-item" data-testid="landing-menu-sample" onClick={() => { setMenuOpen(false); openSample(); }}>
+            <button type="button" className="gm-menu-item" data-testid="landing-menu-sample" onClick={() => { setMenuOpen(null); openSample(); }}>
               <span aria-hidden="true">✉</span> {SAMPLE_CHROME.ctaLabel}
             </button>
           ) : null}
