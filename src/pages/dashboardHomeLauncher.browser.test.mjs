@@ -39,7 +39,12 @@ export default {
   getSmartCardTiles: async () => d().tiles,
   getQrCashCardStatus: async () => ({ ok: true, card: d().card }),
   updateContact: async (id, body) => { (globalThis.__saves = globalThis.__saves || []).push({ id, body }); return d().saveResult || { ok: true, data: { id } }; },
+  getSendEntitlementPreflight: async () => d().preflight,
+  chargeGift: async (p) => { (globalThis.__charges = globalThis.__charges || []).push(p); return { ok: true, gift: { feeCents: 274, totalCents: 2774, claimToken: 'ct-' + p.recipientEmail, qrImageUrl: 'q', qrBlobUrl: 'b', claimUrl: 'u' } }; },
+  finalizeGift: async () => ({ ok: true, gift: { feeCents: 274, totalCents: 2774, claimToken: 'ct', qrImageUrl: 'q', qrBlobUrl: 'b', claimUrl: 'u' } }),
+  sendGreeting: async (p) => { (globalThis.__sends = globalThis.__sends || []).push(p); const f = (d().sendFail || {})[p.contactId]; if (f) { const e = new Error(f.message || 'refused'); e.status = f.status; e.code = f.code; throw e; } return { ok: true, jobId: 'job-' + p.contactId }; },
 };`;
+const STRIPE_STUB = `export const stripePromise = Promise.resolve({ confirmCardPayment: async () => ({ paymentIntent: { status: 'succeeded' } }) });`;
 const NOTIFY_STUB = `export const showManualToast = (t, b) => { (globalThis.__toasts = globalThis.__toasts || []).push(t); };`;
 const NULLCOMP = `const N = () => null; export default N;`;
 const QR_STUB = `export default { toDataURL: async () => "data:image/png;base64,AA==" };`;
@@ -63,6 +68,7 @@ function stubPlugin() {
     [/w07Auth[\\/]SaveAuthorizationModal$/, AUTHMODAL_STUB, "am"],
     [/(OnboardingCoach|WarmReentryWelcome|BusinessGiftCreditsPanel)$/, NULLCOMP, "nullc"],
     [/\.png$/, `export default "img.png";`, "png"],
+    [/stripe[\\/]stripeProvider$/, STRIPE_STUB, "stripe"],
   ];
   return { name: "stub", setup(b) {
     for (const [filter, contents, ns] of map) {
@@ -144,12 +150,13 @@ const state = () => ({
 
 let currentRoot = null;
 const VALID_CARD = { present: true, expMonth: 12, expYear: 2030 };
-async function mount({ contacts = CONTACTS(), upcoming = UPCOMING(), sent = SENT(), tiles = { ok: true, tiles: [] }, user, saveResult, card = VALID_CARD } = {}) {
+const PREFLIGHT = { ok: true, canSendGreeting: true, remaining: 20, sendLimitUnlimited: false, aiDaily: { limit: 20, used: 0, remaining: 20 } };
+async function mount({ contacts = CONTACTS(), upcoming = UPCOMING(), sent = SENT(), tiles = { ok: true, tiles: [] }, user, saveResult, card = VALID_CARD, preflight = PREFLIGHT, sendFail } = {}) {
   if (currentRoot) { const r = currentRoot; currentRoot = null; await act(async () => { r.unmount(); }); }
-  globalThis.__data = { contacts, upcoming, sent, tiles, saveResult, card };
+  globalThis.__data = { contacts, upcoming, sent, tiles, saveResult, card, preflight, sendFail };
   globalThis.__user = user || { name: "Alex Rivera", voiceId: "v1", photoUrl: "p.jpg" };
-  globalThis.__nav = []; globalThis.__saves = []; globalThis.__toasts = []; globalThis.__calls = [];
-  window.sessionStorage.clear();
+  globalThis.__nav = []; globalThis.__saves = []; globalThis.__toasts = []; globalThis.__calls = []; globalThis.__sends = []; globalThis.__charges = [];
+  window.sessionStorage.clear(); window.localStorage.clear();
   document.body.innerHTML = "";
   const host = document.createElement("div"); document.body.appendChild(host);
   const root = createRoot(host);
@@ -208,17 +215,145 @@ test("rule: an occasion the scheduler does not hold cannot be combined with anot
   assert.match(state().rule, /Thank You is sent on its own with Send Now/);
 });
 
-test("group: several people with one occasion is NOT simulated — Continue stays unavailable and says why", async () => {
+const many = (n) => [...CONTACTS(), ...Array.from({ length: n - 3 }, (_, i) => ({ id: `x${i}`, name: `Extra Person${i}`, email: `x${i}@example.com`, relationshipCategory: "friend", relationship: "Friend", occasions: [] }))];
+
+test("group Send Now: one review with each person's gift and cost and the total; nothing runs until Send", async () => {
   await mount();
   await click(byText(".mode", "Send Now"));
   await click(occ("Birthday"));
-  await click(byText(".track button", "Family"));
   await click(byText(".track button", "Everyone"));
   await click($("[data-testid=gx-who-done]"));
-  assert.equal(state().cont.disabled, true);
-  assert.match($("[data-testid=gx-fine]").textContent, /arrives with group sending/);
-  assert.equal(globalThis.__nav.length, 0, "nothing navigates");
-  assert.equal(globalThis.__saves.length, 0, "nothing saves");
+  assert.match($("[data-testid=gx-fine]").textContent, /review each person.s gift and cost/);
+  await click(state().cont);
+  assert.ok($("[data-testid=gx-group-review]"), "the review opens");
+  assert.equal($$("[data-testid=grv-row]").length, 3);
+  await setValue($("[data-testid=grv-default-gift]"), "qrcash:25");
+  assert.match($("[data-testid=grv-total]").textContent, /Gifts \$75\.00 \+ fees \$8\.22 = \$83\.22/, "3 x ($25 + $1.99 + 3%)");
+  assert.match($("[data-testid=grv-total]").textContent, /saved/);
+  // individual override: Margaret gets no gift
+  await setValue(document.querySelector('[aria-label="Gift for Margaret Rivera"]'), "none");
+  assert.match($("[data-testid=grv-total]").textContent, /= \$55\.48/);
+  assert.equal(globalThis.__sends.length, 0, "nothing sent at review");
+  assert.equal(globalThis.__charges.length, 0, "nothing charged at review");
+  assert.match($("[data-testid=grv-rules]").textContent, /20 left; this group uses 3/);
+});
+
+test("group Send Now: Send charges only the QR Cash people (saved card) and sends each person once with its own key", async () => {
+  await mount();
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await click(byText(".track button", "Everyone"));
+  await click($("[data-testid=gx-who-done]"));
+  await click(state().cont);
+  await setValue($("[data-testid=grv-default-gift]"), "qrcash:25");
+  await setValue(document.querySelector('[aria-label="Gift for Margaret Rivera"]'), "none");
+  await click($("[data-testid=grv-send]"));
+  await settle();
+  assert.equal(globalThis.__sends.length, 3);
+  assert.equal(new Set(globalThis.__sends.map((p) => p.sendRequestId)).size, 3, "a separate stable key per person");
+  assert.equal(globalThis.__charges.length, 2);
+  assert.ok(globalThis.__charges.every((c) => c.useSavedPaymentMethod === true && !("paymentMethodId" in c)));
+  const m = globalThis.__sends.find((p) => p.contactId === "c2");
+  assert.equal(m.includeGift, false, "Margaret's override: no gift");
+  assert.equal(globalThis.__sends.find((p) => p.contactId === "c1").gift.claimToken, "ct-t@example.com", "each charged gift goes to its own person");
+  assert.ok(globalThis.__sends.every((p) => p.occasionType === "Birthday" && p.photos.length >= 0));
+  assert.equal($$("[data-testid=grv-status]").filter((e) => e.textContent === "Sent").length, 3);
+});
+
+test("group: the current rules decide — too few sends left blocks Send and says why", async () => {
+  await mount({ preflight: { ok: true, canSendGreeting: true, remaining: 2, sendLimitUnlimited: false, aiDaily: { limit: 5, used: 0, remaining: 5 } } });
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await click(byText(".track button", "Everyone"));
+  await click($("[data-testid=gx-who-done]"));
+  await click(state().cont);
+  assert.equal($("[data-testid=grv-send]").disabled, true);
+  assert.match($("[data-testid=grv-blockers]").textContent, /2 sends left; this group needs 3/);
+  // leaving one person out at review brings it within the rules (never dropped silently)
+  await click(document.querySelector('[aria-label="Leave out Daniel Okafor"]'));
+  assert.equal($("[data-testid=grv-send]").disabled, false);
+});
+
+test("group: QR Cash needs a saved card; without one the review says so and does not charge", async () => {
+  await mount({ card: null });
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await click(byText(".track button", "Everyone"));
+  await click($("[data-testid=gx-who-done]"));
+  await click(state().cont);
+  await setValue($("[data-testid=grv-default-gift]"), "qrcash:25");
+  assert.equal($("[data-testid=grv-send]").disabled, true);
+  assert.match($("[data-testid=grv-blockers]").textContent, /No saved card on file/);
+});
+
+test("group: a run-wide refusal stops the run, keeps the unsent people and offers to try the rest again", async () => {
+  await mount({ sendFail: { c2: { status: 429, code: "AI_DAILY_LIMIT", message: "You've reached today's limit." } } });
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await click(byText(".track button", "Everyone"));
+  await click($("[data-testid=gx-who-done]"));
+  await click(state().cont);
+  await click($("[data-testid=grv-send]"));
+  await settle();
+  assert.ok($("[data-testid=grv-stopped]"));
+  assert.deepEqual($$("[data-testid=grv-status]").map((e) => e.textContent), ["Sent", "Not sent", "Waiting"]);
+  assert.ok($("[data-testid=grv-retry]"));
+  assert.ok(JSON.parse(window.localStorage.getItem("gm_group_run_v1")), "the run is kept so it can be resumed");
+});
+
+test("group cap: an 11th person is refused with a reason; a category over 10 must be trimmed before continuing", async () => {
+  await mount({ contacts: many(13) });
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  for (const c of many(13).slice(0, 10)) await pickPerson(c.name);
+  assert.equal(state().picks.length, 10);
+  await pickPerson("Extra Person8");
+  assert.equal(state().picks.length, 10, "the 11th is refused");
+  assert.match(state().rule, /A group is up to 10 people/);
+  await click(byText(".track button", "Friends"));
+  await click($("[data-testid=gx-who-done]"));
+  assert.equal(state().cont.disabled, true, "11 friends: over the cap");
+  assert.match(state().rule, /Leave out 1 more to continue/);
+});
+
+test("S3: Schedule the Love for a group saves the occasion to each person's own scheduler; their saved gift is kept, others get the gift for everyone", async () => {
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday"));
+  await click(byText(".track button", "Everyone"));
+  await click($("[data-testid=gx-who-done]"));
+  const rows = $$("[data-testid=gx-group-row]");
+  assert.equal(rows.length, 3);
+  assert.equal(state().cont.disabled, true, "dates and gifts are needed for everyone");
+  await setValue($("[data-testid=gx-group-default-gift]"), "none");
+  await setValue($$("[data-testid=gx-group-row]")[1].querySelector("input"), "1960-02-11");
+  await setValue($$("[data-testid=gx-group-row]")[2].querySelector("input"), "1985-09-30");
+  assert.equal(state().cont.disabled, false);
+  await click(state().cont);
+  await settle();
+  assert.equal(globalThis.__saves.length, 3, "one save per person, through the existing endpoint");
+  const t = globalThis.__saves.find((x) => x.id === "c1").body;
+  assert.deepEqual(t.occasionGiftSettings.birthday, { type: "qrcash", autoGift: true, amount: 50 }, "Theresa's own saved gift is kept");
+  assert.deepEqual(globalThis.__saves.find((x) => x.id === "c2").body.occasionGiftSettings.birthday, { type: "none", autoGift: false });
+  assert.match($("[data-testid=gx-fine]").textContent, /Saved 3 of 3 scheduled Greet-Mes for Birthday/);
+  assert.equal(globalThis.__sends.length, 0, "scheduling sends nothing now");
+});
+
+test("S3: a person whose save needs the scheduler's card/consent step is listed, not saved silently; the others are saved", async () => {
+  await mount({ card: null });
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday"));
+  await click(byText(".track button", "Everyone"));
+  await click($("[data-testid=gx-who-done]"));
+  await setValue($("[data-testid=gx-group-default-gift]"), "none");
+  await setValue($$("[data-testid=gx-group-row]")[1].querySelector("input"), "1960-02-11");
+  await setValue($$("[data-testid=gx-group-row]")[2].querySelector("input"), "1985-09-30");
+  await click(state().cont);
+  await settle();
+  assert.equal(globalThis.__saves.length, 2, "Theresa (existing QR Cash Auto-Gift, no usable card) is not saved");
+  assert.equal(globalThis.__saves.some((x) => x.id === "c1"), false);
+  assert.match($("[data-testid=gx-fine]").textContent, /Saved 2 of 3.*1 needs their Occasion Scheduler/);
+  assert.ok($$("[data-testid=gx-group-row-status]").some((e) => /Needs their scheduler/.test(e.textContent)));
 });
 
 test("Send Now: one person + one occasion hands off to the existing send flow, with words and photos carried once", async () => {

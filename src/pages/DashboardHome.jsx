@@ -7,8 +7,9 @@
 //   * one recipient with several occasions (or Schedule the Love) is saved through that recipient's EXISTING
 //     Occasion Scheduler record — one scheduled Greet-Me per occasion, never a combined card — with the scheduler's
 //     own normalisation and authorisation step (utils/occasionResolver.js);
-//   * several recipients share one occasion; sending to them is the separate group-sending package, so Continue
-//     stays unavailable for a group in this build (deployment is held until that package ships).
+//   * several recipients (2-10) share one occasion. Send Now: one review (each person's gift and cost, the total,
+//     the current rules), then one EXISTING per-recipient send each (utils/groupSend.js). Schedule the Love: the
+//     occasion is saved to each person's own Occasion Scheduler (S3, utils/occasionResolver.js).
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
@@ -38,10 +39,14 @@ import { planAuthorization } from '../utils/scheduledQrCashConsent';
 import { SCHEDULED_QRCASH_AVAILABLE } from '../config/scheduledQrCash';
 import { normalizeGiftSettingsForSave } from '../utils/occasionGiftSave';
 import {
-  isSchedulerOccasion, prefillRow, chooseGift, rowComplete, buildResolverContact, finalizeResolverSave,
+  SCHEDULER_OCCASION_TYPES, isSchedulerOccasion, prefillRow, chooseGift, rowComplete, buildResolverContact, finalizeResolverSave,
   RESOLVER_GIFT_OPTIONS, resolverGiftLine, resolverGiftAmount,
 } from '../utils/occasionResolver';
 import { writeDashboardHandoff, HANDOFF_MAX_WORDS, HANDOFF_MAX_PHOTOS } from '../utils/dashboardSendHandoff';
+import { buildGreetingPayload } from '../utils/sendGreetingPayload';
+import { GROUP_MAX, loadRun, clearRun, runSummary } from '../utils/groupSend';
+import { saveGroupSchedules } from '../utils/occasionResolver';
+import GroupReview from '../components/dashboard/GroupReview';
 import { DASHBOARD_HOME_CSS } from './dashboardHomeStyles';
 import giftLuxuryBox from '../assets/gifts/gift-luxury-box.png';
 import giftBouquet from '../assets/gifts/gift-bouquet.png';
@@ -104,6 +109,7 @@ function initials(name) { return (name || '?').split(/\s+/).filter(Boolean).map(
 const AVATAR = ['#5A3E8A', '#7C63AE', '#4A3273', '#8A5A2B', '#3E5A7C', '#6B3E6B'];
 function avatarBg(name) { let h = 0; for (const c of name || '') h = (h * 31 + c.charCodeAt(0)) >>> 0; return AVATAR[h % AVATAR.length]; }
 const first = (n) => (n || '').split(' ')[0];
+const SCHEDULER_TYPE_OF = (label) => SCHEDULER_OCCASION_TYPES[label] || label;
 const labelForType = (type) => (occasionTypes.find((o) => o.value === type) || {}).label;
 const readAsDataUrl = (file) => new Promise((resolve, reject) => {
   const r = new FileReader(); r.onloadend = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(file);
@@ -255,6 +261,12 @@ export default function DashboardHome() {
   const [saveMsg, setSaveMsg] = useState(null);
   const [authModal, setAuthModal] = useState(null);
   const [authForm, setAuthForm] = useState(null);
+  // Group sending (2-10 people, one shared occasion).
+  const [groupReviewOpen, setGroupReviewOpen] = useState(false);
+  const [pendingRun, setPendingRun] = useState(() => { const r = loadRun(window.localStorage); return r && !runSummary(r).done ? r : null; });
+  const [resumeRun, setResumeRun] = useState(null);
+  const [groupDefaultGift, setGroupDefaultGift] = useState(null); // scheduled groups: the gift for everyone
+  const [groupResults, setGroupResults] = useState({}); // scheduled groups: per-person save outcome
   const memoryInputRef = useRef(null);
 
   // Saved voice playback (same sources the Media Library uses: the local copy, else the profile's voiceUrl).
@@ -296,11 +308,13 @@ export default function DashboardHome() {
   };
   const togglePick = (id) => {
     if (!picks.includes(id) && occasions.length > 1 && chosen.length >= 1) { setRuleNote('who'); return; }
+    if (!picks.includes(id) && picks.length >= GROUP_MAX) { setRuleNote('cap'); return; }
     setRuleNote(''); setSaveMsg(null); setPicks((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   };
   const pickFromHero = (c) => {
     if (audience !== 'one') { if (occasions.length > 1) { setRuleNote('who'); return; } }
     else if (!picks.includes(c.id) && occasions.length > 1 && picks.length >= 1) { setRuleNote('who'); return; }
+    else if (!picks.includes(c.id) && picks.length >= GROUP_MAX) { setRuleNote('cap'); return; }
     setRuleNote(''); setSaveMsg(null); setAudience('one'); setPicks((cur) => (cur.includes(c.id) ? cur : [...cur, c.id]));
   };
   const chooseAudience = (k) => {
@@ -312,7 +326,10 @@ export default function DashboardHome() {
   const occLocked = chosen.length > 1 && occasions.length >= 1;   // several people: no further occasions
   const whoLocked = occasions.length > 1;                          // several occasions: one person only
   const notSchedulable = mode === 'occasion' && occasions.find((o) => !isSchedulerOccasion(o));
-  const ruleText = ruleNote === 'occ' ? 'You’re sending to several people, so they share one occasion. Remove people to add more occasions.'
+  const overCap = chosen.length > GROUP_MAX;
+  const ruleText = ruleNote === 'cap' ? `A group is up to ${GROUP_MAX} people.`
+    : overCap ? `A group is up to ${GROUP_MAX} people. Leave out ${chosen.length - GROUP_MAX} more to continue.`
+    : ruleNote === 'occ' ? 'You’re sending to several people, so they share one occasion. Remove people to add more occasions.'
     : ruleNote === 'who' || ruleNote === 'group' ? 'Several occasions go to one person. To send to several people, keep just one occasion.'
       : ruleNote.startsWith('sched:') ? `${ruleNote.slice(6)} is sent on its own with Send Now. Several occasions for one person are scheduled in their Occasion Scheduler: Birthday, Anniversary and Christmas.`
         : notSchedulable ? `${notSchedulable} can’t be scheduled in the Occasion Scheduler. Choose Send Now, or Birthday, Anniversary or Christmas.`
@@ -338,6 +355,52 @@ export default function DashboardHome() {
   const rowOf = (o) => (resolvePerson && rows[`${resolvePerson.id}:${o}`]) || null;
   const setRow = (o, patch) => { setSaveMsg(null); setRows((cur) => ({ ...cur, [`${resolvePerson.id}:${o}`]: { ...cur[`${resolvePerson.id}:${o}`], ...patch } })); };
   const resolverComplete = !resolverOn || occasions.every((o) => rowComplete(rowOf(o)));
+
+  // S3: Schedule the Love for a group - one shared scheduler occasion, one row per person. Each person's own saved
+  // gift is kept (an individual setting); otherwise the gift for everyone; any row can be changed.
+  const groupSchedOn = chosen.length >= 2 && !overCap && mode === 'occasion' && occasions.length === 1 && isSchedulerOccasion(occasions[0]);
+  useEffect(() => {
+    if (!groupSchedOn) return;
+    setRows((cur) => {
+      const next = { ...cur };
+      chosen.forEach((p) => { const k = `${p.id}:${occasions[0]}`; if (!next[k]) next[k] = prefillRow(p, occasions[0]); });
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupSchedOn, chosen.map((p) => p.id).join('|'), occasions.join('|')]);
+  const groupRowOf = (p) => {
+    const r = rows[`${p.id}:${occasions[0]}`] || { type: undefined, date: '', gift: null };
+    return { ...r, gift: r.chosen || r.gift || groupDefaultGift || null };
+  };
+  const setGroupRow = (p, patch) => { setSaveMsg(null); setGroupResults({}); setRows((cur) => ({ ...cur, [`${p.id}:${occasions[0]}`]: { ...cur[`${p.id}:${occasions[0]}`], ...patch } })); };
+  const groupSchedComplete = !groupSchedOn || chosen.every((p) => rowComplete(groupRowOf(p)));
+
+  const saveGroupSchedulesNow = async () => {
+    if (!groupSchedOn || !groupSchedComplete || saving) return;
+    setSaving(true); setSaveMsg(null); setGroupResults({});
+    try {
+      const people = chosen.slice();
+      let card; // fetched once, only if a QR Cash Auto-Gift is involved
+      const plan = SCHEDULED_QRCASH_AVAILABLE ? async (person, toSave) => {
+        const settings = normalizeGiftSettingsForSave(toSave.occasionGiftSettings);
+        if (card === undefined && Object.values(settings || {}).some((g) => g && g.type === 'qrcash' && g.autoGift === true)) {
+          try { const r = await api.getQrCashCardStatus(); card = (r && r.card) || null; } catch { card = null; }
+        }
+        return planAuthorization({ settings, initialSettings: person.occasionGiftSettings, occasions: toSave.occasions, card: card || null, formData: toSave, labelFor: labelForType, requiresDelivery: requiresDeliveryAddress }).need;
+      } : null;
+      const results = await saveGroupSchedules({
+        people, rowFor: (p) => groupRowOf(p), api, sanitize: sanitizeRelationshipForSave, plan,
+        onProgress: (rs) => setGroupResults(Object.fromEntries(rs.map((x) => [x.id, x]))),
+      });
+      const saved = results.filter((x) => x.status === 'saved').length;
+      const needs = results.filter((x) => x.status === 'needs_scheduler').length;
+      const failed = results.filter((x) => x.status === 'failed').length;
+      setSaveMsg({ ok: failed === 0 && needs === 0, text: `Saved ${saved} of ${results.length} scheduled Greet-Mes for ${occasions[0]}.${needs ? ` ${needs} need${needs === 1 ? 's' : ''} their Occasion Scheduler (card, consent or address): open it from the row.` : ''}${failed ? ` ${failed} couldn\u2019t be saved; see the row.` : ''}` });
+      if (saved) { showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE); fetchDashboardData(); }
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const commitSchedules = async (person, toSave, consents = []) => {
     const res = await api.updateContact(person.id, finalizeResolverSave(toSave, consents));
@@ -400,11 +463,18 @@ export default function DashboardHome() {
 
   const isGroup = chosen.length > 1;
   const sendNowSingle = mode === 'now' && chosen.length === 1 && occasions.length === 1;
-  const canContinue = step1Done && step2Done && !isGroup && !notSchedulable && (resolverOn ? resolverComplete && !saving : sendNowSingle);
+  const sendNowGroup = mode === 'now' && isGroup && !overCap && occasions.length === 1;
+  const canContinue = step1Done && step2Done && !overCap && !notSchedulable && !saving && (
+    resolverOn ? resolverComplete
+      : groupSchedOn ? groupSchedComplete
+        : sendNowGroup ? true
+          : sendNowSingle);
 
   const handoff = () => {
     if (!canContinue) return;
     if (resolverOn) { saveSchedules(); return; }
+    if (groupSchedOn) { saveGroupSchedulesNow(); return; }
+    if (sendNowGroup) { setResumeRun(null); setGroupReviewOpen(true); return; }
     const person = chosen[0];
     const occasion = occasions[0];
     const carried = writeDashboardHandoff(window.sessionStorage, { contactId: person.id, occasion, words, memoryPhotos });
@@ -422,7 +492,9 @@ export default function DashboardHome() {
     : [mode === 'now' ? 'Send Now' : 'Schedule the Love', occLabel, whoLabel, gift && !resolverOn ? `${gift === 'qrcash' ? 'QR Cash' : 'gift'}${chosen.length > 1 ? ' for everyone · change per person at review' : ''}` : null].filter(Boolean).join(' · ');
   const fineText = saveMsg ? saveMsg.text
     : giftNote && resolverOn ? giftNote
-    : isGroup ? 'Sending to several people arrives with group sending.'
+    : overCap ? `A group is up to ${GROUP_MAX} people.`
+      : groupSchedOn ? (groupSchedComplete ? `Each person\u2019s ${occasions[0]} is saved as their own scheduled Greet-Me in their Occasion Scheduler.` : 'Set a date and a gift choice for everyone to continue.')
+        : sendNowGroup ? 'Next: review each person\u2019s gift and cost. Nothing is charged or sent until you confirm.'
       : resolverOn ? (resolverComplete ? 'Each occasion is saved as its own scheduled Greet-Me in their Occasion Scheduler.' : 'Set a date and a gift choice for every occasion to continue.')
         : mode === 'occasion' ? 'Nothing is scheduled until you save it.'
           : 'Next: the send flow, where you review it. Nothing is sent, and no gift is charged, until you confirm there.';
@@ -511,6 +583,14 @@ export default function DashboardHome() {
             <p>You review everything, and pay for any gift, before anything is sent.</p>
           </div>
 
+          {pendingRun ? (
+            <div className="warn" data-testid="gx-group-resume" style={{ marginTop: 14 }}>
+              <AlertCircle size={16} style={{ flex: 'none', marginTop: 2 }} />
+              <span style={{ flex: 1 }}>An unfinished group send for {pendingRun.occasion}: {runSummary(pendingRun).sent} of {runSummary(pendingRun).total} sent. Nobody is sent twice if you continue.</span>
+              <button type="button" className="btn btn-sm btn-primary" style={{ height: 34 }} data-testid="gx-group-resume-btn" onClick={() => { setResumeRun(pendingRun); setGroupReviewOpen(true); }}>Resume</button>
+              <button type="button" className="link" onClick={() => { clearRun(window.localStorage); setPendingRun(null); }}>Dismiss</button>
+            </div>
+          ) : null}
           <div className="modes top" data-testid="gx-modes">
             <button type="button" className="mode" aria-pressed={mode === 'now'} onClick={() => { setSaveMsg(null); setMode('now'); }}>
               <span className="ico"><Zap size={20} /></span>
@@ -541,7 +621,7 @@ export default function DashboardHome() {
                 ) : null}
               </span>
             </div>
-            <p className={`rule ${ruleNote || notSchedulable ? 'warn2' : ''}`} data-testid="gx-rule" role="status" aria-live="polite">{ruleText}</p>
+            <p className={`rule ${ruleNote || notSchedulable || overCap ? 'warn2' : ''}`} data-testid="gx-rule" role="status" aria-live="polite">{ruleText}</p>
           </div>
 
           <div className="step" data-testid="gx-step-2">
@@ -635,7 +715,8 @@ export default function DashboardHome() {
 
             {/* Inline date-and-gift resolver: fixed height, scrolls inside; nothing collapses and no series of modals. */}
             <div className="resolver" data-testid="gx-resolver">
-              <div className="rhead"><span className="mini">Dates &amp; gifts</span>{resolverOn ? <span className="sub" style={{ marginTop: 0 }}>{occasions.length} occasion{occasions.length === 1 ? '' : 's'} for {first(resolvePerson.name)} · each is its own scheduled Greet-Me</span> : null}</div>
+              <div className="rhead"><span className="mini">Dates &amp; gifts</span>{resolverOn ? <span className="sub" style={{ marginTop: 0 }}>{occasions.length} occasion{occasions.length === 1 ? '' : 's'} for {first(resolvePerson.name)} · each is its own scheduled Greet-Me</span>
+                : groupSchedOn ? <span className="sub" style={{ marginTop: 0 }}>{occasions[0]} for {chosen.length} people · each is their own scheduled Greet-Me</span> : null}</div>
               {resolverOn && mode === 'now' ? <p className="rnote" data-testid="gx-resolver-sendnow">You chose Send Now. Several occasions can&rsquo;t go in one card, so each one is scheduled separately for its own date. Nothing is sent now; your Send Now choice is unchanged.</p> : null}
               {resolverOn ? (
                 <div className="rrows">
@@ -656,7 +737,38 @@ export default function DashboardHome() {
                   })}
                 </div>
               ) : (
-                <p className="rempty">When one person has several occasions, set each occasion&rsquo;s date and gift here. Each becomes its own scheduled Greet-Me; nothing is combined.</p>
+                groupSchedOn ? (
+                  <>
+                    <label className="rgroupdefault">
+                      <span className="fieldlabel">Gift for everyone</span>
+                      <select data-testid="gx-group-default-gift" aria-label="Gift for everyone" value={groupDefaultGift ? groupDefaultGift.type : ''} onChange={(e) => { setSaveMsg(null); setGroupResults({}); setGroupDefaultGift(e.target.value ? chooseGift({ gift: null }, e.target.value) : null); }} className="rgift">
+                        {RESOLVER_GIFT_OPTIONS.map(([v, t]) => <option key={v} value={v} disabled={v === ''}>{t}</option>)}
+                      </select>
+                    </label>
+                    <div className="rrows">
+                      {chosen.map((p) => {
+                        const r = groupRowOf(p);
+                        const raw = rows[`${p.id}:${occasions[0]}`] || {};
+                        const ok = rowComplete(r);
+                        const res = groupResults[p.id];
+                        return (
+                          <div className="rrow" key={p.id} data-testid="gx-group-row">
+                            <span className={`num ${ok ? 'done' : ''}`} style={{ width: 22, height: 22 }}>{ok ? <Check size={12} /> : ''}</span>
+                            <span className="rname">{p.name}{raw.prefilled ? <span className="rpre">saved</span> : null}{res ? <span className={`tag ${res.status === 'saved' ? 'ok' : res.status === 'failed' ? 'muted' : 'amber'}`} data-testid="gx-group-row-status">{res.status === 'saved' ? 'Saved' : res.status === 'failed' ? 'Not saved' : 'Needs their scheduler'}</span> : null}</span>
+                            <input type="date" aria-label={`${p.name} ${occasions[0]} date`} value={r.date || ''} onChange={(e) => setGroupRow(p, { date: e.target.value })} className="rdate" />
+                            <select aria-label={`${p.name} gift`} value={raw.chosen ? raw.chosen.type : 'default'} onChange={(e) => setGroupRow(p, { chosen: e.target.value === 'default' ? null : chooseGift({ gift: raw.gift }, e.target.value) })} className="rgift">
+                              <option value="default">{raw.gift ? `Keep their saved gift (${(RESOLVER_GIFT_OPTIONS.find(([v]) => v === raw.gift.type) || [null, raw.gift.type])[1]})` : groupDefaultGift ? 'Same as everyone' : 'Choose a gift…'}</option>
+                              {RESOLVER_GIFT_OPTIONS.filter(([v]) => v !== '').map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                            </select>
+                            <span className="rline">{res && res.status === 'failed' ? res.message : null}{res && res.status === 'needs_scheduler' ? 'This save needs their card, consent or address step. ' : null}{r.gift && r.gift.type === 'qrcash' ? <b>{resolverGiftAmount(r.gift) !== null ? `QR Cash $${resolverGiftAmount(r.gift)} · ` : 'QR Cash · '}</b> : null}{!res || res.status === 'saved' ? resolverGiftLine(r.gift) : null}{r.gift && r.gift.type !== 'none' || (res && res.status === 'needs_scheduler') ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(p.id, SCHEDULER_TYPE_OF(occasions[0]))}>Gift details in their Occasion Scheduler</button></> : null}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <p className="rempty">When one person has several occasions, set each occasion&rsquo;s date and gift here. Each becomes its own scheduled Greet-Me; nothing is combined.</p>
+                )
               )}
             </div>
             <div className="donerow">
@@ -754,7 +866,9 @@ export default function DashboardHome() {
               <div className={`fine ${saveMsg && !saveMsg.ok ? 'saveerr' : ''}`} data-testid="gx-fine" role="status" aria-live="polite">{fineText}</div>
             </div>
             <button type="button" className="btn btn-primary" data-testid="gx-continue" disabled={!canContinue} onClick={handoff}>
-              {resolverOn ? <><CalendarDays size={18} /> {saving ? 'Saving…' : `Review and save schedule${occasions.length === 1 ? '' : 's'}`}</> : <><Send size={18} /> Continue to review</>}
+              {resolverOn ? <><CalendarDays size={18} /> {saving ? 'Saving…' : `Review and save schedule${occasions.length === 1 ? '' : 's'}`}</>
+                : groupSchedOn ? <><CalendarDays size={18} /> {saving ? 'Saving…' : `Review and save ${chosen.length} schedules`}</>
+                  : <><Send size={18} /> Continue to review</>}
             </button>
           </div>
         </section>
@@ -860,6 +974,25 @@ export default function DashboardHome() {
             )}
           </div>
         </section>
+
+        {groupReviewOpen ? (
+          <GroupReview
+            recipients={resumeRun ? resumeRun.items.map((it) => ({ id: it.contactId, name: it.name, email: it.email })) : chosen}
+            occasion={resumeRun ? resumeRun.occasion : occasions[0]}
+            words={resumeRun ? resumeRun.words : words}
+            defaultGiftChoice={gift === 'qrcash' ? { type: 'qrcash', amount: 25 } : gift === 'gift' ? { type: 'other' } : null}
+            senderPhotoMissing={!photoDone}
+            initialRun={resumeRun}
+            buildPayload={(item, run) => {
+              const contact = contacts.find((c) => c.id === item.contactId);
+              if (!contact) return null;
+              // Each card uses that person's own saved memory photos; photos added on this page are for single sends.
+              return buildGreetingPayload({ user, contact, formData: { occasionType: run.occasion, customMessage: run.words, tone: 'warm' }, memoryPhotos: [], useMemoryPhotos: true, excludedMemoryPhotos: new Set(), giftSettings: null, maxPhotos: HANDOFF_MAX_PHOTOS });
+            }}
+            onClose={() => { setGroupReviewOpen(false); setResumeRun(null); const r = loadRun(window.localStorage); setPendingRun(r && !runSummary(r).done ? r : null); }}
+            onDone={() => { setPendingRun(null); fetchDashboardData(); }}
+          />
+        ) : null}
 
         {/* Mobile App QR Code — home-screen install panel */}
         <section className="card install" data-testid="gx-install">

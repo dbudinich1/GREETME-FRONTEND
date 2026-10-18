@@ -136,3 +136,41 @@ export function finalizeResolverSave(toSave, consents = []) {
     ...(consents.length > 0 ? { occasionGiftConsents: consents } : {}),
   };
 }
+
+/**
+ * S3 — scheduled group save: ONE shared scheduler occasion saved to each selected person's own Occasion Scheduler
+ * record, one person at a time, through the same full-record save as above. A person whose save needs the
+ * scheduler's own authorisation step (consent or card for an existing QR Cash Auto-Gift, or an address for a shipped
+ * gift) is NOT saved here: they are reported as needing their Occasion Scheduler, so nothing is consented or
+ * authorised silently and the sender never meets a series of modals. Nobody is dropped without being reported.
+ *
+ * @param {object}   p
+ * @param {object[]} p.people        the selected recipient records (2-10)
+ * @param {(person) => object} p.rowFor   the person's resolver row { type, date, gift }
+ * @param {object}   p.api           { updateContact }
+ * @param {(o) => object} p.sanitize sanitizeRelationshipForSave
+ * @param {(person, toSave) => Promise<{consent?:boolean,address?:boolean}|null>} [p.plan] the scheduler's planAuthorization
+ * @param {(results) => void} [p.onProgress]
+ * @returns {Promise<Array<{id:string,status:'saved'|'needs_scheduler'|'failed',message?:string,need?:object}>>}
+ */
+export async function saveGroupSchedules({ people, rowFor, api, sanitize, plan, onProgress = () => {} }) {
+  const results = [];
+  for (const person of people) {
+    try {
+      const row = rowFor(person);
+      if (!rowComplete(row)) { results.push({ id: person.id, status: 'failed', message: 'A date and a gift choice are needed.' }); onProgress(results.slice()); continue; }
+      const toSave = sanitize(buildResolverContact(person, [row]));
+      const need = plan ? await plan(person, toSave) : null;
+      if (need && (need.consent || need.address)) { results.push({ id: person.id, status: 'needs_scheduler', need }); onProgress(results.slice()); continue; }
+      const res = await api.updateContact(person.id, finalizeResolverSave(toSave));
+      if (res && res.ok === false) {
+        throw new Error(res.networkError ? 'We couldn’t save — check your connection and try again.' : (res.error || res.message || 'We couldn’t save this schedule.'));
+      }
+      results.push({ id: person.id, status: 'saved' });
+    } catch (e) {
+      results.push({ id: person.id, status: 'failed', message: (e && e.message) || 'We couldn’t save this schedule.' });
+    }
+    onProgress(results.slice());
+  }
+  return results;
+}

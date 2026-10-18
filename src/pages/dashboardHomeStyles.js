@@ -237,6 +237,26 @@ export const DASHBOARD_HOME_CSS = `
 .gx .mthumb button { position:absolute; top:2px; right:2px; width:20px; height:20px; min-height:0; border-radius:50%; border:none; padding:0; background:rgba(44,29,70,.75); color:#fff; display:grid; place-items:center; cursor:pointer; }
 .gx .saveerr { color:#9b1c1c; }
 .gx .rmore { grid-column:2 / -1; justify-self:start; }
+.gx .rgroupdefault { display:grid; grid-template-columns:auto minmax(0,220px); gap:6px 10px; align-items:center; margin-top:8px; }
+.gx .grv-backdrop { position:fixed; inset:0; z-index:2500; background:rgba(44,29,70,.45); display:grid; place-items:center; padding:16px; }
+.gx .grv { width:100%; max-width:720px; max-height:calc(100vh - 32px); overflow:auto; background:#fff; border-radius:24px; border:1px solid var(--line); box-shadow:0 30px 70px -30px rgba(44,29,70,.6); padding:22px 24px; display:grid; gap:14px; }
+.gx .grv-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.gx .grv-head h2 { font-size:24px; margin-top:4px; }
+.gx .grv-rules { display:grid; gap:6px; font-size:14px; color:var(--body); background:var(--p50); border:1px solid var(--p100); border-radius:16px; padding:12px 14px; }
+.gx .grv-rules > div { display:flex; gap:8px; align-items:flex-start; }
+.gx .grv-default { display:grid; grid-template-columns:auto minmax(0,220px); gap:6px 12px; align-items:center; }
+.gx .grv-default .sub { grid-column:1 / -1; margin-top:0; }
+.gx .grv select { height:38px; border:1px solid var(--p200); border-radius:10px; padding:0 8px; font:14px var(--sans); color:var(--ink); background:#fff; min-width:0; width:100%; }
+.gx .grv-list { display:grid; gap:8px; max-height:320px; overflow:auto; padding-right:4px; }
+.gx .grv-row { display:grid; grid-template-columns:auto minmax(0,1fr) minmax(0,190px) minmax(0,150px); gap:8px 12px; align-items:center; border:1px solid var(--line); border-radius:14px; padding:8px 12px; background:var(--ivory); }
+.gx .grv-row.out { opacity:.55; }
+.gx .grv-row .box { cursor:pointer; padding:0; min-height:0; }
+.gx .grv-who { min-width:0; display:grid; }
+.gx .grv-who b { font:600 14.5px var(--sans); color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gx .grv-who span { font-size:12.5px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gx .grv-cost { font-size:13px; color:var(--body); text-align:right; }
+.gx .grv-total { display:grid; gap:2px; font:600 15px var(--sans); color:var(--ink); border-top:1px solid var(--line); padding-top:10px; }
+.gx .grv-actions { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
 @keyframes gxIn { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:none; } }
 @media (prefers-reduced-motion: reduce) { .gx *, .gx *::after { transition:none !important; animation:none !important; } }
 @media (max-width: 900px) {
@@ -285,6 +305,11 @@ export const DASHBOARD_HOME_CSS = `
   .gx .tabact { width:100%; justify-content:flex-end; }
   .gx .tabbody { height:440px; }
   .gx .moments { height:135px; }
+  .gx .rgroupdefault, .gx .grv-default { grid-template-columns:minmax(0,1fr); }
+  .gx .grv { padding:16px; border-radius:20px; }
+  .gx .grv-row { grid-template-columns:auto minmax(0,1fr); }
+  .gx .grv-row select, .gx .grv-row .grv-cost, .gx .grv-row .tag { grid-column:2 / -1; text-align:left; justify-self:start; }
+  .gx .grv-actions .btn-primary { width:100%; }
   .gx .resolver { height:330px; padding:10px; }
   .gx .rrow { grid-template-columns:auto 1fr; }
   .gx .rdate, .gx .rgift, .gx .rline { grid-column:1 / -1; }
