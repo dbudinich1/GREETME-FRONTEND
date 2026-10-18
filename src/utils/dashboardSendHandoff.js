@@ -34,6 +34,7 @@ const HANDOFF_MAX_AGE_MS = 30 * 60 * 1000;
 export const HANDOFF_MAX_WORDS = 280;      // the send flow's personal-message limit
 export const HANDOFF_MAX_PHOTOS = 8;       // the send flow's MAX_MEMORY_PHOTOS
 
+/** Returns 'all' (everything carried), 'words' (photos did not fit) or 'none'. */
 export function writeDashboardHandoff(storage, { contactId, occasion, words, memoryPhotos }, now = Date.now()) {
   const payload = {
     contactId: String(contactId),
@@ -43,11 +44,18 @@ export function writeDashboardHandoff(storage, { contactId, occasion, words, mem
     at: now,
   };
   try {
-    if (!payload.words.trim() && payload.memoryPhotos.length === 0) { storage.removeItem(DASHBOARD_HANDOFF_KEY); return true; }
+    if (!payload.words.trim() && payload.memoryPhotos.length === 0) { storage.removeItem(DASHBOARD_HANDOFF_KEY); return 'all'; }
     storage.setItem(DASHBOARD_HANDOFF_KEY, JSON.stringify(payload));
-    return true;
+    return 'all';
   } catch {
-    return false; // storage full or unavailable: the caller tells the sender their words/photos were not carried
+    // Storage full (large photos): keep the words at least.
+    try {
+      if (!payload.words.trim()) return 'none';
+      storage.setItem(DASHBOARD_HANDOFF_KEY, JSON.stringify({ ...payload, memoryPhotos: [] }));
+      return 'words';
+    } catch {
+      return 'none'; // storage unavailable: the caller tells the sender what was not carried
+    }
   }
 }
 

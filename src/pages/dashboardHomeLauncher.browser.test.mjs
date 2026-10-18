@@ -113,10 +113,12 @@ const UPCOMING = () => [
   { occasionId: "u2", contactId: "c2", contactName: "Margaret Rivera", occasionType: "mothers_day", date: iso(12), daysUntil: 12, autoSend: false, scheduleStatus: null },
   { occasionId: "u3", contactId: "c3", contactName: "Daniel Okafor", occasionType: "anniversary", date: iso(20), daysUntil: 20, autoSend: true, scheduleStatus: null },
   { occasionId: "u4", contactId: "c2", contactName: "Margaret Rivera", occasionType: "birthday", date: iso(30), daysUntil: 30, autoSend: true, scheduleStatus: "cancelled" },
+  { occasionId: "u5", contactId: "c3", contactName: "Daniel Okafor", occasionType: "christmas", date: iso(40), daysUntil: 40, autoSend: true, scheduleStatus: "skipped_permanent" },
+  { occasionId: "u6", contactId: "c1", contactName: "Theresa Morgan", occasionType: "anniversary", date: iso(50), daysUntil: 50, autoSend: true, scheduleStatus: "paused" },
 ];
 const SENT = () => [
   { id: "s1", recipientName: "Priya Shah", occasionType: "graduation", createdAt: "2026-10-01T10:00:00Z", completedAt: "2026-10-02T10:00:00Z", status: "completed" },
-  { id: "s2", recipientName: "Sam Whitaker", occasionType: "Thank You", createdAt: "2026-10-05T10:00:00Z", completedAt: null, status: "failed" },
+  { id: "s2", recipientName: "Sam Whitaker", occasionType: "thankyou", createdAt: "2026-10-05T10:00:00Z", completedAt: null, status: "failed" },
 ];
 
 const settle = async () => { for (let i = 0; i < 4; i++) await act(async () => { await new Promise((r) => setTimeout(r, 0)); }); };
@@ -292,6 +294,18 @@ test("resolver save: PUT /api/contacts/:id with the FULL record; other data unto
   assert.equal(globalThis.__nav.length, 0, "the screen stays put");
 });
 
+test("in scheduled mode the carousel gift does not pretend: each occasion's gift is set under Dates & gifts", async () => {
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday"));
+  await pickPerson("Theresa");
+  await click($("[data-testid=gx-who-done]"));
+  await click($("[data-testid=gx-add-gift]"));
+  assert.equal($("[data-testid=gx-add-gift]").getAttribute("aria-pressed"), "false", "not marked chosen");
+  assert.doesNotMatch($("[data-testid=gx-summary]").textContent, /gift/);
+  assert.match($("[data-testid=gx-fine]").textContent, /choose each occasion.s gift under Dates & gifts/);
+});
+
 test("resolver save refused by the server: the error is shown and nothing claims success", async () => {
   await mount({ saveResult: { ok: false, error: "Occasion type 'getwell' is missing a required date" } });
   await click(byText(".mode", "Schedule the Love"));
@@ -355,6 +369,9 @@ test("Upcoming: real statuses; no schedule -> 'Auto-send on' or 'Schedule the Lo
   assert.ok(rows[1].querySelector("[data-testid=gx-up-schedule]"), "no schedule and auto-send off: the action");
   assert.ok(rows[2].querySelector("[data-testid=gx-up-auto]"), "no schedule yet, auto-send on");
   assert.equal(rows[3].textContent.includes("Cancelled"), true);
+  assert.equal(rows[4].textContent.includes("Not sent"), true, "skipped_* reads Not sent, not Preparing");
+  assert.equal(rows[5].textContent.includes("Paused"), true);
+  assert.equal(document.querySelector("[data-testid=gx-tabbody]").textContent.includes("Preparing"), false);
   await click(rows[1].querySelector("[data-testid=gx-up-schedule]"));
   assert.equal(globalThis.__nav.at(-1).to, "/dashboard/contacts?contactId=c2&occasion=mothers_day");
 });
@@ -366,6 +383,7 @@ test("Past Occasions: dates from completedAt/createdAt; statuses Sent / Not sent
   assert.equal(rows.length, 2);
   assert.match(rows[0].textContent, /Oct 2/); assert.match(rows[0].textContent, /Sent/);
   assert.match(rows[1].textContent, /Oct 5/); assert.match(rows[1].textContent, /Not sent/);
+  assert.match(rows[1].textContent, /Thank You/, "a stored key reads with the send flow's label");
 });
 
 test("Recipients: edit pencil opens that recipient's existing edit form", async () => {

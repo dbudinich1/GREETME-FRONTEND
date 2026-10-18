@@ -60,6 +60,10 @@ const OCCASION_STATUS_LABELS = {
   skipped: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
   failed: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
   cancelled: { text: 'Cancelled', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
+  paused: { text: 'Paused', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
+  skipped_transient: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
+  skipped_permanent: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
+  skipped_terminal: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
 };
 // Past Occasions: the backend's greeting statuses. "completed" is set once the recipient email is sent, so it reads
 // "Sent" — not "Delivered", which nothing in the system confirms.
@@ -93,7 +97,9 @@ const AUDIENCES = [
 const SENDER_PHOTO_REQUIRED_MESSAGE = 'Every Greet-Me includes your photo so the recipient knows it is from you. Add a profile photo to send — your greeting stays saved while you do.';
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 
-const OCC_LABEL = (t) => (t || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).replace('Mothers Day', "Mother's Day").replace('Fathers Day', "Father's Day").replace('Getwell', 'Get Well');
+// Occasion keys the backend stores for sends (occasionKey) shown with the send flow's own labels.
+const OCC_KEY_LABELS = { thankyou: 'Thank You', thank_you: 'Thank You', congrats: 'Congratulations', just_because: 'Just Because', holiday: "Season's Greetings", baby: 'Baby', general: 'Thinking of You' };
+const OCC_LABEL = (t) => OCC_KEY_LABELS[t] || (t || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).replace('Mothers Day', "Mother's Day").replace('Fathers Day', "Father's Day").replace('Getwell', 'Get Well');
 function initials(name) { return (name || '?').split(/\s+/).filter(Boolean).map((s) => s[0]).slice(0, 2).join('').toUpperCase() || '?'; }
 const AVATAR = ['#5A3E8A', '#7C63AE', '#4A3273', '#8A5A2B', '#3E5A7C', '#6B3E6B'];
 function avatarBg(name) { let h = 0; for (const c of name || '') h = (h * 31 + c.charCodeAt(0)) >>> 0; return AVATAR[h % AVATAR.length]; }
@@ -243,6 +249,7 @@ export default function DashboardHome() {
   const [whoDone, setWhoDone] = useState(false);
   const [persDone, setPersDone] = useState(false);
   const [ruleNote, setRuleNote] = useState('');
+  const [giftNote, setGiftNote] = useState('');
   const [rows, setRows] = useState({});
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
@@ -401,7 +408,8 @@ export default function DashboardHome() {
     const person = chosen[0];
     const occasion = occasions[0];
     const carried = writeDashboardHandoff(window.sessionStorage, { contactId: person.id, occasion, words, memoryPhotos });
-    if (!carried) showManualToast('Not carried over', 'Your words and photos couldn’t be carried to the next step on this device. You can add them there.', COMMS_CATEGORIES.SYSTEM);
+    if (carried === 'words') showManualToast('Photos not carried over', 'Your memory photos were too large to carry to the next step on this device. You can add them there.', COMMS_CATEGORIES.SYSTEM);
+    else if (carried === 'none' && (words.trim() || memoryPhotos.length)) showManualToast('Not carried over', 'Your words and photos couldn’t be carried to the next step on this device. You can add them there.', COMMS_CATEGORIES.SYSTEM);
     const p = new URLSearchParams({ contactId: person.id, occasion, from: 'dashboard' });
     if (gift === 'qrcash') p.set('giftType', 'qrcash');
     else if (gift === 'gift') p.set('gift', 'choose');
@@ -411,8 +419,9 @@ export default function DashboardHome() {
   const occLabel = occasions.length === 0 ? 'no occasion yet' : occasions.length <= 2 ? occasions.join(' + ') : `${occasions.length} occasions`;
   const whoLabel = chosen.length === 0 ? 'no one yet' : chosen.length === 1 ? first(chosen[0].name) : `${chosen.length} people`;
   const summary = !mode ? 'Choose Send Now or Schedule the Love'
-    : [mode === 'now' ? 'Send Now' : 'Schedule the Love', occLabel, whoLabel, gift ? `${gift === 'qrcash' ? 'QR Cash' : 'gift'}${chosen.length > 1 ? ' for everyone · change per person at review' : ''}` : null].filter(Boolean).join(' · ');
+    : [mode === 'now' ? 'Send Now' : 'Schedule the Love', occLabel, whoLabel, gift && !resolverOn ? `${gift === 'qrcash' ? 'QR Cash' : 'gift'}${chosen.length > 1 ? ' for everyone · change per person at review' : ''}` : null].filter(Boolean).join(' · ');
   const fineText = saveMsg ? saveMsg.text
+    : giftNote && resolverOn ? giftNote
     : isGroup ? 'Sending to several people arrives with group sending.'
       : resolverOn ? (resolverComplete ? 'Each occasion is saved as its own scheduled Greet-Me in their Occasion Scheduler.' : 'Set a date and a gift choice for every occasion to continue.')
         : mode === 'occasion' ? 'Nothing is scheduled until you save it.'
@@ -724,11 +733,15 @@ export default function DashboardHome() {
           </div>
 
           <div className="giftband" id="gx-gifts" data-testid="gx-step-4">
-            <StepHead n={4} label="Add a gift (optional)" isDone={Boolean(gift)} />
+            <StepHead n={4} label="Add a gift (optional)" isDone={Boolean(gift) && !resolverOn} />
             <GiftCarousel
-              chosen={gift}
+              chosen={resolverOn ? null : gift}
               smartCardAvailable={smartCardAvailable}
-              onAdd={(g) => setGift((cur) => (cur === g ? null : g))}
+              onAdd={(g) => {
+                // Scheduled Greet-Mes take each occasion's gift from Dates & gifts (the Occasion Scheduler's own choice).
+                if (resolverOn) { setGiftNote('For scheduled Greet-Mes, choose each occasion’s gift under Dates & gifts above.'); return; }
+                setGiftNote(''); setGift((cur) => (cur === g ? null : g));
+              }}
               onQuickGift={quickGift}
               onLearnQr={() => setShowHowItWorksModal(true)}
             />

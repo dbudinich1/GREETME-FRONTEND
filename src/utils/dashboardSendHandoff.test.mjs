@@ -31,7 +31,7 @@ test("matchSendOccasion returns the page's own option, case-insensitively, or ''
 
 test("hand-off is read once, only for the same recipient and occasion", () => {
   const s = memStorage();
-  assert.equal(writeDashboardHandoff(s, { contactId: "c1", occasion: "Birthday", words: "Happy day", memoryPhotos: ["data:a", "data:b"] }, 1000), true);
+  assert.equal(writeDashboardHandoff(s, { contactId: "c1", occasion: "Birthday", words: "Happy day", memoryPhotos: ["data:a", "data:b"] }, 1000), "all");
   assert.equal(takeDashboardHandoff(s, { contactId: "c2", occasion: "Birthday" }, 2000), null, "another recipient never receives it");
   assert.equal(s.getItem(DASHBOARD_HANDOFF_KEY), null, "and it is removed even on a mismatch");
   writeDashboardHandoff(s, { contactId: "c1", occasion: "Birthday", words: "Happy day", memoryPhotos: ["data:a"] }, 1000);
@@ -55,7 +55,15 @@ test("limits match the send flow: 280 characters, 8 memory photos; nothing to ca
   assert.equal(s.getItem(DASHBOARD_HANDOFF_KEY), null);
 });
 
-test("a full or unavailable storage reports failure instead of pretending", () => {
+test("a full or unavailable storage reports what was not carried instead of pretending", () => {
   const broken = { setItem: () => { throw new Error("QuotaExceeded"); }, removeItem: () => {}, getItem: () => null };
-  assert.equal(writeDashboardHandoff(broken, { contactId: "c1", occasion: "Birthday", words: "x" }), false);
+  assert.equal(writeDashboardHandoff(broken, { contactId: "c1", occasion: "Birthday", words: "x" }), "none");
+});
+
+test("when the photos do not fit, the words are still carried", () => {
+  const m = new Map();
+  const tight = { getItem: (k) => (m.has(k) ? m.get(k) : null), removeItem: (k) => m.delete(k),
+    setItem: (k, v) => { if (String(v).length > 200) throw new Error("QuotaExceeded"); m.set(k, String(v)); } };
+  assert.equal(writeDashboardHandoff(tight, { contactId: "c1", occasion: "Birthday", words: "Happy day", memoryPhotos: ["data:" + "x".repeat(500)] }, 1), "words");
+  assert.deepEqual(takeDashboardHandoff(tight, { contactId: "c1", occasion: "Birthday" }, 2), { words: "Happy day", memoryPhotos: [] });
 });
