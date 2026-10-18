@@ -190,11 +190,13 @@ test("B3: the target route and label are exactly the existing ones", async () =>
   const { readFileSync } = await import("node:fs");
   const src = readFileSync(new URL("../components/DashboardLayout.jsx", import.meta.url), "utf8");
 
-  // Partner entry: gated on the flag AND the server-derived signal; exact label and route.
+  // Report 87 A7 (rev 6): ONE item changed. "Fundraisers" (public page) is shown while the flag is on;
+  // the partner entry is its "Partner Dashboard" child, still gated on the server-derived signal and
+  // still routed to /dashboard/fundraiser.
   assert.match(
     src,
-    /isFundraiserUiEnabled\(\)\s*&&\s*isPartnerAdmin\s*\?\s*\[\{\s*name:\s*'Greet-Me Fundraise',\s*path:\s*'\/dashboard\/fundraiser',/,
-    "partner entry must be flag + isPartnerAdmin, labelled 'Greet-Me Fundraise', routed to /dashboard/fundraiser"
+    /isFundraiserUiEnabled\(\)\s*\?\s*\[\{\s*name:\s*'Fundraisers',\s*path:\s*'\/fundraisers',[\s\S]{0,80}isPartnerAdmin\s*\?\s*\{\s*children:\s*\[\{\s*name:\s*'Partner Dashboard',\s*path:\s*'\/dashboard\/fundraiser'\s*\}\]/,
+    "Fundraisers must be flag-gated at /fundraisers, with the isPartnerAdmin-gated 'Partner Dashboard' child at /dashboard/fundraiser"
   );
   // The partner entry must NOT be gated on the founder predicate any more.
   assert.ok(
@@ -223,7 +225,9 @@ test("B3: existing personal navigation entries are unchanged in label and order"
     "🥇 Greet-Me™ Hero™",
     "For Business",
     "Corporate Campaign Dashboard", // nested child of For Business
-    "Greet-Me Fundraise",
+    // Report 87 A7 (rev 6): "Greet-Me Fundraise" became "Fundraisers" with the partner child.
+    "Fundraisers",
+    "Partner Dashboard", // nested child of Fundraisers (partner administrators only)
     // TEAM 5 (six-team merge, 2026-09-29): Founder Central Command, the new consolidated
     // founder-only entry point. Appended after the existing fundraiser entry, so every entry
     // above it keeps its exact label and position. Pre-existing gap on Team 5's own branch: this

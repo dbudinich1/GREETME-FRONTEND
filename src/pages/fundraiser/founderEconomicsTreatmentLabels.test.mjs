@@ -14,6 +14,8 @@ const APPROVED = [
   "Not deducted; Greet-Me absorbs them (gross)",
 ];
 test("every approved treatment label appears verbatim in the label tables", () => {
-  const block = src.slice(src.indexOf("const F1_TREATMENT_FIELD_LABELS"), src.indexOf("const f1ShareTypeLabel"));
+  // Report 87 A7: the rev 6 terms form keeps these labels in TREATMENT_FIELD_LABELS / TREATMENT_VALUE_LABELS.
+  const block = src.slice(src.indexOf("const TREATMENT_FIELD_LABELS"), src.indexOf("const EMPTY_TREATMENTS"));
+  assert.ok(block.length > 0, "label tables found");
   for (const label of APPROVED) assert.ok(block.includes(`"${label}"`), label);
 });

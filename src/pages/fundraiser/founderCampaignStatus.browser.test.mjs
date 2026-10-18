@@ -1,4 +1,6 @@
 // src/pages/fundraiser/founderCampaignStatus.browser.test.mjs
+// Report 87 A7 / N6: restored from b9c74f4. The panel is unchanged; it now opens from the Campaigns tab
+// ("Change a campaign’s status"). Only the navigation helpers were adapted.
 //
 // TEAM B (F4) — RENDERED coverage of the CAMPAIGN STATUS panel on the founder dashboard. The REAL
 // FounderFundraisingDashboard is esbuild-transformed and mounted in jsdom against the REAL
@@ -179,17 +181,20 @@ async function mount(routes, { flag = true } = {}) {
 }
 
 async function openRow(legalName) {
+  // Report 87 A7: the partner page replaces the list, so return to it first.
+  if ($("back-partners")) await click($("back-partners"));
   const row = [...document.querySelectorAll("tr")].find((tr) => tr.textContent.includes(legalName));
   assert.ok(row, `the organization row for ${legalName} must render`);
   await click([...row.querySelectorAll("button")].find((b) => b.textContent.trim() === "Open"));
-  if ($("f1-toggle")) await click($("f1-toggle")); // W34: Draft Economics opens closed
+  // Report 87 A7 / N6: the restored status control lives on the Campaigns tab.
+  if ($("tab-campaigns")) await click($("tab-campaigns"));
 }
 
 /** Mount, open the fixture organization and select the campaign that owns the status panel. */
 async function openCampaign(routes = baseRoutes()) {
   await mount(routes);
   await openRow(ORG.legalName);
-  await setValue("f1-campaign", CID, window.HTMLSelectElement.prototype);
+  await setValue("f4-campaign", CID, window.HTMLSelectElement.prototype);
   return routes;
 }
 
@@ -242,7 +247,8 @@ for (const [current, expected] of [
 ]) {
   test(`F4 transitions: ${current} offers exactly ${expected.slice(1).join(" and ")}`, async () => {
     await openCampaign(baseRoutes({ "/campaigns": { status: 200, data: [campaignAt(current)] } }));
-    assert.equal($("f4-review-current").textContent, current);
+    // Variant B (founder-approved): the status reads as a label (draft → Draft).
+    assert.equal($("f4-review-current").textContent, current.charAt(0).toUpperCase() + current.slice(1));
     const values = [...$("f4-target").querySelectorAll("option")].map((o) => o.value);
     assert.deepEqual(values, expected);
     assert.equal($("f4-target").value, "", "no target is preselected");
@@ -271,7 +277,7 @@ test("F4 transitions: no invented state is ever offered", async () => {
 
 test("F4 transitions: an unrecognised server status offers no move at all", async () => {
   await openCampaign(baseRoutes({ "/campaigns": { status: 200, data: [campaignAt("mystery_state")] } }));
-  assert.equal($("f4-review-current").textContent, "mystery_state");
+  assert.equal($("f4-review-current").textContent, "Mystery_state");
   assert.equal($("f4-target"), null, "an unknown status must not be guessed into a transition");
   assert.equal(statusCalls().length, 0);
 });
@@ -284,7 +290,7 @@ test("F4 economics gate: without ACTIVE economics, activation is offered but not
   assert.ok(activeOption, "the founder can still see the move exists");
   assert.equal(activeOption.disabled, true, "but it is not an enabled action");
   assert.ok($("f4-economics-gate"));
-  assert.equal($("f4-economics-gate").textContent.trim(), "Activate campaign economics first.");
+  assert.equal($("f4-economics-gate").textContent.trim(), "The partner share must be in place before this campaign can start.");
 });
 
 test("F4 economics gate: approved-but-not-active economics do NOT satisfy the gate", async () => {
@@ -296,7 +302,7 @@ test("F4 economics gate: approved-but-not-active economics do NOT satisfy the ga
   assert.equal($("f4-confirm"), null, "no confirmation is offered for a blocked activation");
   assert.equal(statusCalls().length, 0);
   assert.equal(calls.length, before, "zero requests of any kind");
-  assert.equal($("f4-error").textContent, "Activate campaign economics first.");
+  assert.equal($("f4-error").textContent, "The partner share must be in place before this campaign can start.");
 });
 
 test("F4 economics gate: with no economics history at all, activation is blocked", async () => {
@@ -346,8 +352,8 @@ test("F4 review: everything the founder is deciding on is displayed", async () =
   assert.equal($("f4-review-org").textContent, ORG.legalName);
   assert.equal($("f4-review-campaign").textContent, "Spring Drive");
   assert.equal($("f4-review-campaign-id").textContent, CID);
-  assert.equal($("f4-review-current").textContent, "draft");
-  assert.equal($("f4-review-target").textContent, "active");
+  assert.equal($("f4-review-current").textContent, "Draft");
+  assert.equal($("f4-review-target").textContent, "Active");
   assert.equal($("f4-review-economics").textContent, ACTIVE_ECONOMICS.id);
   assert.equal($("f4-review-reason").textContent, "Board approved the launch.");
 });
@@ -361,7 +367,7 @@ test("F4 review: the economics version is shown only when it is relevant", async
 });
 
 for (const [target, current, pattern] of [
-  ["active", "draft", [/eligible for new fundraiser attribution/i, /economics must already be active/i, /payouts remain held/i]],
+  ["active", "draft", [/eligible for new fundraiser attribution/i, /partner share must already be in place/i, /payouts remain held/i]],
   ["paused", "active", [/stops new attribution eligibility/i, /payouts remain held/i]],
   ["closed", "draft", [/terminal/i, /cannot be reopened/i]],
 ]) {
@@ -411,7 +417,7 @@ test("F4 confirm: opening the confirmation sends nothing and names the exact mov
   await proposeChange("active");
   assert.ok($("f4-confirm"));
   assert.equal(statusCalls().length, 0, "the confirmation is not the action");
-  assert.equal($("f4-confirm-target").textContent, "active");
+  assert.equal($("f4-confirm-target").textContent, "Active");
   const text = $("f4-confirm").textContent.replace(/\s+/g, " ");
   assert.match(text, new RegExp(CID));
   assert.match(text, /from draft to active/i);
@@ -424,7 +430,7 @@ test("F4 confirm: Cancel issues ZERO requests and leaves the status alone", asyn
   await click($("f4-cancel"));
   assert.equal($("f4-confirm"), null);
   assert.equal(calls.length, before, "Cancel must issue no request at all");
-  assert.equal($("f4-review-current").textContent, "draft");
+  assert.equal($("f4-review-current").textContent, "Draft");
   assert.equal($("f4-changed"), null);
   assert.ok($("f4-open"), "and the founder can review again");
 });
@@ -436,7 +442,7 @@ test("F4 confirm: Escape issues ZERO requests and leaves the status alone", asyn
   await pressEscape();
   assert.equal($("f4-confirm"), null);
   assert.equal(calls.length, before, "Escape must issue no request at all");
-  assert.equal($("f4-review-current").textContent, "draft");
+  assert.equal($("f4-review-current").textContent, "Draft");
   assert.equal($("f4-changed"), null);
 });
 
@@ -556,10 +562,8 @@ test("F4 revalidation: a transition that became illegal is refused locally, send
   // The campaign closed underneath the open confirmation. The panel is keyed by status, so the
   // refreshed list remounts it — and the stale confirmation cannot be used to send.
   routes["/campaigns"] = { status: 200, data: [campaignAt("closed")] };
-  await click([...document.querySelectorAll("tr")].find((tr) => tr.textContent.includes(ORG.legalName))
-    .querySelectorAll("button")[0]);
-  if ($("f1-toggle")) await click($("f1-toggle"));
-  await setValue("f1-campaign", CID, window.HTMLSelectElement.prototype);
+  await openRow(ORG.legalName);
+  await setValue("f4-campaign", CID, window.HTMLSelectElement.prototype);
   assert.equal($("f4-confirm"), null, "the stale confirmation is gone");
   assert.equal($("f4-terminal") !== null, true, "and the panel reflects the closed campaign");
   assert.equal(statusCalls().length, 0);
@@ -573,7 +577,7 @@ test("F4 state: nothing changes while the request is still in flight", async () 
   await click($("f4-confirm-go"));
   assert.equal(statusCalls().length, 1, "the request went out");
   assert.equal($("f4-changed"), null, "but nothing claims a new status yet");
-  assert.equal($("f4-review-current").textContent, "draft", "and the status is not optimistically moved");
+  assert.equal($("f4-review-current").textContent, "Draft", "and the status is not optimistically moved");
   assert.match($("f4-confirm").textContent, /Changing/);
 });
 
@@ -583,14 +587,14 @@ test("F4 state: the new status is ADOPTED from the server response", async () =>
   await click($("f4-confirm-go"));
   assert.ok($("f4-changed"));
   assert.equal($("f4-changed-campaign").textContent, CID);
-  assert.equal($("f4-changed-status").textContent, "active");
+  assert.equal($("f4-changed-status").textContent, "Active");
 });
 
 test("F4 state: an unexpected server status is shown as-is, not normalised to the target", async () => {
   await openCampaign(baseRoutes({ [STATUS_SUFFIX]: { status: 200, data: { campaignId: CID, status: "paused" } } }));
   await proposeChange("active");
   await click($("f4-confirm-go"));
-  assert.equal($("f4-changed-status").textContent, "paused",
+  assert.equal($("f4-changed-status").textContent, "Paused",
     "the client must not overwrite what the server said happened");
 });
 
@@ -610,7 +614,7 @@ test("F4 state: the campaign list is re-read after success and the panel reflect
   routes["/campaigns"] = { status: 200, data: [campaignAt("active")] };
   await click($("f4-confirm-go"));
   assert.equal(campaignReads().length, readsBefore + 1, "the list is reconciled after a change");
-  assert.equal($("f4-review-current").textContent, "active", "and now reads the server's stored status");
+  assert.equal($("f4-review-current").textContent, "Active", "and now reads the server's stored status");
   assert.deepEqual([...$("f4-target").querySelectorAll("option")].map((o) => o.value), ["", "paused", "closed"],
     "the offered transitions follow the new status");
   assert.equal($("f4-stale"), null);
@@ -622,9 +626,9 @@ test("F4 state: a FAILED refresh is reported as stale and fabricates no status",
   routes["/campaigns"] = { status: 500, data: { error: "boom" } };
   await click($("f4-confirm-go"));
   assert.ok($("f4-changed"), "the server's own answer is still reported");
-  assert.equal($("f4-changed-status").textContent, "active");
+  assert.equal($("f4-changed-status").textContent, "Active");
   assert.ok($("f4-stale"), "and the founder is told the list may be out of date");
-  assert.equal($("f4-review-current").textContent, "draft",
+  assert.equal($("f4-review-current").textContent, "Draft",
     "the last server-confirmed status stands rather than an invented one");
 });
 
@@ -650,7 +654,7 @@ for (const [label, route, pattern] of [
     assert.match(msg.textContent, pattern);
     assert.ok(!/success|changed to/i.test(msg.textContent), "the message must not imply success");
     // The last confirmed status survives, and so does the founder's reason.
-    assert.equal($("f4-review-current").textContent, "draft");
+    assert.equal($("f4-review-current").textContent, "Draft");
     assert.equal($("f4-reason").value, "Launch approved.");
     assert.equal($("f4-confirm"), null, "the confirmation is closed rather than left hanging");
   });
@@ -663,7 +667,7 @@ test("F4 failure: a network failure says the server was unreachable and changes 
   assert.equal($("f4-changed"), null);
   assert.match($("f4-message").textContent, /couldn't reach the server/i);
   assert.match($("f4-message").textContent, /unchanged/i);
-  assert.equal($("f4-review-current").textContent, "draft");
+  assert.equal($("f4-review-current").textContent, "Draft");
 });
 
 test("F4 failure: no machine code or raw server message ever reaches the DOM", async () => {
@@ -685,7 +689,7 @@ test("F4 failure: the campaign list is NOT re-read on failure", async () => {
   const readsBefore = campaignReads().length;
   await click($("f4-confirm-go"));
   assert.equal(campaignReads().length, readsBefore, "a failed change reconciles nothing");
-  assert.equal($("f4-review-current").textContent, "draft");
+  assert.equal($("f4-review-current").textContent, "Draft");
 });
 
 test("F4 failure: a stale error is cleared before the next attempt", async () => {
@@ -705,7 +709,7 @@ test("F4 context: switching campaigns clears the reason and confirmation", async
   await openCampaign(baseRoutes({ "/campaigns": { status: 200, data: [campaignAt("draft"), OTHER] } }));
   await setTarget("closed");
   await setReason("Season over.");
-  await setValue("f1-campaign", OTHER.campaignId, window.HTMLSelectElement.prototype);
+  await setValue("f4-campaign", OTHER.campaignId, window.HTMLSelectElement.prototype);
   assert.equal($("f4-review-campaign-id").textContent, OTHER.campaignId);
   assert.equal($("f4-reason").value, "", "a reason never carries across campaigns");
   assert.equal($("f4-target").value, "", "and neither does a target");
@@ -785,4 +789,23 @@ test("F4 blast radius: a double confirm does not send twice", async () => {
   await click($("f4-confirm-go"));
   await click($("f4-confirm-go"));
   assert.equal(statusCalls().length, 1, "an in-flight change must not be re-sent");
+});
+
+test("N11: TERMS_NOT_ACTIVE from the server is explained, not shown as 'it changed'", async () => {
+  await openCampaign(baseRoutes({ [STATUS_SUFFIX]: { status: 409, data: { code: "TERMS_NOT_ACTIVE" } } }));
+  await proposeChange("active");
+  await click($("f4-confirm-go"));
+  assert.match($("f4-message").textContent, /can’t start until the partner share is in place/);
+  assert.ok(!document.body.textContent.includes("TERMS_NOT_ACTIVE"));
+});
+
+test("RR9: the success message survives the list refresh that moves the status", async () => {
+  const routes = await openCampaign();
+  await proposeChange("active");
+  routes["/campaigns"] = { status: 200, data: [campaignAt("active")] };
+  await click($("f4-confirm-go"));
+  assert.equal($("f4-review-current").textContent, "Active", "the refreshed status is shown");
+  assert.ok($("f4-changed"), "and the success message is still there");
+  assert.equal($("f4-changed-status").textContent, "Active");
+  assert.equal($("f4-target").value, "", "the form is clean for the next change");
 });

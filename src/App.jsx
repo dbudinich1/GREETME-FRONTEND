@@ -144,6 +144,8 @@ const PartnerFundraisingHome = lazy(() => import("./pages/fundraiser/PartnerFund
 // TEAM B (B1, token APP-JSX-LOCK-2026-07-22-B1) — PUBLIC fundraiser referral landing (/#/f/:token).
 // Captures ONLY the opaque token into the transient carrier; no auth, no dashboard, no private data.
 const FundraiserReferralLanding = lazy(() => import("./pages/fundraiser/FundraiserReferralLanding"));
+// Report 87 A7 — PUBLIC Fundraisers page (rev 6): pitch + "Contact Greet-Me" (ContactSalesModal, source "fundraiser").
+const FundraisersPublic = lazy(() => import("./pages/fundraiser/FundraisersPublic"));
 // TEAM B (SALES S1) — PUBLIC salesperson referral landing (/#/s/:token). Captures ONLY the
 // opaque token into the transient carrier; no auth, no salesperson identity, no private data.
 const SalesReferralLanding = lazy(() => import("./pages/sales/SalesReferralLanding"));
@@ -278,6 +280,7 @@ export default function App() {
           <Route path="/landing" element={<LandingPage />} />
           <Route path="/pricing" element={<DashboardLayout><Pricing /></DashboardLayout>} />
           <Route path="/business" element={<DashboardLayout><ForBusiness /></DashboardLayout>} />
+          <Route path="/fundraisers" element={<DashboardLayout><Suspense fallback={null}><FundraisersPublic /></Suspense></DashboardLayout>} />
 
           {/* Email Verification (Public) */}
           <Route path="/verify-email" element={<VerifyEmail />} />

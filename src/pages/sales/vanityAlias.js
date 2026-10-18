@@ -38,7 +38,7 @@ export const RESERVED_PATHS = Object.freeze(new Set([
   // application surfaces (src/App.jsx top-level routes)
   "admin", "app", "dashboard", "qa", "payment", "checkout", "cart",
   "greeting", "gift", "gifts", "credit", "claim-credit", "redeem", "merch", "hero",
-  "fundraiser", "campaigns", "contacts", "notifications", "profile", "rewards",
+  "fundraiser", "fundraisers", "campaigns", "contacts", "notifications", "profile", "rewards",
   "send", "sent", "settings", "invitations", "import-wizard", "animations",
   // single-letter route prefixes already in use (/s/:token, /f/:token, /g/:jobId)
   "s", "f", "g",

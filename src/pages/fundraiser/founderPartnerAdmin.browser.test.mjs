@@ -1,4 +1,6 @@
 // src/pages/fundraiser/founderPartnerAdmin.browser.test.mjs
+// Report 87 A7 / N6: restored from b9c74f4. The panel is unchanged; it now opens from the partner page
+// (Relationship → "Assign administrator" / "Add another administrator"). Only navigation was adapted.
 //
 // TEAM B (P2) — RENDERED coverage of the partner-administrator panel. The REAL
 // FounderFundraisingDashboard is esbuild-transformed and mounted in jsdom with the REAL
@@ -101,6 +103,7 @@ async function mountAndOpen(routes) {
   const open = [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Open");
   assert.ok(open, "the organization row must offer Open");
   await click(open);
+  if ($("admin-panel-toggle")) await click($("admin-panel-toggle"));
   return root;
 }
 async function typeAndResolve(email) {
@@ -189,6 +192,7 @@ test("P2 UI: ASSIGNING then ASSIGNED — success is shown and read-back reflects
   await act(async () => { root.render(React.createElement(Founder)); });
   await settle();
   await click([...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Open"));
+  await click($("admin-panel-toggle"));
   await typeAndResolve(ACCOUNT.email);
   await click($("admin-assign"));
 
@@ -197,7 +201,7 @@ test("P2 UI: ASSIGNING then ASSIGNED — success is shown and read-back reflects
   const assignCall = calls.find((c) => c.url.includes("/partner-admins"));
   assert.equal(JSON.parse(assignCall.body).userId, ACCOUNT.userId, "the RESOLVED userId is forwarded, never invented");
   assert.ok($("admin-readback"), "read-back rendered");
-  assert.match($("admin-readback").textContent, /present in adminUserIds/, "existing read-back behaviour reflects the assignment");
+  assert.equal($("admin-readback").textContent, "Confirmed: they are now an administrator of this partner.", "existing read-back behaviour reflects the assignment (variant B wording)");
 
   // TEAM 5 (2026-09-29) — previously "Administrator assigned." was the ONLY thing the founder
   // saw; nothing told them what to actually give the new partner admin. Assignment is a pure
@@ -240,18 +244,31 @@ test("P2 UI: opening a different organization resets the panel", async () => {
   await mountAndOpen({ ...baseRoutes([ORG, ORG2]), "/users/resolve": { status: 200, data: ACCOUNT } });
   await typeAndResolve(ACCOUNT.email);
   assert.ok($("admin-resolved"));
+  await click($("back-partners"));
   const opens = [...document.querySelectorAll("button")].filter((b) => b.textContent.trim() === "Open");
   await click(opens[1]);
+  if ($("admin-panel-toggle")) await click($("admin-panel-toggle"));
   assert.equal($("admin-resolved"), null, "no resolved account carries across organizations");
   assert.equal($("admin-email").value, "", "the email field is cleared");
 });
 
-test("P2 UI: existing organization creation still works and duplicate 409 surfaces", async () => {
+test("P2 UI: organization creation is still reachable (rev 6 Register a partner)", async () => {
   await mountAndOpen({ ...baseRoutes(), "/admin/organizations": { status: 200, data: [ORG] } });
-  const legal = [...document.querySelectorAll("input")].find((i) => i.placeholder === "Legal name");
-  assert.ok(legal, "the existing create-organization form is intact");
-  const createBtn = [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Create organization");
-  assert.ok(createBtn, "the existing create control is intact");
+  await click($("back-partners"));
+  assert.ok($("register-partner"), "the create control is intact");
+  await click($("register-partner"));
+  assert.ok($("r-name"), "the legal-name field is intact");
+});
+
+test("N6: a second administrator can be added to an organization that already has one", async () => {
+  const withAdmin = { ...ORG, adminUserIds: ["user_first"] };
+  await mountAndOpen({ ...baseRoutes([withAdmin]), "/users/resolve": { status: 200, data: ACCOUNT }, "/partner-admins": { status: 200, data: { ...withAdmin, adminUserIds: ["user_first", ACCOUNT.userId] } } });
+  assert.ok($("admin-panel"), "the panel opens from 'Add another administrator'");
+  assert.match($("admin-panel").textContent, /Current: 1 assigned/);
+  await typeAndResolve(ACCOUNT.email);
+  await click($("admin-assign"));
+  const assignCall = calls.find((c) => c.url.includes("/partner-admins"));
+  assert.equal(JSON.parse(assignCall.body).userId, ACCOUNT.userId);
 });
 
 test("P2 UI: flag OFF ⇒ dormant, and no fundraiser request is issued", async () => {

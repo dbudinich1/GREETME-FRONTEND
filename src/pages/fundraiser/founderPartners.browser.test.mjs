@@ -1,0 +1,756 @@
+// founderPartners.browser.test.mjs — Report 87 A7: the founder screens built from the approved rev 6 layout.
+//
+// RENDERED coverage: the REAL FounderFundraisingDashboard is esbuild-transformed and mounted in jsdom with the
+// REAL fundraiserApi + salesAdminApi clients over a controllable global fetch. Only the flag gate is stubbed.
+// Replaces the per-panel suites of the previous founder screen (F1-F4 economics/campaign panels, org lifecycle,
+// partner-admin panel, org-salesperson field) whose markup rev 6 replaced.
+//
+// Run under the supported runtime (engines: node 20.x):
+//   node --test src/pages/fundraiser/founderPartners.browser.test.mjs
+
+import { test, before, after } from "node:test";
+import assert from "node:assert/strict";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { dirname, join } from "node:path";
+import { writeFileSync, rmSync, readdirSync } from "node:fs";
+import { JSDOM } from "jsdom";
+import esbuild from "esbuild";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+process.on("exit", () => { try { for (const n of readdirSync(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) rmSync(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const BUNDLE = join(__dirname, `.__founderp1.${process.pid}.bundle.mjs`);
+let React, createRoot, act, Founder, window;
+
+before(async () => {
+  const stub = { name: "stub", setup(b) {
+    b.onResolve({ filter: /fundraiserGate\.js$/ }, (a) => ({ path: a.path, namespace: "gate" }));
+    b.onLoad({ filter: /.*/, namespace: "gate" }, () => ({ contents: "export const isFundraiserUiEnabled = () => !!globalThis.__flag;", loader: "js" }));
+  } };
+  const entry = join(__dirname, `.__founderp1.${process.pid}.jsx`);
+  writeFileSync(entry, `export { default as Founder } from "./FounderFundraisingDashboard.jsx";\n`);
+  await esbuild.build({
+    entryPoints: [entry], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
+    jsx: "automatic", jsxImportSource: "react",
+    external: ["react", "react-dom", "react-dom/client", "react/jsx-runtime"],
+    define: { "import.meta.env": "{}", "process.env.NODE_ENV": '"production"' }, plugins: [stub], logLevel: "silent",
+  });
+  rmSync(entry, { force: true });
+  const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
+  window = dom.window;
+  globalThis.window = window; globalThis.document = window.document;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ }
+  globalThis.HTMLElement = window.HTMLElement; globalThis.Event = window.Event; globalThis.MouseEvent = window.MouseEvent;
+  globalThis.KeyboardEvent = window.KeyboardEvent; globalThis.localStorage = window.localStorage;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  React = (await import("react")).default; act = React.act;
+  ({ createRoot } = await import("react-dom/client"));
+  ({ Founder } = await import(pathToFileURL(BUNDLE).href));
+});
+after(() => { try { rmSync(BUNDLE, { force: true }); } catch { /* ignore */ } });
+
+// ── fixtures (test data only; never rendered by the product outside this harness) ──
+const ORG_ACTIVE = { organizationId: "org_a", legalName: "Hillcrest Boosters", orgType: "school", status: "approved", approvedAt: "2026-11-01T00:00:00.000Z", activatedAt: "2026-11-01T00:00:00.000Z", adminUserIds: ["u_admin"], originationSalespersonId: "sp-ann" };
+const ORG_APPLIED = { organizationId: "org_p", legalName: "Lakeview Youth Soccer", orgType: "athletic", status: "applied", adminUserIds: [] };
+const ORG_ENDED = { organizationId: "org_e", legalName: "Eastgate Band", orgType: "community", status: "approved", adminUserIds: ["u2"], relationship: { status: "ended", intervals: [{ endedAt: "2027-01-31T00:00:00.000Z", endedBy: "f", resumedAt: null, resumedBy: null }] } };
+const CAMPAIGNS_A = [{ campaignId: "cmp_1", organizationId: "org_a", title: "Fall Drive", status: "active" }, { campaignId: "cmp_2", organizationId: "org_a", title: "Spring Drive", status: "draft" }];
+const ACTIVE_V = { id: "ev_1", campaignId: "cmp_1", status: "active", effectiveFrom: "2026-11-01T00:00:00.000Z", effectiveThrough: null, rules: { kind: "year_rates", basis: "ENSR", yearRates: { year_1: 20, year_2: 15, year_3_plus: 10 } } };
+const ORG_TERMS_A = { versionId: "ot_1", status: "active", kind: "year_rates", basis: "ENSR", yearRates: { year_1: 20, year_2: 15, year_3_plus: 10 }, effectiveFrom: "2026-11-01T00:00:00.000Z" };
+// perParticipantResults rows: toAttributionRow + visits/scans/conversions/renewals/reversals (p1-be-int partnerDashboard.js)
+const RESULTS_A = [
+  { attributionId: "a1", participantId: "m1", campaignId: "cmp_1", displayName: "Ava M.", referralCode: "AVA", status: "active", visits: 40, scans: 20, conversions: 4, renewals: 1, reversals: 0 },
+  { attributionId: "a2", participantId: "m2", campaignId: "cmp_1", displayName: "Ben T.", referralCode: "BEN", status: "active", visits: 30, scans: 9, conversions: 2, renewals: 0, reversals: 0 },
+  { attributionId: "a3", participantId: "m3", campaignId: "cmp_1", displayName: "Gone G.", referralCode: "GON", status: "removed", visits: 7, scans: 2, conversions: 0, renewals: 0, reversals: 0 },
+];
+const SALESPEOPLE = [{ salespersonId: "sp-ann", displayName: "Ann Seller", status: "active" }, { salespersonId: "sp-old", displayName: "Old Rep", status: "inactive" }];
+
+let calls = [];
+let routeFn = null;
+function installFetch(fn) {
+  calls = []; routeFn = fn;
+  globalThis.fetch = (url, opts = {}) => {
+    const u = new URL(String(url), "http://x");
+    const method = opts.method || "GET";
+    const body = opts.body ? JSON.parse(opts.body) : undefined;
+    calls.push({ path: u.pathname, search: u.search, method, body });
+    const r = routeFn(method, u.pathname, u.searchParams, body) || { status: 404, data: { code: "NOT_FOUND" } };
+    return Promise.resolve({ ok: r.status >= 200 && r.status < 300, status: r.status, json: async () => r.data });
+  };
+}
+const A = "/api/fundraiser/admin";
+function baseRoutes(over = {}) {
+  const orgs = over.orgs || [ORG_ACTIVE, ORG_APPLIED, ORG_ENDED];
+  return (method, path, q, body) => {
+    if (over.handle) { const r = over.handle(method, path, q, body); if (r) return r; }
+    if (method === "GET" && path === `${A}/overview`) return { status: 200, data: { organizations: { total: orgs.length }, campaigns: { total: 2 }, participants: { total: 5 }, economics: { activeVersions: 1 }, ledger: { conversions: 7 } } };
+    if (method === "GET" && path === `${A}/organizations`) return { status: 200, data: orgs };
+    if (method === "GET" && path === "/api/sales/admin/salespeople") return { status: 200, data: { ok: true, salespeople: SALESPEOPLE } };
+    if (method === "GET" && /\/organizations\/[^/]+\/terms$/.test(path)) {
+      const id = path.split("/").at(-2);
+      const t = id in (over.orgTerms || {}) ? over.orgTerms[id] : (id === "org_a" ? ORG_TERMS_A : null);
+      const steps = (over.steps || {})[id] || null;
+      const sch = steps ? steps[0] || null : (over.scheduled || {})[id] || null;
+      const body = { terms: t, scheduled: sch, history: [t, ...(steps || [sch])].filter(Boolean) };
+      // RC4-1 (p1-be-int 3ba7104): scheduledSteps = every future active version, ascending; [] if none.
+      if (!over.noSteps) body.scheduledSteps = steps || (sch ? [sch] : []);
+      return { status: 200, data: body };
+    }
+    if (method === "GET" && /\/organizations\/org_a\/campaigns$/.test(path)) return { status: 200, data: over.campaignsA || CAMPAIGNS_A };
+    if (method === "GET" && /\/organizations\/[^/]+\/campaigns$/.test(path)) return { status: 200, data: [] };
+    if (method === "GET" && /\/campaigns\/cmp_1\/economics\/history$/.test(path)) return { status: 200, data: over.histA === undefined ? [ACTIVE_V] : over.histA };
+    if (method === "GET" && /\/economics\/history$/.test(path)) return { status: 200, data: [] };
+    if (method === "GET" && /\/organizations\/org_a\/results$/.test(path)) return over.resultsStatus ? { status: over.resultsStatus, data: {} } : { status: 200, data: RESULTS_A };
+    if (method === "GET" && /\/organizations\/org_a\/campaign-totals$/.test(path)) return { status: 200, data: { organizationId: "org_a", campaigns: CAMPAIGNS_A, totals: { organizationId: "org_a", visits: 77, scans: 31, registrations: 3, conversions: 6, renewals: 2 } } };
+    if (method === "GET" && /\/totals\/participants$/.test(path)) return { status: 200, data: { participants: 4, attributionRecords: 2 } };
+    if (method === "GET" && /\/totals\/ledger$/.test(path)) return { status: 200, data: { conversions: 3, renewals: 2, refunds: 1 } };
+    if (method === "GET" && path === `${A}/reports/totals`) {
+      if (over.totalsStatus) return { status: over.totalsStatus, data: {} };
+      const g = q.get("groupBy");
+      return { status: 200, data: { groupBy: g, currency: "usd", payable: false, rows: g === "campaign"
+        ? [{ key: "cmp_1", label: "Fall Drive", recordedMinor: 4321, reversedMinor: 100, netMinor: 4221, entryCount: 3 }]
+        : [{ key: "2026-Q4", label: "2026 Q4", recordedMinor: 4321, reversedMinor: 100, netMinor: 4221, entryCount: 3 }] } };
+    }
+    if (method === "GET" && /\/reconciliation\/quarterly-gross$/.test(path)) return { status: 200, data: { organizations: [{ organizationId: "org_a", quarters: { "2026-Q4": { grossCents: 92400, records: 3, subscriptionGrossCents: 80000, brandedGoodsGrossCents: 12400 } }, unsettled: { grossCents: 0, records: 0 } }] } };
+    if (method === "POST" && path === `${A}/campaigns`) return { status: 201, data: { campaign: { campaignId: "cmp_new", organizationId: body && body.organizationId, title: body && body.title, status: "draft" }, termsIssue: { issued: true, versionId: "ev_new", sourceVersionId: "ot_1", effectiveFrom: "2026-11-01T00:00:00.000Z" } } };
+    if (method === "POST") return { status: 200, data: { organizationId: "org_new", legalName: body && body.legalName, id: "v_x", status: "ok" } };
+    return null;
+  };
+}
+
+const settle = async () => { for (let i = 0; i < 6; i++) await act(async () => { await new Promise((r) => setTimeout(r, 0)); }); };
+const $ = (id) => document.querySelector(`[data-testid="${id}"]`);
+const text = () => document.body.textContent;
+async function click(el) { assert.ok(el, "element to click exists"); await act(async () => { el.dispatchEvent(new window.MouseEvent("click", { bubbles: true })); }); await settle(); }
+async function setValue(el, value) {
+  assert.ok(el, "input exists");
+  const proto = el.tagName === "SELECT" ? window.HTMLSelectElement.prototype : el.tagName === "TEXTAREA" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value);
+  await act(async () => { el.dispatchEvent(new window.Event(el.tagName === "SELECT" ? "change" : "input", { bubbles: true })); });
+}
+const byText = (sel, t) => [...document.querySelectorAll(sel)].find((e) => e.textContent.trim() === t);
+let root = null;
+async function mount(fn, flag = true) {
+  if (root) { await act(async () => root.unmount()); root = null; }
+  installFetch(fn); globalThis.__flag = flag;
+  document.body.innerHTML = "";
+  const host = document.createElement("div"); document.body.appendChild(host);
+  root = createRoot(host);
+  await act(async () => { root.render(React.createElement(Founder)); });
+  await settle();
+}
+const posts = () => calls.filter((c) => c.method === "POST");
+
+// The SAMPLE example panels, review tags and banner from the preview must never ship.
+function assertNoSamplePanels() {
+  for (const id of ["worked-example", "clock-example", "branded-example", "multi-example", "refund-before", "two-partials", "payout-timing", "terms-layers"]) {
+    assert.equal($(id), null, `sample panel ${id} must not render`);
+  }
+  assert.equal(document.querySelector("[data-tag]"), null, "no review change tags");
+  const t = text();
+  for (const s of ["SAMPLE", "Sample", "sample figures", "Works today", "Needs engineering", "Financial engineering", "In this preview", "(preview)"]) {
+    assert.ok(!t.includes(s), `product text must not contain "${s}"`);
+  }
+}
+
+test("gate off ⇒ dormant state and zero requests", async () => {
+  await mount(baseRoutes(), false);
+  assert.equal(calls.length, 0);
+  assert.match(text(), /Fundraising is not currently enabled/);
+});
+
+test("overview error ⇒ truthful error state with the rev 6 heading", async () => {
+  await mount((m, p) => (p === `${A}/overview` ? { status: 500, data: {} } : null));
+  assert.match(text(), /Fundraising partners/);
+  assert.match(text(), /Something went wrong/);
+});
+
+test("home: real counts, Ready to activate, partner share from the terms in force; no sample content", async () => {
+  await mount(baseRoutes());
+  assert.match(text(), /Fundraising partners/);
+  assert.match(text(), /Ready to activate:\s*Lakeview Youth Soccer\./);
+  const rows = [...document.querySelectorAll("tbody tr")].map((r) => r.textContent);
+  assert.ok(rows.some((r) => r.includes("Hillcrest Boosters") && r.includes("Active") && r.includes("Year 1 20% · Year 2 15% · Year 3+ 10%")), rows.join(" | "));
+  assert.ok(rows.some((r) => r.includes("Lakeview Youth Soccer") && r.includes("Not active yet") && r.includes("Not set")));
+  assert.ok(rows.some((r) => r.includes("Eastgate Band") && r.includes("Partnership ended")));
+  assert.match(text(), /NEW SUPPORTERS7|New supporters7/i);
+  assertNoSamplePanels();
+});
+
+test("empty: no partners yet", async () => {
+  await mount(baseRoutes({ orgs: [] }));
+  assert.match(text(), /No partners yet\./);
+});
+
+test("register: active salespeople only; None sends exactly { legalName, orgType }; then the resolved admin is assigned", async () => {
+  await mount(baseRoutes({ handle: (m, p) => (m === "POST" && p === `${A}/users/resolve` ? { status: 200, data: { userId: "u_new", email: "admin@hill.org", emailVerified: true, isFounder: false } } : null) }));
+  await click($("register-partner"));
+  const sel = $("org-salesperson");
+  assert.deepEqual([...sel.options].map((o) => [o.value, o.textContent]), [["", "None"], ["sp-ann", "Ann Seller (sp-ann)"]]);
+  await click($("r-next"));
+  assert.match(text(), /Enter the organization’s legal name\./);
+  await setValue($("r-name"), "Northside PTA");
+  await click($("r-next"));
+  await click($("r-next"));
+  assert.match(text(), /Find the partner administrator’s account first\./);
+  await setValue($("r-email"), "admin@hill.org");
+  await click($("r-find"));
+  assert.match($("r-found").textContent, /Found: admin@hill\.org/);
+  await click($("r-next"));
+  assert.ok($("step-terms"), "step 3 is the partner share");
+  assertNoSamplePanels();
+  await click($("r-next"));
+  assert.ok($("step-terms"), "incomplete terms keep the founder on step 3");
+  await fillTerms();
+  await click($("r-next"));
+  assert.ok($("step-review"));
+  assert.match($("step-review").textContent, /Partner share\s*Year 1 20% · Year 2 15% · Year 3\+ 10%/);
+  assert.match($("step-review").textContent, /Takes effect\s*2027-01-01/);
+  assertNoSamplePanels();
+  await click($("r-save"));
+  const create = posts().find((c) => c.path === `${A}/organizations`);
+  assert.deepEqual(create.body, { legalName: "Northside PTA", orgType: "school" });
+  const assign = posts().find((c) => c.path === `${A}/organizations/org_new/partner-admins`);
+  assert.deepEqual(assign.body, { userId: "u_new" });
+  assert.match($("register-saved").textContent, /Partner saved, not active yet/);
+  assert.match($("register-saved").textContent, /is set up with its administrator and terms\./);
+  // ADDENDUM 1: organization terms draft → approve → activate, in that order, after create + assign.
+  const order = posts().map((c) => c.path);
+  const iD = order.indexOf(`${A}/organizations/org_new/terms/draft`);
+  const iA = order.indexOf(`${A}/organizations/org_new/terms/v_x/approve`);
+  const iX = order.indexOf(`${A}/organizations/org_new/terms/v_x/activate`);
+  assert.ok(order.indexOf(`${A}/organizations/org_new/partner-admins`) < iD && iD < iA && iA < iX, order.join(" | "));
+  assert.deepEqual(posts()[iD].body, { rules: { kind: "year_rates", basis: "ENSR", yearRates: { year_1: 20, year_2: 15, year_3_plus: 10 } }, treatments: { onboardingFeeTreatment: "excluded_retained", veteransContributionTreatment: "excluded", discountTreatment: "ineligible", taxTreatment: "excluded_from_base", processorFeeTreatment: "net_of_processor" } });
+  assert.deepEqual(posts()[iA].body, { reason: "first terms" });
+  assert.deepEqual(posts()[iX].body, { effectiveFrom: "2027-01-01T00:00:00.000Z", activationReason: "first terms" });
+});
+
+test("register: a refused terms save is reported on the saved screen; the partner itself is saved", async () => {
+  await mount(baseRoutes({ handle: (m, p) => {
+    if (m === "POST" && p === `${A}/users/resolve`) return { status: 200, data: { userId: "u1", email: "a@b.c", emailVerified: true, isFounder: false } };
+    if (m === "POST" && p.endsWith("/terms/draft")) return { status: 400, data: { code: "INCOMPLETE" } };
+    return null;
+  } }));
+  await click($("register-partner"));
+  await setValue($("r-name"), "Southside Club");
+  await click($("r-next"));
+  await setValue($("r-email"), "a@b.c"); await click($("r-find")); await click($("r-next"));
+  await fillTerms(); await click($("r-next"));
+  await click($("r-save"));
+  assert.match($("register-saved").textContent, /Southside Club is saved\./);
+  assert.match($("register-terms-failed").textContent, /The partner share could not be saved\. These terms are incomplete, so they can’t be saved\. Set it from the partner’s page\./);
+  assert.equal(posts().filter((c) => c.path.endsWith("/approve")).length, 0);
+});
+
+test("register: a chosen salesperson is sent; a founder account cannot be the administrator", async () => {
+  let resolveBody = { userId: "u_f", email: "f@x.com", emailVerified: true, isFounder: true };
+  await mount(baseRoutes({ handle: (m, p) => (m === "POST" && p === `${A}/users/resolve` ? { status: 200, data: resolveBody } : null) }));
+  await click($("register-partner"));
+  await setValue($("r-name"), "Westside Club");
+  await setValue($("org-salesperson"), "sp-ann");
+  await click($("r-next"));
+  await setValue($("r-email"), "f@x.com");
+  await click($("r-find"));
+  assert.match(text(), /A platform founder cannot be a partner administrator\./);
+  assert.equal($("r-found"), null);
+  resolveBody = { userId: "u_ok", email: "ok@x.com", emailVerified: true, isFounder: false };
+  await setValue($("r-email"), "ok@x.com");
+  await click($("r-find"));
+  await click($("r-next"));
+  await fillTerms(); await click($("r-next"));
+  await click($("r-save"));
+  assert.deepEqual(posts().find((c) => c.path === `${A}/organizations`).body, { legalName: "Westside Club", orgType: "school", salespersonId: "sp-ann" });
+});
+
+test("register: a refused create is reported and nothing else is sent", async () => {
+  await mount(baseRoutes({ handle: (m, p) => {
+    if (m === "POST" && p === `${A}/users/resolve`) return { status: 200, data: { userId: "u1", email: "a@b.c", emailVerified: true, isFounder: false } };
+    if (m === "POST" && p === `${A}/organizations`) return { status: 409, data: { code: "DUPLICATE_ORGANIZATION" } };
+    return null;
+  } }));
+  await click($("register-partner"));
+  await setValue($("r-name"), "Hillcrest Boosters");
+  await click($("r-next"));
+  await setValue($("r-email"), "a@b.c"); await click($("r-find")); await click($("r-next"));
+  await fillTerms(); await click($("r-next"));
+  await click($("r-save"));
+  assert.match($("register-error").textContent, /The partner was not saved\. A partner with this legal name already exists\./);
+  assert.equal(posts().filter((c) => c.path.endsWith("/partner-admins")).length, 0);
+});
+
+test("not active yet: checklist; Activate is disabled without an administrator", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_p"));
+  assert.match($("activation").textContent, /○ Partner administrator assigned/);
+  assert.equal($("activate").disabled, true);
+  assert.match(text(), /Finish the items above to activate\./);
+  assert.match($("activation").textContent, /✓ Organization saved/);
+  assert.match($("activation").textContent, /○ Partner share set/);
+  assert.ok($("change-terms"), "terms can be set before activation (ADDENDUM 1)");
+});
+
+test("activate: all three checklist items done ⇒ confirmation, then POST /activate; Not yet sends nothing", async () => {
+  const ready = { ...ORG_APPLIED, adminUserIds: ["u9"] };
+  await mount(baseRoutes({ orgs: [ready], orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p" } } }));
+  await click($("open-org_p"));
+  assert.match($("activation").textContent, /✓ Organization saved.*✓ Partner administrator assigned.*✓ Partner share set/);
+  await click($("back-partners"));
+  await click($("open-org_p"));
+  await click($("activate"));
+  assert.match($("activate-confirm").textContent, /Activate Lakeview Youth Soccer\?/);
+  await click(byText("button", "Not yet"));
+  assert.equal(posts().length, 0);
+  await click($("activate"));
+  await click($("activate-yes"));
+  const p = posts().find((c) => c.path === `${A}/organizations/org_p/activate`);
+  assert.ok(p, "activate posted");
+  assert.deepEqual(p.body, {});
+});
+
+test("activate refused (NOT_APPLIED) ⇒ truthful message, no code shown", async () => {
+  const ready = { ...ORG_APPLIED, adminUserIds: ["u9"] };
+  await mount(baseRoutes({ orgs: [ready], orgTerms: { org_p: ORG_TERMS_A }, handle: (m, p) => (m === "POST" && p.endsWith("/activate") ? { status: 409, data: { code: "NOT_APPLIED" } } : null) }));
+  await click($("open-org_p")); await click($("activate")); await click($("activate-yes"));
+  assert.match($("activation-error").textContent, /no longer waiting for activation/);
+  assert.ok(!text().includes("NOT_APPLIED"));
+});
+
+test("activate refused with the ADDENDUM 1 codes ⇒ plain sentences, codes never shown", async () => {
+  for (const [code, re] of [["NO_PARTNER_ADMIN", /Assign a partner administrator before activating\./], ["TERMS_NOT_ACTIVE", /can’t go ahead until the partner share is in place/]]) {
+    const ready = { ...ORG_APPLIED, adminUserIds: ["u9"] };
+    await mount(baseRoutes({ orgs: [ready], orgTerms: { org_p: ORG_TERMS_A }, handle: (m, p) => (m === "POST" && p.endsWith("/org_p/activate") ? { status: 409, data: { code } } : null) }));
+    await click($("open-org_p")); await click($("activate")); await click($("activate-yes"));
+    assert.match($("activation-error").textContent, re);
+    assert.ok(!text().includes(code));
+  }
+});
+
+test("close organization: existing route and confirmation; reason required", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_a"));
+  await click($("orglife-close"));
+  assert.match($("close-org-confirm").textContent, /Close Hillcrest Boosters\?/);
+  assert.match($("close-org-confirm").textContent, /intended as the permanent end of the relationship rather than a pause/);
+  await click($("close-org-confirm-yes"));
+  assert.equal(posts().length, 0, "no reason ⇒ nothing sent");
+  await setValue($("close-org-confirm-reason"), "partner dissolved");
+  await click($("close-org-confirm-yes"));
+  assert.deepEqual(posts().find((c) => c.path === `${A}/organizations/org_a/close`).body, { reason: "partner dissolved" });
+});
+
+test("active: relationship shows the stored salesperson; End partnership sends the date as 00:00 UTC", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_a"));
+  assert.match($("active-since").textContent, /Active since 2026-11-01\./);
+  assert.match($("relationship").textContent, /Salesperson\s*Ann Seller/);
+  assert.match($("relationship").textContent, /1 assigned/);
+  await click($("end-partnership"));
+  assert.equal($("end-yes").disabled, true, "no date ⇒ disabled");
+  await setValue($("end-date"), "2027-01-31");
+  await click($("end-yes"));
+  assert.deepEqual(posts().find((c) => c.path === `${A}/organizations/org_a/end`).body, { effectiveAt: "2027-01-31T00:00:00.000Z" });
+});
+
+test("active: Suspend needs a reason (zero requests without one) and posts it", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_a"));
+  await click($("suspend"));
+  await click($("suspend-confirm-yes"));
+  assert.match(text(), /Say why this organization is changing status\./);
+  assert.equal(posts().length, 0);
+  await setValue($("suspend-confirm-reason"), "fraud review");
+  await click($("suspend-confirm-yes"));
+  assert.deepEqual(posts().find((c) => c.path === `${A}/organizations/org_a/suspend`).body, { reason: "fraud review" });
+});
+
+test("ended: shows the end date and Resume posts /resume", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_e"));
+  assert.match($("ended").textContent, /Partnership ended on 2027-01-31\./);
+  await click($("resume"));
+  assert.deepEqual(posts().find((c) => c.path === `${A}/organizations/org_e/resume`).body, {});
+});
+
+test("partner share: terms in force shown; Change terms uses the existing org-wide change-rate with the year_rates rule", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_a"));
+  assert.match($("terms-line").textContent, /Year 1 20% · Year 2 15% · Year 3\+ 10% · takes effect 2026-11-01/);
+  await click($("change-terms"));
+  assertNoSamplePanels();
+  assert.match(text(), /Branded Goods purchases are recorded; partner amounts for them are not calculated yet\./);
+  await click($("save-terms"));
+  assert.equal(posts().length, 0, "incomplete ⇒ zero requests");
+  await setValue($("terms-y1"), "18"); await setValue($("terms-y2"), "12.5"); await setValue($("terms-y3"), "8");
+  await setValue($("terms-from"), "2027-03-01");
+  for (const [k, v] of [["onboardingFeeTreatment", "excluded_retained"], ["veteransContributionTreatment", "excluded"], ["discountTreatment", "ineligible"], ["taxTreatment", "excluded_from_base"], ["processorFeeTreatment", "net_of_processor"]]) await setValue($(`terms-${k}`), v);
+  await setValue($("terms-reason"), "renewal of agreement");
+  await click($("save-terms"));
+  const cr = posts().find((c) => c.path === `${A}/organizations/org_a/economics/change-rate`);
+  assert.ok(cr, "change-rate posted");
+  assert.deepEqual(cr.body.rules, { kind: "year_rates", basis: "ENSR", yearRates: { year_1: 18, year_2: 12.5, year_3_plus: 8 } });
+  assert.equal(cr.body.effectiveFrom, "2027-03-01T00:00:00.000Z");
+  assert.equal(cr.body.reason, "renewal of agreement");
+  assert.equal(cr.body.treatments.taxTreatment, "excluded_from_base");
+});
+
+async function fillTerms() {
+  await setValue($("terms-y1"), "20"); await setValue($("terms-y2"), "15"); await setValue($("terms-y3"), "10");
+  await setValue($("terms-from"), "2027-01-01");
+  for (const [k, v] of [["onboardingFeeTreatment", "excluded_retained"], ["veteransContributionTreatment", "excluded"], ["discountTreatment", "ineligible"], ["taxTreatment", "excluded_from_base"], ["processorFeeTreatment", "net_of_processor"]]) await setValue($(`terms-${k}`), v);
+  await setValue($("terms-reason"), "first terms");
+}
+
+test("partner share: first terms on an active partner use the organization terms routes (ADDENDUM 1)", async () => {
+  await mount(baseRoutes({ histA: [], orgTerms: { org_a: null } }));
+  await click($("open-org_a"));
+  assert.match($("terms-line").textContent, /Not set/);
+  await click($("change-terms"));
+  await fillTerms();
+  await click($("save-terms"));
+  assert.ok(posts().some((c) => c.path === `${A}/organizations/org_a/terms/draft`));
+  assert.ok(posts().some((c) => c.path === `${A}/organizations/org_a/terms/v_x/approve`));
+  assert.ok(posts().some((c) => c.path === `${A}/organizations/org_a/terms/v_x/activate`));
+  assert.equal(posts().filter((c) => c.path.endsWith("/economics/draft") || c.path.endsWith("/change-rate")).length, 0);
+});
+
+test("partner share (N5): a not-yet-active partner WITH ACTIVE terms uses change-rate — no second draft, no orphan approved version", async () => {
+  await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p" } }, handle: realChangeRate(["org_p"]) }));
+  await click($("open-org_p"));
+  await click($("change-terms"));
+  await fillTerms();
+  await click($("save-terms"));
+  assert.deepEqual(posts().map((c) => c.path), [`${A}/organizations/org_p/economics/change-rate`]);
+});
+
+// RR1 — real server behaviour: change-rate refuses 400 NO_ACTIVE when no ACTIVE version exists
+// (economicsService.changeOrganizationRate). These routes answer exactly as p1-be-int does.
+const realChangeRate = (activeOrgs) => (m, p) => {
+  if (m === "POST" && p.endsWith("/economics/change-rate")) {
+    const id = p.split("/").at(-3);
+    return activeOrgs.includes(id) ? { status: 200, data: { organizationId: id, campaigns: [] } } : { status: 400, data: { error: "no active economics to change", code: "NO_ACTIVE" } };
+  }
+  if (m === "POST" && p.endsWith("/terms/draft")) return { status: 201, data: { version: { id: "ot_new", status: "draft" } } };
+  if (m === "POST" && /\/terms\/[^/]+\/approve$/.test(p)) return { status: 200, data: { version: { id: p.split("/").at(-2), status: "approved" } } };
+  if (m === "POST" && /\/terms\/[^/]+\/activate$/.test(p)) return { status: 200, data: { version: { id: p.split("/").at(-2), status: "active" } } };
+  return null;
+};
+
+for (const pendingStatus of ["draft", "approved"]) {
+  test(`partner share (RR1): with only a ${pendingStatus} org terms version, Save never calls change-rate (no NO_ACTIVE dead end)`, async () => {
+    await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p", status: pendingStatus } }, handle: realChangeRate([]) }));
+    await click($("open-org_p"));
+    assert.match($("terms-line").textContent, /Not set/);
+    assert.match($("terms-pending").textContent, /Saved, not in place yet: Year 1 20% · Year 2 15% · Year 3\+ 10%/);
+    await click($("change-terms"));
+    await fillTerms();
+    await click($("save-terms"));
+    assert.deepEqual(posts().map((c) => c.path), [`${A}/organizations/org_p/terms/draft`, `${A}/organizations/org_p/terms/ot_new/approve`, `${A}/organizations/org_p/terms/ot_new/activate`]);
+    assert.equal($("terms-error"), null, "no NO_ACTIVE message");
+  });
+}
+
+test("partner share (RR1): 'Put these terms in place' finishes a saved DRAFT (approve, then activate) through the org-terms routes", async () => {
+  await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p", status: "draft" } }, handle: realChangeRate([]) }));
+  await click($("open-org_p"));
+  await click($("finish-terms"));
+  await click($("finish-terms-yes"));
+  assert.equal(posts().length, 0, "date and reason are required first");
+  await setValue($("pending-from"), "2027-02-01");
+  await setValue($("pending-reason"), "Agreement countersigned");
+  await click($("finish-terms-yes"));
+  assert.deepEqual(posts().map((c) => [c.path, c.body]), [
+    [`${A}/organizations/org_p/terms/ot_p/approve`, { reason: "Agreement countersigned" }],
+    [`${A}/organizations/org_p/terms/ot_p/activate`, { effectiveFrom: "2027-02-01T00:00:00.000Z", activationReason: "Agreement countersigned" }],
+  ]);
+});
+
+test("partner share (RR1): an already APPROVED saved version is only activated", async () => {
+  await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p", status: "approved" } }, handle: realChangeRate([]) }));
+  await click($("open-org_p"));
+  await click($("finish-terms"));
+  await setValue($("pending-from"), "2027-02-01");
+  await setValue($("pending-reason"), "go");
+  await click($("finish-terms-yes"));
+  assert.deepEqual(posts().map((c) => c.path), [`${A}/organizations/org_p/terms/ot_p/activate`]);
+});
+
+test("partner share (N5): RATE_MISMATCH is stated plainly", async () => {
+  await mount(baseRoutes({ handle: (m, p) => (m === "POST" && p.endsWith("/change-rate") ? { status: 400, data: { code: "RATE_MISMATCH" } } : null) }));
+  await click($("open-org_a"));
+  await click($("change-terms"));
+  await fillTerms();
+  await click($("save-terms"));
+  assert.equal($("terms-error").textContent, "These terms differ from the terms already saved for this partner, so nothing was changed.");
+});
+
+test("partner share: a partner not active yet sets terms through the organization terms routes", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_p"));
+  await click($("change-terms"));
+  await fillTerms();
+  await click($("save-terms"));
+  assert.deepEqual(posts().map((c) => c.path), [`${A}/organizations/org_p/terms/draft`, `${A}/organizations/org_p/terms/v_x/approve`, `${A}/organizations/org_p/terms/v_x/activate`]);
+});
+
+test("terms of organizations created before ADDENDUM 1 still read from the open-window campaign version", async () => {
+  await mount(baseRoutes({ orgTerms: { org_a: null } }));
+  await click($("open-org_a"));
+  assert.match($("terms-line").textContent, /Year 1 20% · Year 2 15% · Year 3\+ 10% · takes effect 2026-11-01/);
+});
+
+test("the deviation wording is gone", async () => {
+  await mount(baseRoutes({ orgTerms: { org_a: null }, histA: [], campaignsA: [] }));
+  await click($("open-org_a"));
+  await click($("change-terms"));
+  for (const t of ["once it is active and has a campaign", "once the partner is active and has a campaign", "Add a campaign first", "is in place on"]) assert.ok(!text().includes(t), t);
+});
+
+test("campaigns tab: Add a campaign posts the founder create route as a draft", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_a"));
+  await click($("tab-campaigns"));
+  assert.match($("panel-campaigns").textContent, /Fall Drive/);
+  await click($("founder-add-campaign"));
+  await setValue($("founder-campaign-name"), "Winter Drive");
+  await act(async () => { document.querySelector('[data-testid="panel-campaigns"] form').dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true })); });
+  await settle();
+  assert.deepEqual(posts().find((c) => c.path === `${A}/campaigns`).body, { organizationId: "org_a", title: "Winter Drive" });
+  assert.equal($("founder-campaign-note"), null);
+});
+
+test("campaigns tab (N4): the real success shape termsIssue { issued: true } shows NO warning", async () => {
+  await mount(baseRoutes({ handle: (m, p) => (m === "POST" && p === `${A}/campaigns` ? { status: 201, data: { campaign: { campaignId: "cmp_9", title: "Winter Drive", status: "draft" }, termsIssue: { issued: true, versionId: "ev_9", sourceVersionId: "ot_1", effectiveFrom: "2026-11-01T00:00:00.000Z" } } } : null) }));
+  await click($("open-org_a"));
+  await click($("tab-campaigns"));
+  await click($("founder-add-campaign"));
+  await setValue($("founder-campaign-name"), "Winter Drive");
+  await act(async () => { document.querySelector('[data-testid="panel-campaigns"] form').dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true })); });
+  await settle();
+  assert.equal($("founder-campaign-note"), null);
+});
+
+test("campaigns tab (N4): termsIssue { issued: false } is explained", async () => {
+  await mount(baseRoutes({ handle: (m, p) => (m === "POST" && p === `${A}/campaigns` ? { status: 201, data: { campaign: { campaignId: "cmp_9", title: "Winter Drive", status: "draft" }, termsIssue: { issued: false, reason: "TERMS_ISSUE_FAILED", code: null } } } : null) }));
+  await click($("open-org_a"));
+  await click($("tab-campaigns"));
+  await click($("founder-add-campaign"));
+  await setValue($("founder-campaign-name"), "Winter Drive");
+  await act(async () => { document.querySelector('[data-testid="panel-campaigns"] form').dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true })); });
+  await settle();
+  assert.match($("founder-campaign-note").textContent, /created without terms/);
+});
+
+test("reports: recorded amounts from the A5 totals only; quarterly split; no Branded Goods partner amount", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_a"));
+  await click($("tab-reports"));
+  const camp = $("report-by-campaign").textContent;
+  assert.match(camp, /Fall Drive.*\$43\.21.*\$1\.00.*\$42\.21/);
+  assert.match(camp, /Spring Drive.*\$0\.00/);
+  assert.match($("report-recorded").textContent, /2026 Q4.*\$43\.21/);
+  assert.match($("report-branded-status").textContent, /partner amounts for them are not calculated yet/);
+  assert.match($("report-quarterly").textContent, /Subscriptions.*Branded Goods.*2026 Q4.*\$800\.00.*\$124\.00/);
+  assert.match($("reports-missing").textContent, /Partner share amounts for Branded Goods purchases/);
+  const t = $("report-recorded").textContent + $("report-by-campaign").textContent;
+  assert.ok(!/Branded Goods[^.]*\$/.test(t), "no dollar amount is attached to Branded Goods partner earnings");
+  assertNoSamplePanels();
+  const q = calls.filter((c) => c.path === `${A}/reports/totals`).map((c) => c.search).sort();
+  assert.deepEqual(q, ["?groupBy=campaign&organizationId=org_a", "?groupBy=quarter&organizationId=org_a"]);
+});
+
+test("reports: a failed totals read is reported, never shown as $0", async () => {
+  await mount(baseRoutes({ totalsStatus: 500 }));
+  await click($("open-org_a"));
+  await click($("tab-reports"));
+  assert.ok(!/\$0\.00/.test($("report-by-campaign").textContent), "no amount is invented");
+  assert.match($("report-by-campaign").textContent, /Fall Drive.*\u2014/);
+  assert.ok(document.querySelectorAll('[data-testid="report-unavailable"]').length >= 2);
+});
+
+test("no pay or payout control anywhere on the founder screens", async () => {
+  await mount(baseRoutes());
+  const scan = () => [...document.querySelectorAll("button")].map((b) => b.textContent).filter((t) => /pay/i.test(t));
+  assert.deepEqual(scan(), []);
+  await click($("open-org_a"));
+  assert.deepEqual(scan(), []);
+  await click($("tab-reports"));
+  assert.deepEqual(scan(), []);
+});
+
+test("register: a failed salespeople read leaves only None, and registering still works", async () => {
+  await mount(baseRoutes({ handle: (m, p) => {
+    if (m === "GET" && p === "/api/sales/admin/salespeople") return { status: 403, data: { error: "forbidden" } };
+    if (m === "POST" && p === `${A}/users/resolve`) return { status: 200, data: { userId: "u1", email: "a@b.c", emailVerified: true, isFounder: false } };
+    return null;
+  } }));
+  await click($("register-partner"));
+  assert.deepEqual([...$("org-salesperson").options].map((o) => o.value), [""]);
+  await setValue($("r-name"), "Eastside Youth");
+  await click($("r-next"));
+  await setValue($("r-email"), "a@b.c"); await click($("r-find")); await click($("r-next"));
+  await fillTerms(); await click($("r-next"));
+  await click($("r-save"));
+  assert.deepEqual(posts().find((c) => c.path === `${A}/organizations`).body, { legalName: "Eastside Youth", orgType: "school" });
+});
+
+test("reports (N6): oversight restored — attribution records, reconciliation drift, payout status, audit history", async () => {
+  await mount(baseRoutes({ handle: (m, p) => {
+    if (m === "GET" && p.endsWith("/org_a/reconciliation")) return { status: 200, data: { reconciled: false, driftCount: 2 } };
+    if (m === "GET" && p.endsWith("/org_a/payouts/status")) return { status: 200, data: { posture: "manual_review_only", payoutsEnabled: false, held: true } };
+    if (m === "GET" && p.endsWith("/org_a/audit")) return { status: 200, data: [{ id: "a1", at: "2026-11-01T00:00:00.000Z", action: "activate", subjectType: "organization" }] };
+    return null;
+  } }));
+  await click($("open-org_a"));
+  await click($("tab-reports"));
+  const box = $("report-oversight").textContent;
+  assert.match(box, /Attribution records\s*2/);
+  assert.match($("oversight-reconciliation").textContent, /drift 2/);
+  assert.equal($("oversight-payout").textContent, "Payouts have not started yet.");
+  assert.equal($("oversight-audit").textContent, "Nov 1, 2026, 00:00 UTC — Activate (organization)");
+});
+
+test("partner share (N9): the share in force and, separately, the scheduled change", async () => {
+  await mount(baseRoutes({ scheduled: { org_a: { ...ORG_TERMS_A, versionId: "ot_2", yearRates: { year_1: 25, year_2: 15, year_3_plus: 10 }, effectiveFrom: "2027-03-01T00:00:00.000Z" } } }));
+  await click($("open-org_a"));
+  assert.match($("terms-line").textContent, /Year 1 20% \u00b7 Year 2 15% \u00b7 Year 3\+ 10% \u00b7 takes effect 2026-11-01/);
+  assert.equal($("terms-scheduled").textContent, "Scheduled from 2027-03-01: Year 1 25% \u00b7 Year 2 15% \u00b7 Year 3+ 10%");
+});
+
+test("partner share (N9): no scheduled change, no scheduled line", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_a"));
+  assert.equal($("terms-scheduled"), null);
+});
+
+test("reports (N12): Visits / Scans tiles, per-campaign counts, organization \u2192 campaign \u2192 participant drill-down", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_a"));
+  await click($("tab-reports"));
+  assert.match($("org-tiles").textContent, /Visits\s*77.*Scans\s*31/);
+  const rows = [...$("report-by-campaign").querySelectorAll("tbody tr")].map((r) => [...r.querySelectorAll("td")].map((td) => td.textContent));
+  assert.deepEqual(rows[0].slice(0, 5), ["Fall Drive", "Active", "77", "31", "6"], "sums of the campaign's participant rows (removed participants' counts included)");
+  assert.deepEqual(rows[1].slice(2, 5), ["0", "0", "0"]);
+  await click($("drill-cmp_1"));
+  assert.match($("panel-reports").textContent, /Hillcrest Boosters \u203a Fall Drive/);
+  assert.match($("campaign-tiles").textContent, /Participants\s*2.*Visits\s*77.*Scans\s*31.*New supporters\s*6/);
+  const people = $("participant-rows").textContent;
+  assert.match(people, /Ava M\.40 visits \u00b7 20 scans \u00b7 4 new supporters/);
+  assert.ok(!people.includes("Gone G."), "removed participants are not listed");
+  await click($("drill-org"));
+  assert.ok($("report-by-campaign"));
+  assert.ok(calls.some((c) => c.path === `${A}/organizations/org_a/results`));
+  assert.ok(calls.some((c) => c.path === `${A}/organizations/org_a/campaign-totals`));
+});
+
+test("reports (N12): a failed results read shows dashes and says so, never zeros", async () => {
+  await mount(baseRoutes({ resultsStatus: 500 }));
+  await click($("open-org_a"));
+  await click($("tab-reports"));
+  const first = [...$("report-by-campaign").querySelectorAll("tbody tr")][0].textContent;
+  assert.match(first, /Fall Drive.*\u2014\u2014\u2014/);
+  assert.ok($("report-unavailable"));
+});
+
+test("reports (RR7): a failed payout-status read says it couldn't be loaded, never 'Payouts have not started yet.'", async () => {
+  await mount(baseRoutes({ handle: (m, p) => (m === "GET" && p.endsWith("/org_a/payouts/status") ? { status: 500, data: {} } : null) }));
+  await click($("open-org_a"));
+  await click($("tab-reports"));
+  assert.equal($("oversight-payout").textContent, "Payout status couldn’t be loaded.");
+});
+
+test("reports (RR7): a 503 (payouts held server-side) still reads as not started", async () => {
+  await mount(baseRoutes({ handle: (m, p) => (m === "GET" && p.endsWith("/org_a/payouts/status") ? { status: 503, data: { disabled: true } } : null) }));
+  await click($("open-org_a"));
+  await click($("tab-reports"));
+  assert.equal($("oversight-payout").textContent, "Payouts have not started yet.");
+});
+
+test("campaigns tab (N12): Participants and Supporters columns from the founder results read", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_a"));
+  await click($("tab-campaigns"));
+  const rows = [...$("panel-campaigns").querySelectorAll("tbody tr")].map((r) => [...r.querySelectorAll("td")].map((td) => td.textContent));
+  assert.deepEqual(rows[0], ["Fall Drive", "Active", "2", "6"], "removed participants are not counted as participants; their supporters still count");
+  assert.deepEqual(rows[1], ["Spring Drive", "Draft", "0", "0"]);
+});
+
+test("campaigns tab (N12): a failed results read shows a dash, never zero", async () => {
+  await mount(baseRoutes({ resultsStatus: 500 }));
+  await click($("open-org_a"));
+  await click($("tab-campaigns"));
+  const first = [...$("panel-campaigns").querySelectorAll("tbody tr")][0].textContent;
+  assert.match(first, /Fall DriveActive\u2014\u2014/);
+});
+
+test("partner share (Low): only a scheduled change ⇒ 'Not in place yet', the scheduled line, and 'Change terms'", async () => {
+  await mount(baseRoutes({ orgTerms: { org_a: null }, histA: [], scheduled: { org_a: { ...ORG_TERMS_A, versionId: "ot_2", effectiveFrom: "2027-03-01T00:00:00.000Z" } } }));
+  await click($("open-org_a"));
+  assert.equal($("terms-line").textContent, "Not in place yet");
+  assert.match($("terms-scheduled").textContent, /Scheduled from 2027-03-01: Year 1 20%/);
+  assert.equal($("change-terms").textContent, "Change terms");
+});
+
+test("home (RC2-5): a scheduled-only partner shows the scheduled state in the partners list, not 'Not set'", async () => {
+  await mount(baseRoutes({ orgTerms: { org_a: null }, histA: [], scheduled: { org_a: { ...ORG_TERMS_A, versionId: "ot_2", effectiveFrom: "2027-03-01T00:00:00.000Z" } } }));
+  const row = [...document.querySelectorAll("tbody tr")].find((r) => r.textContent.includes("Hillcrest Boosters")).textContent;
+  assert.match(row, /Scheduled from 2027-03-01: Year 1 20% · Year 2 15% · Year 3\+ 10%/);
+  assert.ok(!row.includes("Not set"));
+});
+
+test("partner share (RC2-5): an incomplete saved draft offers no 'Put these terms in place' and says why", async () => {
+  await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p", status: "draft", yearRates: { year_1: 20, year_2: null, year_3_plus: 10 } } } }));
+  await click($("open-org_p"));
+  assert.equal($("finish-terms"), null);
+  assert.equal($("finish-terms-incomplete").textContent, "These saved terms are incomplete, so they can’t be put in place. Use Set terms to enter the partner share.");
+  assert.ok($("change-terms"), "Set terms is still offered");
+});
+
+test("partner share (RC2-5): with a complete saved version, finishing it is the primary path and new terms the secondary one", async () => {
+  await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p", status: "draft" } } }));
+  await click($("open-org_p"));
+  assert.equal($("finish-terms").style.background, "rgb(107, 58, 42)", "the finish button is the filled primary button");
+  assert.equal($("change-terms").textContent, "Enter different terms instead");
+  await click($("change-terms"));
+  assert.ok($("terms-form"), "the alternative still opens the same terms form");
+});
+
+const STEP_1 = { ...ORG_TERMS_A, versionId: "ot_2", economicsVersion: 2, status: "active", yearRates: { year_1: 25, year_2: 15, year_3_plus: 10 }, effectiveFrom: "2027-03-01T00:00:00.000Z", effectiveThrough: "2027-06-01T00:00:00.000Z", approvedAt: "2026-12-01T00:00:00.000Z", createdAt: "2026-12-01T00:00:00.000Z" };
+const STEP_2 = { ...ORG_TERMS_A, versionId: "ot_3", economicsVersion: 3, status: "active", yearRates: { year_1: 30, year_2: 20, year_3_plus: 10 }, effectiveFrom: "2027-06-01T00:00:00.000Z", effectiveThrough: null, approvedAt: "2026-12-02T00:00:00.000Z", createdAt: "2026-12-02T00:00:00.000Z" };
+
+test("RC4-1: two stacked scheduled changes ⇒ one 'Scheduled from' line each on the partner page, in order", async () => {
+  await mount(baseRoutes({ steps: { org_a: [STEP_1, STEP_2] } }));
+  await click($("open-org_a"));
+  assert.match($("terms-line").textContent, /Year 1 20%/);
+  assert.deepEqual([...document.querySelectorAll('[data-testid="terms-scheduled"]')].map((e) => e.textContent), [
+    "Scheduled from 2027-03-01: Year 1 25% \u00b7 Year 2 15% \u00b7 Year 3+ 10%",
+    "Scheduled from 2027-06-01: Year 1 30% \u00b7 Year 2 20% \u00b7 Year 3+ 10%",
+  ]);
+});
+
+test("RC4-1: the partners list stays compact — next step plus '+1 more scheduled'", async () => {
+  await mount(baseRoutes({ steps: { org_a: [STEP_1, STEP_2] } }));
+  const row = [...document.querySelectorAll("tbody tr")].find((r) => r.textContent.includes("Hillcrest Boosters")).textContent;
+  assert.match(row, /Year 1 20% · Year 2 15% · Year 3\+ 10%Scheduled from 2027-03-01: Year 1 25%/);
+  assert.match($("list-more-org_a").textContent, /^\+1 more scheduled$/);
+});
+
+test("RC4-1: scheduled-only with two steps ⇒ 'Not in place yet' and both lines; list shows the next step and '+1 more'", async () => {
+  await mount(baseRoutes({ orgTerms: { org_a: null }, histA: [], steps: { org_a: [STEP_1, STEP_2] } }));
+  const row = [...document.querySelectorAll("tbody tr")].find((r) => r.textContent.includes("Hillcrest Boosters")).textContent;
+  assert.match(row, /Scheduled from 2027-03-01: Year 1 25%/);
+  assert.ok(!row.includes("Not set"));
+  assert.equal($("list-more-org_a").textContent, "+1 more scheduled");
+  await click($("open-org_a"));
+  assert.equal($("terms-line").textContent, "Not in place yet");
+  assert.equal(document.querySelectorAll('[data-testid="terms-scheduled"]').length, 2);
+});
+
+test("RC4-1: no scheduledSteps in the response ⇒ falls back to the single `scheduled` view", async () => {
+  await mount(baseRoutes({ noSteps: true, scheduled: { org_a: STEP_1 } }));
+  await click($("open-org_a"));
+  assert.deepEqual([...document.querySelectorAll('[data-testid="terms-scheduled"]')].map((e) => e.textContent), ["Scheduled from 2027-03-01: Year 1 25% \u00b7 Year 2 15% \u00b7 Year 3+ 10%"]);
+});
+
+test("RC4-1: scheduledSteps [] ⇒ no scheduled line", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_a"));
+  assert.equal($("terms-scheduled"), null);
+});

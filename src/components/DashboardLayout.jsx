@@ -11,6 +11,7 @@ import cartService from '../services/cartService';
 import imageCreditsService from '../services/imageCreditsService';
 import api from '../api/api';
 import GuidedSetupFlow, { shouldShowGuidedSetupForUser } from './GuidedSetupFlow';
+import { isGuidedSetupExcludedRoute } from './guidedSetupRouteExclusion.js';
 import { useAccountState } from '../hooks/useAccountState';
 import { useFundraiserPartnerAccess } from '../hooks/useFundraiserPartnerAccess'; // TEAM B B3 — server-derived partner-nav visibility
 
@@ -183,7 +184,12 @@ export default function DashboardLayout({ children }) {
     // administers (persisted adminUserIds). Replaces the FE-GATE-1 founder predicate, which pointed
     // the PARTNER home at founders only and left real partner administrators with no entry.
     // Display-only: it grants no route or backend authorization, and no client role is trusted.
-    ...(isFundraiserUiEnabled() && isPartnerAdmin ? [{ name: 'Greet-Me Fundraise', path: '/dashboard/fundraiser', icon: null }] : []),
+    // Report 87 A7 (rev 6) — ONE item changed: "Fundraisers" opens the public Fundraisers page for
+    // everyone while the dark gate is ON (gate semantics unchanged: OFF ⇒ no fundraiser navigation).
+    // Authorized partner administrators — the SAME server-derived check as before — also get a caret
+    // with "Partner Dashboard" (/dashboard/fundraiser). Display-only; grants no access.
+    ...(isFundraiserUiEnabled() ? [{ name: 'Fundraisers', path: '/fundraisers', icon: null,
+      ...(isPartnerAdmin ? { children: [{ name: 'Partner Dashboard', path: '/dashboard/fundraiser' }] } : {}) }] : []),
     // TEAM 5 (2026-09-29) — Founder Central Command: the consolidated founder-only entry point.
     // Added, not a replacement — the individual Fundraising/Salespeople entries below (and their
     // routes) stay exactly as they are; existing deep links and bookmarks keep working. Same
@@ -1100,7 +1106,9 @@ export default function DashboardLayout({ children }) {
       </footer>
 
       {/* Guided Setup Flow — rendered outside <main> to escape its stacking context */}
-      {showOnboarding && (
+      {/* Report 87 A7 — the welcome popup is not shown on the public Fundraisers page ONLY (route
+          exclusion; the gate itself, its rules and every other page are unchanged). */}
+      {showOnboarding && !isGuidedSetupExcludedRoute(location.pathname) && (
         <GuidedSetupFlow
           onComplete={() => setShowOnboarding(false)}
           onDismiss={() => setShowOnboarding(false)}

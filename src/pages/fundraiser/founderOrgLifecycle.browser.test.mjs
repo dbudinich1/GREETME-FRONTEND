@@ -1,5 +1,8 @@
 // founderOrgLifecycle.browser.test.mjs — FOUNDER ORGANIZATION LIFECYCLE CONTROLS.
 //
+// Report 87 A7 / N6: restored from b9c74f4 and PORTED to the rev 6 controls (Activation box: Suspend,
+// Reinstate, and the least-prominent "Close organization"). Same seventeen intents.
+//
 // RENDERED coverage of the suspend / reinstate / close control block. The REAL
 // FounderFundraisingDashboard is esbuild-transformed and mounted in jsdom with the REAL
 // fundraiserApi client over a controllable global fetch. Only the flag gate is stubbed — exactly
@@ -89,6 +92,7 @@ const baseRoutes = (orgsRoute) => ({
   "/payouts/status": { status: 503, data: { disabled: true } },
   "/audit": { status: 200, data: [] },
   "/campaigns": { status: 200, data: [] },
+  "/terms": { status: 200, data: { terms: null, history: [] } },
 });
 
 const settle = async () => { for (let i = 0; i < 4; i++) await act(async () => { await new Promise((r) => setTimeout(r, 0)); }); };
@@ -116,8 +120,8 @@ async function mountAndOpen(routes) {
 /** Mount at a given organization status and open its detail drawer. */
 const openAt = (status, extra = {}) => mountAndOpen({ ...baseRoutes({ status: 200, data: [orgAt(status)] }), ...extra });
 
-async function typeReason(text) {
-  const input = $("orglife-reason");
+async function setReason(prefix, text) {
+  const input = $(`${prefix}-reason`);
   assert.ok(input, "reason field is present");
   await act(async () => {
     const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
@@ -126,28 +130,23 @@ async function typeReason(text) {
   });
   await settle();
 }
+const offered = () => ["suspend", "reinstate", "orglife-close", "end-partnership", "activate"].filter((id) => $(id));
+async function suspendWith(reason) { await click($("suspend")); if (reason !== undefined) await setReason("suspend-confirm", reason); }
 
 // ── VISIBILITY ────────────────────────────────────────────────────────────────────────────────
 
 test("FOUNDER: the lifecycle controls render for an approved organization, showing its current status", async () => {
   await openAt("approved");
-  assert.ok($("orglife-panel"), "the lifecycle panel is rendered in the founder detail drawer");
-  assert.equal($("orglife-current").textContent.trim(), "approved", "current status is displayed");
-  assert.ok($("orglife-suspend"), "Suspend is offered");
-  assert.ok($("orglife-close"), "Close is offered");
-  assert.equal($("orglife-reinstate"), null, "Reinstate is NOT offered for an already-approved organization");
-  assert.equal(lifecycleCalls().length, 0, "rendering the panel invokes nothing");
+  assert.ok($("activation"), "the Activation box renders on the partner page");
+  assert.match($("partner-detail").textContent, /Active/, "current status is displayed");
+  assert.deepEqual(offered(), ["suspend", "orglife-close", "end-partnership"]);
 });
 
 test("NON-FOUNDER: a 403 on the founder overview means the controls never render and cannot be invoked", async () => {
-  await mount({ ...baseRoutes({ status: 403, data: { error: "forbidden" } }), "/admin/overview": { status: 403, data: { error: "forbidden" } } });
-  assert.equal($("orglife-panel"), null, "no lifecycle panel exists for a non-founder");
-  assert.equal($("orglife-suspend"), null);
-  assert.equal($("orglife-reinstate"), null);
-  assert.equal($("orglife-close"), null);
-  assert.equal(lifecycleCalls().length, 0, "no lifecycle endpoint is reachable");
-  // The dashboard short-circuits to its truthful forbidden state instead of any organization markup.
-  assert.equal(document.body.textContent.includes("Fixture LLC"), false, "no organization data is rendered at all");
+  await mount({ ...baseRoutes({ status: 200, data: [orgAt("approved")] }), "/admin/overview": { status: 403, data: { error: "forbidden" } } });
+  assert.equal($("activation"), null);
+  assert.deepEqual(offered(), []);
+  assert.equal(lifecycleCalls().length, 0);
 });
 
 test("DORMANT: with the fundraiser UI gate off, nothing renders and no request is issued", async () => {
@@ -158,198 +157,138 @@ test("DORMANT: with the fundraiser UI gate off, nothing renders and no request i
   const root = createRoot(host);
   await act(async () => { root.render(React.createElement(Founder)); });
   await settle();
-  assert.equal($("orglife-panel"), null);
-  assert.equal(calls.length, 0, "the gate is checked before any fetch");
-  globalThis.__flag = true;
-  await act(async () => { root.unmount(); });
+  assert.equal(calls.length, 0);
+  assert.equal($("activation"), null);
+  await act(async () => root.unmount());
 });
-
-// ── OFFERED ACTIONS PER STATUS ────────────────────────────────────────────────────────────────
 
 test("SUSPENDED: only Reinstate and Close are offered", async () => {
   await openAt("suspended");
-  assert.equal($("orglife-current").textContent.trim(), "suspended");
-  assert.ok($("orglife-reinstate"), "Reinstate is offered");
-  assert.ok($("orglife-close"), "Close is offered");
-  assert.equal($("orglife-suspend"), null, "Suspend is NOT re-offered for an already-suspended organization");
+  assert.deepEqual(offered(), ["reinstate", "orglife-close"]);
 });
 
 test("CLOSED: only Reinstate is offered — recovery stays possible, and nothing loosens containment", async () => {
   await openAt("closed");
-  assert.equal($("orglife-current").textContent.trim(), "closed");
-  assert.ok($("orglife-reinstate"), "Reinstate is offered so a closed organization is not stranded");
-  assert.equal($("orglife-close"), null, "Close is NOT re-offered for an already-closed organization");
-  assert.equal($("orglife-suspend"), null, "Suspend is NOT offered from closed");
+  assert.deepEqual(offered(), ["reinstate"]);
 });
 
 test("UNKNOWN STATUS: no action is offered and nothing can be invoked", async () => {
-  await openAt("something_else");
-  assert.ok($("orglife-panel"), "the panel still reports the status truthfully");
-  assert.ok($("orglife-none"), "it says no change is available");
-  assert.equal($("orglife-suspend"), null);
-  assert.equal($("orglife-reinstate"), null);
-  assert.equal($("orglife-close"), null);
+  await openAt("weird_status");
+  assert.deepEqual(offered(), []);
+  assert.equal(lifecycleCalls().length, 0);
 });
 
 // ── CONFIRMATION ──────────────────────────────────────────────────────────────────────────────
 
 test("CONFIRMATION: Suspend asks first and sends nothing until it is confirmed", async () => {
   await openAt("approved");
-  await typeReason("incident review");
-  await click($("orglife-suspend"));
-  assert.ok($("orglife-confirm"), "a confirmation is shown");
-  assert.ok($("orglife-warning").textContent.length > 0, "the confirmation explains the consequence");
-  assert.equal(lifecycleCalls().length, 0, "NOTHING is sent before confirming");
-  await click($("orglife-confirm-go"));
-  assert.equal(lifecycleCalls().length, 1, "the request goes only after confirmation");
+  await suspendWith("Fraud review");
+  assert.ok($("suspend-confirm"), "a confirmation is shown");
+  assert.match($("suspend-confirm").textContent, /public referral links stop resolving/);
+  assert.equal(lifecycleCalls().length, 0, "nothing is sent before confirming");
+  await click($("suspend-confirm-yes"));
+  assert.equal(lifecycleCalls().length, 1);
 });
 
 test("CONFIRMATION: Close asks first, and cancelling sends nothing", async () => {
   await openAt("approved");
-  await typeReason("winding down");
   await click($("orglife-close"));
-  assert.ok($("orglife-confirm"), "a confirmation is shown for Close");
-  await click($("orglife-confirm-cancel"));
-  assert.equal($("orglife-confirm"), null, "the confirmation is dismissed");
-  assert.equal(lifecycleCalls().length, 0, "cancelling sends nothing");
+  assert.match($("close-org-confirm").textContent, /Close Fixture LLC\?/);
+  await setReason("close-org-confirm", "Ended");
+  await click([...$("close-org-confirm").querySelectorAll("button")].find((b) => b.textContent === "Cancel"));
+  assert.equal($("close-org-confirm"), null);
+  assert.equal(lifecycleCalls().length, 0);
 });
 
 test("CONFIRMATION: Escape dismisses the confirmation without sending", async () => {
   await openAt("approved");
-  await typeReason("thinking again");
-  await click($("orglife-suspend"));
-  assert.ok($("orglife-confirm"));
+  await suspendWith("Fraud review");
   await act(async () => { document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
   await settle();
-  assert.equal($("orglife-confirm"), null);
+  assert.equal($("suspend-confirm"), null);
   assert.equal(lifecycleCalls().length, 0);
 });
 
 test("REASON: a required reason is enforced before anything is sent", async () => {
   await openAt("approved");
-  await click($("orglife-suspend"));
-  assert.ok($("orglife-error"), "the missing reason is reported");
-  assert.equal($("orglife-confirm"), null, "no confirmation is opened without a reason");
-  assert.equal(lifecycleCalls().length, 0, "nothing is sent");
+  await suspendWith();
+  await click($("suspend-confirm-yes"));
+  assert.match($("suspend-confirm").textContent, /Say why this organization is changing status\./);
+  await setReason("suspend-confirm", "   ");
+  await click($("suspend-confirm-yes"));
+  assert.equal(lifecycleCalls().length, 0);
 });
-
-// ── ENDPOINT + PAYLOAD ────────────────────────────────────────────────────────────────────────
 
 test("ENDPOINTS: each action POSTs the correct existing route with { reason } in the body", async () => {
-  // suspend — from approved
-  await openAt("approved", { "/suspend": { status: 200, data: orgAt("suspended") } });
-  await typeReason("incident review");
-  await click($("orglife-suspend"));
-  await click($("orglife-confirm-go"));
-  let call = lifecycleCalls()[0];
-  assert.equal(call.url.endsWith(`/api/fundraiser/admin/organizations/${ORG_ID}/suspend`), true, "suspend route");
-  assert.equal(call.method, "POST");
-  assert.deepEqual(JSON.parse(call.body), { reason: "incident review" }, "reason travels in the body, nothing else");
-
-  // close — from approved
-  await openAt("approved", { "/close": { status: 200, data: orgAt("closed") } });
-  await typeReason("relationship ended");
-  await click($("orglife-close"));
-  await click($("orglife-confirm-go"));
-  call = lifecycleCalls()[0];
-  assert.equal(call.url.endsWith(`/api/fundraiser/admin/organizations/${ORG_ID}/close`), true, "close route");
-  assert.equal(call.method, "POST");
-  assert.deepEqual(JSON.parse(call.body), { reason: "relationship ended" });
-
-  // reinstate — from suspended
-  await openAt("suspended", { "/reinstate": { status: 200, data: orgAt("approved") } });
-  await typeReason("cleared");
-  await click($("orglife-reinstate"));
-  call = lifecycleCalls()[0];
-  assert.equal(call.url.endsWith(`/api/fundraiser/admin/organizations/${ORG_ID}/reinstate`), true, "reinstate route");
-  assert.equal(call.method, "POST");
-  assert.deepEqual(JSON.parse(call.body), { reason: "cleared" });
-});
-
-// ── SUCCESS + REFRESH ─────────────────────────────────────────────────────────────────────────
-
-test("SUCCESS: suspending refreshes the displayed organization state from the server", async () => {
-  let listed = "approved";
-  await openAt("approved", {
-    "/admin/organizations": { status: 200, data: () => [orgAt(listed)] },
-    "/suspend": { status: 200, data: () => { listed = "suspended"; return orgAt("suspended"); } },
-  });
-  assert.equal($("orglife-current").textContent.trim(), "approved");
-  await typeReason("incident review");
-  await click($("orglife-suspend"));
-  await click($("orglife-confirm-go"));
-
-  assert.ok($("orglife-success"), "success is reported");
-  assert.equal($("orglife-current").textContent.trim(), "suspended", "the displayed status is refreshed from the re-read");
-  assert.ok($("orglife-reinstate"), "and the offered actions follow the new status");
-  assert.equal($("orglife-suspend"), null);
-  assert.equal($("orglife-stale"), null, "the read-back succeeded, so nothing is reported stale");
-  // The re-read is the founder organizations list — the same call the dashboard already used.
-  assert.ok(calls.filter((c) => c.method === "GET" && c.url.endsWith("/admin/organizations")).length >= 2, "the list was re-read after the change");
-});
-
-test("REINSTATEMENT: a suspended organization returns to approved and regains its normal actions", async () => {
-  let listed = "suspended";
-  await openAt("suspended", {
-    "/admin/organizations": { status: 200, data: () => [orgAt(listed)] },
-    "/reinstate": { status: 200, data: () => { listed = "approved"; return orgAt("approved"); } },
-  });
-  assert.equal($("orglife-current").textContent.trim(), "suspended");
-  await typeReason("cleared");
-  await click($("orglife-reinstate"));
-  assert.ok($("orglife-success"));
-  assert.equal($("orglife-current").textContent.trim(), "approved", "the organization is back in its permitted active state");
-  assert.ok($("orglife-suspend"), "Suspend is offered again");
-  assert.ok($("orglife-close"), "Close is offered again");
-  assert.equal($("orglife-reinstate"), null, "Reinstate is no longer offered");
-});
-
-test("SUCCESS: a change that applies but whose re-read fails is reported as stale, never invented", async () => {
-  let firstList = true;
-  await openAt("approved", {
-    "/admin/organizations": { status: 200, data: () => { if (firstList) { firstList = false; return [orgAt("approved")]; } return null; } },
-    "/suspend": { status: 200, data: orgAt("suspended") },
-  });
-  await typeReason("incident review");
-  await click($("orglife-suspend"));
-  await click($("orglife-confirm-go"));
-  assert.ok($("orglife-success"), "the applied change is still reported");
-  assert.ok($("orglife-stale"), "the failed re-read is surfaced rather than guessed at");
-  assert.equal($("orglife-current").textContent.trim(), "approved", "the displayed status stays at the last server-confirmed value");
-});
-
-// ── FAILURE ───────────────────────────────────────────────────────────────────────────────────
-
-test("FAILURE: a rejected change is visible and does NOT change the displayed status", async () => {
-  for (const [status, data] of [[400, { error: "reason required" }], [403, { error: "forbidden" }], [404, { code: "NOT_FOUND" }], [409, { code: "ETAG_MISMATCH" }]]) {
-    await openAt("approved", { "/suspend": { status, data } });
-    await typeReason("incident review");
-    await click($("orglife-suspend"));
-    await click($("orglife-confirm-go"));
-    assert.ok($("orglife-failure"), `failure ${status} is surfaced`);
-    assert.ok($("orglife-failure").textContent.trim().length > 0, "the message is not blank");
-    assert.equal($("orglife-success"), null, `failure ${status} never reports success`);
-    assert.equal($("orglife-current").textContent.trim(), "approved", `failure ${status} leaves the displayed status untouched`);
-    assert.ok($("orglife-suspend"), "the original actions are still offered");
+  for (const [status, open, prefix, route] of [["approved", "suspend", "suspend-confirm", "suspend"], ["suspended", "reinstate", "reinstate-confirm", "reinstate"], ["approved", "orglife-close", "close-org-confirm", "close"]]) {
+    await openAt(status);
+    await click($(open));
+    await setReason(prefix, "  Board decision  ");
+    await click($(`${prefix}-yes`));
+    const c = lifecycleCalls().at(-1);
+    assert.ok(c.url.endsWith(`/api/fundraiser/admin/organizations/${ORG_ID}/${route}`), c.url);
+    assert.equal(c.method, "POST");
+    assert.deepEqual(JSON.parse(c.body), { reason: "Board decision" });
   }
 });
 
-test("FAILURE: a network error is surfaced and the organization is left as it was", async () => {
-  await openAt("approved", { "/suspend": new Error("boom") });
-  await typeReason("incident review");
-  await click($("orglife-suspend"));
-  await click($("orglife-confirm-go"));
-  assert.ok($("orglife-failure"), "the network failure is surfaced");
+// ── OUTCOMES ──────────────────────────────────────────────────────────────────────────────────
+
+test("SUCCESS: suspending refreshes the displayed organization state from the server", async () => {
+  let reads = 0;
+  await openAt("approved", { "/admin/organizations": { status: 200, data: () => [orgAt(++reads > 1 ? "suspended" : "approved")] }, "/suspend": { status: 200, data: orgAt("suspended") } });
+  await suspendWith("Fraud review");
+  await click($("suspend-confirm-yes"));
+  assert.ok(reads >= 2, "the organization list is re-read");
+  assert.match($("partner-detail").textContent, /Suspended/);
+  assert.match($("orglife-success").textContent, /Suspend applied\./);
+  assert.deepEqual(offered(), ["reinstate", "orglife-close"]);
+});
+
+test("REINSTATEMENT: a suspended organization returns to approved and regains its normal actions", async () => {
+  let reads = 0;
+  await openAt("suspended", { "/admin/organizations": { status: 200, data: () => [orgAt(++reads > 1 ? "approved" : "suspended")] }, "/reinstate": { status: 200, data: orgAt("approved") } });
+  await click($("reinstate"));
+  await setReason("reinstate-confirm", "Review cleared");
+  await click($("reinstate-confirm-yes"));
+  assert.match($("partner-detail").textContent, /Active/);
+  assert.deepEqual(offered(), ["suspend", "orglife-close", "end-partnership"]);
+});
+
+test("SUCCESS: a change that applies but whose re-read fails is reported as stale, never invented", async () => {
+  let reads = 0;
+  await openAt("approved", { "/suspend": { status: 200, data: orgAt("suspended") } });
+  // From now on the organization list fails to re-read.
+  const orig = globalThis.fetch;
+  globalThis.fetch = (url, opts) => (String(url).endsWith("/admin/organizations") && (opts?.method || "GET") === "GET" && ++reads >= 1
+    ? Promise.resolve({ ok: false, status: 500, json: async () => ({}) }) : orig(url, opts));
+  await suspendWith("Fraud review");
+  await click($("suspend-confirm-yes"));
+  assert.ok($("orglife-stale"), "the founder is told the list could not be re-read");
+  assert.match($("partner-detail").textContent, /Active/, "the last server-confirmed status stands");
+});
+
+test("FAILURE: a rejected change is visible and does NOT change the displayed status", async () => {
+  await openAt("approved", { "/suspend": { status: 400, data: { error: "reason required" } } });
+  await suspendWith("x");
+  await click($("suspend-confirm-yes"));
+  assert.match($("suspend-confirm").textContent, /That was rejected\. Nothing was changed\./);
+  assert.match($("partner-detail").textContent, /Active/);
   assert.equal($("orglife-success"), null);
-  assert.equal($("orglife-current").textContent.trim(), "approved");
+});
+
+test("FAILURE: a network error is surfaced and the organization is left as it was", async () => {
+  await openAt("approved", { "/suspend": new Error("network down") });
+  await suspendWith("x");
+  await click($("suspend-confirm-yes"));
+  assert.match($("suspend-confirm").textContent, /Couldn’t reach the server\. Nothing was changed\./);
+  assert.match($("partner-detail").textContent, /Active/);
 });
 
 test("NO RAW CODES: a machine error code never reaches the DOM", async () => {
-  await openAt("approved", { "/suspend": { status: 409, data: { code: "ETAG_MISMATCH", error: "concurrent modification, retry" } } });
-  await typeReason("incident review");
-  await click($("orglife-suspend"));
-  await click($("orglife-confirm-go"));
-  const text = $("orglife-failure").textContent;
-  assert.equal(text.includes("ETAG_MISMATCH"), false, "the machine code is not rendered");
-  assert.ok(text.length > 0);
+  await openAt("approved", { "/suspend": { status: 409, data: { code: "ETAG_MISMATCH", error: "precondition failed etag" } } });
+  await suspendWith("x");
+  await click($("suspend-confirm-yes"));
+  assert.ok(!document.body.textContent.includes("ETAG_MISMATCH"));
+  assert.ok(!document.body.textContent.includes("precondition failed"));
 });
