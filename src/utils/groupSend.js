@@ -101,9 +101,13 @@ export function groupAllowance(preflight, n) {
   const unlimited = preflight && preflight.sendLimitUnlimited === true;
   const remaining = preflight && typeof preflight.remaining === 'number' ? preflight.remaining : null;
   if (!unlimited && remaining !== null && n > remaining) reasons.push(`You have ${remaining} send${remaining === 1 ? '' : 's'} left; this group needs ${n}.`);
-  const ai = preflight && preflight.aiDaily && typeof preflight.aiDaily.remaining === 'number' ? preflight.aiDaily : null;
+  // G4: every current plan has a real daily cap (999 is a cap, not "unlimited"). A count the server could not read
+  // (used/remaining null) is "unknown" and never blocks; the server's own cap still applies at send time.
+  const aiRaw = preflight && preflight.aiDaily ? preflight.aiDaily : null;
+  const ai = aiRaw && typeof aiRaw.remaining === 'number' ? aiRaw : null;
+  const aiUnknown = Boolean(aiRaw && !ai);
   if (ai && n > ai.remaining) reasons.push(`Today you can create ${ai.remaining} more Greet-Me${ai.remaining === 1 ? '' : 's'} (daily limit ${ai.limit}); this group needs ${n}.`);
-  return { ok: reasons.length === 0, reasons, remaining, unlimited, aiDaily: ai };
+  return { ok: reasons.length === 0, reasons, remaining, unlimited, aiDaily: ai, aiUnknown, aiLimit: aiRaw && typeof aiRaw.limit === 'number' ? aiRaw.limit : null };
 }
 
 /** A new run: every recipient gets its own stable keys, created once and persisted with the run. */
@@ -131,7 +135,7 @@ export function createGroupRun({ occasion, words, recipients, defaultGift, overr
 
 // Refusals that apply to the whole run (the next recipient would be refused for the same reason).
 const STOP_STATUSES = new Set([401, 402, 403, 429]);
-const STOP_CODES = new Set(['NO_SAVED_PAYMENT_METHOD', 'SAVED_PAYMENT_METHOD_DISABLED', 'SEND_ENTITLEMENT_AT_RISK', 'AI_DAILY_LIMIT', 'EMAIL_NOT_VERIFIED', 'VOICE_CLONE_MISSING', 'PHOTO_REQUIRED', 'GIFT_BOX_QUOTE_EXPIRED']);
+const STOP_CODES = new Set(['NO_SAVED_PAYMENT_METHOD', 'SAVED_PAYMENT_METHOD_DISABLED', 'PAYMENT_ALREADY_IN_PROGRESS', 'SEND_ENTITLEMENT_AT_RISK', 'AI_DAILY_LIMIT', 'EMAIL_NOT_VERIFIED', 'VOICE_CLONE_MISSING', 'PHOTO_REQUIRED', 'GIFT_BOX_QUOTE_EXPIRED']);
 export function isRunStopping(err) {
   if (!err) return false;
   if (err.networkError || err.outcomeUnknown) return true; // outcome unknown: stop; never guess
@@ -211,10 +215,12 @@ async function placeGiftBox(item, { api, confirmCardPayment, now = () => Date.no
       item.quote = null; // nothing was charged; the sender must see the new price first
       throw tagged(err, { code: 'GIFT_BOX_QUOTE_EXPIRED', needsQuote: true, message: code === 'gift_box_quote_changed' ? 'A gift box price changed. Get fresh prices to continue.' : 'Gift box prices are valid for 2 minutes. Get fresh prices to continue.' });
     }
-    if (err?.status === 402) { item.giftRequestId = newId(); throw tagged(err, { declined: true, message: err.message || 'Your card was declined.' }); }
+    // A decline of the group's ONE saved card would decline the next person too: not charged (fresh key), and the run
+    // stops so the sender can update the card.
+    if (err?.status === 402) { item.giftRequestId = newId(); throw tagged(err, { message: err.message || 'Your card was declined.' }); }
     if (PRE_CHARGE_CODES.has(code)) { item.giftRequestId = newId(); throw tagged(err, { message: giftBoxErrorCopy(err) }); }
     // Refused before any charge, for the whole group: stop the run (nothing was charged).
-    if (code === 'EMAIL_NOT_VERIFIED' || err?.status === 429 || code === 'SEND_ENTITLEMENT_AT_RISK' || code === 'NO_SAVED_PAYMENT_METHOD' || code === 'SAVED_PAYMENT_METHOD_DISABLED') throw err;
+    if (code === 'EMAIL_NOT_VERIFIED' || err?.status === 429 || code === 'SEND_ENTITLEMENT_AT_RISK' || code === 'NO_SAVED_PAYMENT_METHOD' || code === 'SAVED_PAYMENT_METHOD_DISABLED' || code === 'PAYMENT_ALREADY_IN_PROGRESS') throw err;
     throw tagged(err, { outcomeUnknown: true, message: OUTCOME_UNKNOWN_MESSAGE }); // may have happened after the charge
   }
   if (res?.networkError) throw tagged(new Error(OUTCOME_UNKNOWN_MESSAGE), { outcomeUnknown: true });

@@ -285,14 +285,16 @@ test("G7: REFUSED (paid order failed) and UNCERTAIN (unknown outcome) are never 
   assert.ok(run.items.every((i) => i.status === "sent"));
 });
 
-test("G7: an expired or changed price stops before charging and needs fresh prices; a decline is that person's only", async () => {
+test("G7: an expired or changed price stops before charging and needs fresh prices; a card decline stops the run with a fresh key", async () => {
   let t = 0;
   const run = boxRun(3);
   const { api, calls } = boxApi({ chargeOutcome: { c2: { throw: { status: 402, code: "card_declined", message: "Declined" } } } });
   await G.quoteGroupGiftBoxes(run.items, { api, now: () => t });
   t = 0;
   await G.runGroup(run, deps(api, { now: () => t }));
-  assert.equal(run.items[1].status, "failed"); assert.equal(run.stopped, null, "a decline does not stop the run");
+  assert.equal(run.items[1].status, "failed");
+  assert.ok(run.stopped, "a decline of the group's one saved card stops the run (the next charge would decline too)");
+  assert.equal(calls.charge.length, 2, "nobody after the decline is charged");
   const keyBefore = run.items[1].giftRequestId;
   // later, the prices have expired
   t = 10 * 60 * 1000;
@@ -326,4 +328,18 @@ test("saved card switched off (503 SAVED_PAYMENT_METHOD_DISABLED) or missing (40
     assert.ok(qr.stopped, `${code}: QR Cash run stops too`);
     assert.equal(q.calls.charge.length, 1);
   }
+});
+
+test("G4: 999 is a real cap; an unreadable AI count is 'unknown' and never blocks", () => {
+  const a = G.groupAllowance({ canSendGreeting: true, remaining: 50, aiDaily: { limit: 999, used: 3, remaining: 996 } }, 10);
+  assert.equal(a.ok, true); assert.equal(a.aiDaily.limit, 999);
+  const u = G.groupAllowance({ canSendGreeting: true, remaining: 50, aiDaily: { limit: 5, used: null, remaining: null } }, 10);
+  assert.equal(u.ok, true); assert.equal(u.aiUnknown, true); assert.equal(u.aiLimit, 5);
+});
+
+test("409 PAYMENT_ALREADY_IN_PROGRESS stops the run (never retried as a new charge)", async () => {
+  const q = fakeApi({ chargeFail: { "p1@example.com": { throw: { status: 409, code: "PAYMENT_ALREADY_IN_PROGRESS" } } } });
+  const run = G.createGroupRun({ occasion: "Birthday", recipients: people(2), defaultGift: { type: "qrcash", amount: 25 } });
+  await G.runGroup(run, deps(q.api));
+  assert.ok(run.stopped); assert.equal(q.calls.charge.length, 1);
 });

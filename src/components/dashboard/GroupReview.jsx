@@ -39,6 +39,7 @@ function addressFor(contact) {
 export default function GroupReview({ recipients, occasion, words, defaultGiftChoice, buildPayload, senderPhotoMissing = false, initialRun = null, onClose, onDone }) {
   const [preflight, setPreflight] = useState(null);
   const [card, setCard] = useState(undefined); // undefined = loading, null = none
+  const [cardExpired, setCardExpired] = useState(false); // charge-now does not refuse an expired card itself
   const [loading, setLoading] = useState(true);
   const [defaultGift, setDefaultGift] = useState(groupGift(defaultGiftChoice));
   const [overrides, setOverrides] = useState({});
@@ -58,8 +59,9 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
     (async () => {
       let pf = null; let cd = null;
       try { pf = await api.getSendEntitlementPreflight(); } catch { pf = null; }
-      try { const r = await api.getQrCashCardStatus(); cd = r && r.card && r.card.present === true && r.card.expired !== true ? r.card : null; } catch { cd = null; }
-      if (!off) { setPreflight(pf); setCard(cd); setLoading(false); }
+      let exp = false;
+      try { const r = await api.getQrCashCardStatus(); exp = Boolean(r && r.card && r.card.present === true && r.card.expired === true); cd = r && r.card && r.card.present === true && r.card.expired !== true ? r.card : null; } catch { cd = null; }
+      if (!off) { setPreflight(pf); setCard(cd); setCardExpired(exp); setLoading(false); }
     })();
     return () => { off = true; };
   }, []);
@@ -89,7 +91,9 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
     ...(senderPhotoMissing ? ['Every Greet-Me includes your photo so the recipient knows it is from you. Add a profile photo first.'] : []),
     ...(!sizeOk ? [included.length > GROUP_MAX ? `A group is up to ${GROUP_MAX} people.` : 'A group needs at least two people. Send to one person with Send Now.'] : []),
     ...allowance.reasons,
-    ...(needsCard && card === null ? ['No saved card on file, so this group can’t include a paid gift. Choose “No gift”, or send gifts one person at a time.'] : []),
+    ...(needsCard && card === null ? [cardExpired
+      ? 'Your saved card has expired, so this group can’t include a paid gift. Update the card (it is the one your QR Cash Auto-Gift uses, in a recipient’s Occasion Scheduler), or choose “No gift”.'
+      : 'No saved card on file, so this group can’t include a paid gift. Choose “No gift”, or send gifts one person at a time.'] : []),
     ...(boxItems.length && costs.unpriced ? ['Get prices for the gift boxes before sending.'] : []),
     ...(expiredNote ? ['Gift box prices are valid for 2 minutes and these have expired. Get fresh prices to continue.'] : []),
   ];
@@ -161,7 +165,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
               <div>{loading ? 'Checking your sends…'
                 : allowance.unlimited ? 'Sends: unlimited on your plan.'
                   : allowance.remaining !== null ? `Sends: ${allowance.remaining} left; this group uses ${included.length}.` : 'Sends: each person uses one send.'}
-              {allowance.aiDaily ? ` Today: ${allowance.aiDaily.remaining} of ${allowance.aiDaily.limit} Greet-Mes left to create.` : ''} Up to 20 Greet-Mes can be sent per hour.</div>
+              {allowance.aiDaily ? ` Today: ${allowance.aiDaily.remaining} of ${allowance.aiDaily.limit} Greet-Mes left to create.` : allowance.aiUnknown ? ` Daily limit: ${allowance.aiLimit ?? '—'} Greet-Mes (today’s count couldn’t be checked).` : ''} Up to 20 Greet-Mes can be sent per hour.</div>
             </div>
 
             <label className="grv-default">

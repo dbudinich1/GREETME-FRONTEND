@@ -619,3 +619,18 @@ test("G7: gift box for one person as an override, QR Cash for everyone else; an 
   assert.equal(globalThis.__quotes.length, 0, "nothing quoted for an incomplete address");
   assert.equal($("[data-testid=grv-send]").disabled, true);
 });
+
+test("group: an expired saved card is named as expired (charge-now would decline it) and paid gifts are blocked", async () => {
+  await mount({ card: { present: true, expired: true, brand: "visa", last4: "4242" } });
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await click(byText(".track button", "Everyone"));
+  await click($("[data-testid=gx-who-done]"));
+  await click(state().cont);
+  await settle();
+  await setValue($("[data-testid=grv-default-gift]"), "qrcash:25");
+  assert.equal($("[data-testid=grv-send]").disabled, true);
+  assert.match($("[data-testid=grv-blockers]").textContent, /saved card has expired/);
+  await setValue($("[data-testid=grv-default-gift]"), "none");
+  assert.equal($("[data-testid=grv-send]").disabled, false, "a group with no paid gift can still go");
+});
