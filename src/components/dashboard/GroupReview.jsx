@@ -20,7 +20,7 @@ import {
 } from '../../utils/groupSend';
 
 const STATUS_LABEL = {
-  pending: 'Waiting', charging: 'Paying for gift…', ready: 'Gift ready', sending: 'Sending…', sent: 'Sent', failed: 'Not sent',
+  pending: 'Waiting', charging: 'Paying for gift…', ready: 'Gift ready', sending: 'Sending…', sent: 'Accepted', failed: 'Not sent',
   held: 'Greeting held', unknown: 'Payment unconfirmed', needs_quote: 'Needs a fresh price',
 };
 const STATUS_TONE = { sent: 'ok', failed: 'muted', held: 'amber', unknown: 'amber', needs_quote: 'amber' };
@@ -161,7 +161,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
         <div className="grv-head">
           <div>
             <span className="eyebrow">{run ? 'Sending' : 'Review'}</span>
-            <h2 id="grv-title">{run ? `${summary.sent} of ${summary.total} sent` : `${included.length} Greet-Mes for ${occasion}`}</h2>
+            <h2 id="grv-title">{run ? `${summary.sent} of ${summary.total} accepted for sending` : `${included.length} Greet-Mes for ${occasion}`}</h2>
           </div>
           <button type="button" className="iconbtn" aria-label="Close" onClick={onClose} disabled={running}><X size={16} /></button>
         </div>

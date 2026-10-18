@@ -265,7 +265,8 @@ test("group Send Now: Send charges only the QR Cash people (saved card) and send
   assert.equal(m.includeGift, false, "Margaret's override: no gift");
   assert.equal(globalThis.__sends.find((p) => p.contactId === "c1").gift.claimToken, "ct-t@example.com", "each charged gift goes to its own person");
   assert.ok(globalThis.__sends.every((p) => p.occasionType === "Birthday" && p.photos.length >= 0));
-  assert.equal($$("[data-testid=grv-status]").filter((e) => e.textContent === "Sent").length, 3);
+  assert.equal($$("[data-testid=grv-status]").filter((e) => e.textContent === "Accepted").length, 3);
+  assert.match($("#grv-title").textContent, /3 of 3 accepted for sending/, "header, tags and footer say the same thing");
 });
 
 test("group: the current rules decide — too few sends left blocks Send and says why", async () => {
@@ -304,7 +305,7 @@ test("group: a run-wide refusal stops the run, keeps the unsent people and offer
   await click($("[data-testid=grv-send]"));
   await settle();
   assert.ok($("[data-testid=grv-stopped]"));
-  assert.deepEqual($$("[data-testid=grv-status]").map((e) => e.textContent), ["Sent", "Not sent", "Waiting"]);
+  assert.deepEqual($$("[data-testid=grv-status]").map((e) => e.textContent), ["Accepted", "Not sent", "Waiting"]);
   assert.ok($("[data-testid=grv-retry]"));
   assert.ok(JSON.parse(window.localStorage.getItem("gm_group_run_v1")), "the run is kept so it can be resumed");
 });
@@ -599,7 +600,7 @@ test("G7: a gift box for everyone — address per person (prefilled only from sa
   assert.deepEqual(globalThis.__boxCharges.map((b) => b.contactId), ["c1", "c2", "c3"], "bound per recipient");
   assert.equal(new Set(globalThis.__boxCharges.map((b) => b.giftRequestId)).size, 3);
   assert.deepEqual(globalThis.__sends.find((p) => p.contactId === "c2").gift, { type: "gift_boxes", claimToken: "box-c2" });
-  assert.equal($$("[data-testid=grv-status]").filter((e) => e.textContent === "Sent").length, 3);
+  assert.equal($$("[data-testid=grv-status]").filter((e) => e.textContent === "Accepted").length, 3);
 });
 
 test("G7: gift box for one person as an override, QR Cash for everyone else; an address that is incomplete is reported for that person", async () => {
