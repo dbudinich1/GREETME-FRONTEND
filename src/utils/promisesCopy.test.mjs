@@ -162,8 +162,12 @@ test("founder colour-coding 2026-10-06: items not approved are back to their daa
     ["src/pages/HeroProgram.jsx", "name: 'Growth', price: 250, hearts: 3250, popular: true,", "popular: false, description"], // ribbon stays (founder)
     ["src/components/corporateCampaign/corporateDashboardModel.js", "Cash they can scan and spend.", "Not available in campaigns yet."],
     ["src/pages/G1G1Send.jsx", "included with full memberships.", "included when you subscribe at full price."],
-    ["src/pages/DashboardHome.jsx", "Every subscription includes one for you", "Every full-price individual subscription"],
   ];
+  // Founder 2026-10-18 (Report 103): the dashboard's G1G1/Hearts row — and with it the G1G1 tile line "Every
+  // subscription includes one for you" — was removed from the personal dashboard. The unapproved variant must still
+  // appear nowhere.
+  assert.ok(!read("src/pages/DashboardHome.jsx").includes("Every subscription includes one for you"));
+  assert.deepEqual(everywhere("Every full-price individual subscription"), []);
   for (const [file, original, proposed] of back) {
     const s = read(file);
     assert.ok(s.includes(original), `${file}: original missing: ${original}`);
