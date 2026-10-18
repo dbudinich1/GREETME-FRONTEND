@@ -11,6 +11,10 @@
 //   3. Pass scripts/verify-creditclaim-viral-loop-lock.mjs
 //   4. Fail build if guard violates
 // Last reviewed: 2026-05-27 (Stage 3 implementation)
+// 2026-10-18 (dashboard package, Report 103): adds REVISIT mode (voice & photo only) for the dashboard's
+//   "Re-record" / "Revisit setup · voice & photo". Affected locked milestones: 4c29ace8, 01d93f5f, 1c43a750,
+//   f98ffdb5. The first-run flow, its test send (isOnboardingTestSend: true), completion and rewards are
+//   unchanged; revisit mode never reaches them (it starts at Voice and closes after Photo).
 
 import { useState, useRef, useEffect } from 'react';
 import { X, Mic, Square, Play, Pause, Upload, Image as ImageIcon, Check, ArrowRight, Send, Loader, Camera } from 'lucide-react';
@@ -19,6 +23,7 @@ import { validateFile, validateAudioFile, validateEmail } from '../utils/helpers
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import { addToMediaLibrary } from '../utils/mediaLibrary';
+import { REVISIT_FIRST_STEP, REVISIT_LAST_STEP } from './setupRevisit';
 
 // Onboarding illustration from public folder
 const onboardingExplainer = '/assets/onboarding/onboarding-explainer.png';
@@ -73,11 +78,11 @@ export function shouldShowGuidedSetupForUser(accountState) {
   return shouldShowGuidedSetup();
 }
 
-export default function GuidedSetupFlow({ onComplete, onDismiss }) {
+export default function GuidedSetupFlow({ onComplete, onDismiss, revisit = false }) {
   const navigate = useNavigate();
   const { user, refreshProfile } = useAuth();
   // Steps: 0=Welcome, 1=QuickStart, 2=Voice, 3=Photo, 4=Recipient, 5=SendPrep, 6=Sending, 7=Success
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(revisit ? REVISIT_FIRST_STEP : 0);
   const [courtesyCreditCode, setCourtesyCreditCode] = useState(null);
   const [creditPollExhausted, setCreditPollExhausted] = useState(false);
   const [setupState, setSetupState] = useState(getSetupState());
@@ -512,8 +517,11 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   };
 
   const nextStep = () => {
+    if (revisit && step >= REVISIT_LAST_STEP) { onComplete?.(); return; }
     setStep(prev => prev + 1);
   };
+  // Revisit mode: closing never marks onboarding dismissed or completed (those flags belong to the first run).
+  const closeRevisit = () => { onDismiss?.(); };
 
   // ==================== RENDER STEPS ====================
 
@@ -959,6 +967,12 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
               {voiceUploading ? 'Saving...' : 'Save & Continue'}
             </button>
           </div>
+          {revisit && (user?.voiceId || user?.voiceUrl) && !isRecording && (
+            <button type="button" data-testid="revisit-keep-voice" onClick={() => setStep(REVISIT_LAST_STEP)}
+              style={{ marginTop: '0.875rem', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.8125rem', color: '#6366f1', textDecoration: 'underline' }}>
+              Keep my current voice
+            </button>
+          )}
         </div>
     </div>
   );
@@ -1086,6 +1100,12 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
             onChange={handlePhotoChange}
             style={{ display: 'none' }}
           />
+          {revisit && user?.photoUrl && !photoPreview && (
+            <button type="button" data-testid="revisit-keep-photo" onClick={() => onComplete?.()}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.8125rem', color: '#6366f1', textDecoration: 'underline' }}>
+              Keep my current photo
+            </button>
+          )}
         </div>
     </div>
   );
@@ -1546,6 +1566,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
   // Calculate progress (steps 0-6)
   const getProgressWidth = () => {
+    if (revisit) return step === REVISIT_FIRST_STEP ? 50 : 100;
     if (step === 0) return 6;
     if (step === 1) return 16;
     if (step === 2) return 28;
@@ -1612,7 +1633,8 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         {/* Close button (all dismissable steps — exclude transient sending step 6) */}
         {step !== 6 && (
           <button
-            onClick={handleSkip}
+            onClick={revisit ? closeRevisit : handleSkip}
+            aria-label={revisit ? 'Close' : undefined}
             style={{
               position: 'absolute',
               top: '12px',
@@ -1632,7 +1654,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
         {/* Step content — fixed min-height prevents modal resize between steps */}
         <div style={{ minHeight: isMobile ? '420px' : '460px', display: 'flex', flexDirection: 'column' }}>
-          {stepContent[step]?.()}
+          {(revisit && (step < REVISIT_FIRST_STEP || step > REVISIT_LAST_STEP)) ? null : stepContent[step]?.()}
         </div>
       </div>
 
