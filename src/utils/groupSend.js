@@ -131,7 +131,7 @@ export function createGroupRun({ occasion, words, recipients, defaultGift, overr
 
 // Refusals that apply to the whole run (the next recipient would be refused for the same reason).
 const STOP_STATUSES = new Set([401, 402, 403, 429]);
-const STOP_CODES = new Set(['NO_SAVED_PAYMENT_METHOD', 'SEND_ENTITLEMENT_AT_RISK', 'AI_DAILY_LIMIT', 'EMAIL_NOT_VERIFIED', 'VOICE_CLONE_MISSING', 'PHOTO_REQUIRED', 'GIFT_BOX_QUOTE_EXPIRED']);
+const STOP_CODES = new Set(['NO_SAVED_PAYMENT_METHOD', 'SAVED_PAYMENT_METHOD_DISABLED', 'SEND_ENTITLEMENT_AT_RISK', 'AI_DAILY_LIMIT', 'EMAIL_NOT_VERIFIED', 'VOICE_CLONE_MISSING', 'PHOTO_REQUIRED', 'GIFT_BOX_QUOTE_EXPIRED']);
 export function isRunStopping(err) {
   if (!err) return false;
   if (err.networkError || err.outcomeUnknown) return true; // outcome unknown: stop; never guess
@@ -213,7 +213,8 @@ async function placeGiftBox(item, { api, confirmCardPayment, now = () => Date.no
     }
     if (err?.status === 402) { item.giftRequestId = newId(); throw tagged(err, { declined: true, message: err.message || 'Your card was declined.' }); }
     if (PRE_CHARGE_CODES.has(code)) { item.giftRequestId = newId(); throw tagged(err, { message: giftBoxErrorCopy(err) }); }
-    if (code === 'EMAIL_NOT_VERIFIED' || err?.status === 429 || code === 'SEND_ENTITLEMENT_AT_RISK' || code === 'NO_SAVED_PAYMENT_METHOD') throw err;
+    // Refused before any charge, for the whole group: stop the run (nothing was charged).
+    if (code === 'EMAIL_NOT_VERIFIED' || err?.status === 429 || code === 'SEND_ENTITLEMENT_AT_RISK' || code === 'NO_SAVED_PAYMENT_METHOD' || code === 'SAVED_PAYMENT_METHOD_DISABLED') throw err;
     throw tagged(err, { outcomeUnknown: true, message: OUTCOME_UNKNOWN_MESSAGE }); // may have happened after the charge
   }
   if (res?.networkError) throw tagged(new Error(OUTCOME_UNKNOWN_MESSAGE), { outcomeUnknown: true });

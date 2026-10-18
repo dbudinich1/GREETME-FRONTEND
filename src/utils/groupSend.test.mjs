@@ -307,3 +307,23 @@ test("G7: an expired or changed price stops before charging and needs fresh pric
   await G.runGroup(run, deps(api, { now: () => t }));
   assert.equal(calls.charge.length, charges + 1, "charged once, after fresh prices");
 });
+
+test("saved card switched off (503 SAVED_PAYMENT_METHOD_DISABLED) or missing (409): the run stops before any charge, for QR Cash and gift boxes alike", async () => {
+  for (const code of ["SAVED_PAYMENT_METHOD_DISABLED", "NO_SAVED_PAYMENT_METHOD"]) {
+    const status = code === "SAVED_PAYMENT_METHOD_DISABLED" ? 503 : 409;
+    const run = boxRun(3);
+    const { api, calls } = boxApi({ chargeOutcome: { c1: { throw: { status, code } } } });
+    await G.quoteGroupGiftBoxes(run.items, { api });
+    await G.runGroup(run, deps(api));
+    assert.equal(run.items[0].status, "failed", code);
+    assert.equal(run.items[0].error.unknown, false, `${code}: refused before any charge, not an unknown outcome`);
+    assert.ok(run.stopped, `${code}: the run stops`);
+    assert.equal(calls.charge.length, 1, `${code}: nobody else is charged`);
+    assert.equal(calls.send.length, 0);
+    const q = fakeApi({ chargeFail: { "p1@example.com": { throw: { status, code } } } });
+    const qr = G.createGroupRun({ occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 25 } });
+    await G.runGroup(qr, deps(q.api));
+    assert.ok(qr.stopped, `${code}: QR Cash run stops too`);
+    assert.equal(q.calls.charge.length, 1);
+  }
+});
