@@ -42,8 +42,13 @@ export default {
   getSendEntitlementPreflight: async () => d().preflight,
   chargeGift: async (p) => { (globalThis.__charges = globalThis.__charges || []).push(p); return { ok: true, gift: { feeCents: 274, totalCents: 2774, claimToken: 'ct-' + p.recipientEmail, qrImageUrl: 'q', qrBlobUrl: 'b', claimUrl: 'u' } }; },
   finalizeGift: async () => ({ ok: true, gift: { feeCents: 274, totalCents: 2774, claimToken: 'ct', qrImageUrl: 'q', qrBlobUrl: 'b', claimUrl: 'u' } }),
+  quoteGiftBox: async (b) => { (globalThis.__quotes = globalThis.__quotes || []).push(b); return { ok: true, quotedTotalCents: 4599, providerQuotedTotalCents: 4299, feeCents: 300, quotedAt: '2026-10-18T12:00:00Z', quoteValidForMs: 120000, display: { productCents: 3699, shippingHandlingCents: 600, taxCents: 300, totalCents: 4599 } }; },
+  chargeGiftBox: async (b) => { (globalThis.__boxCharges = globalThis.__boxCharges || []).push(b); return { ok: true, fulfillmentStatus: 'confirmed', gift: { claimToken: 'box-' + b.contactId } }; },
+  finalizeGiftBox: async () => ({ ok: true, fulfillmentStatus: 'confirmed', gift: { claimToken: 'box-final' } }),
   sendGreeting: async (p) => { (globalThis.__sends = globalThis.__sends || []).push(p); const f = (d().sendFail || {})[p.contactId]; if (f) { const e = new Error(f.message || 'refused'); e.status = f.status; e.code = f.code; throw e; } return { ok: true, jobId: 'job-' + p.contactId }; },
 };`;
+const PROVIDER_STUB = `export const fetchCheckoutAvailability = async () => ({ available: true });
+export const fetchProviderCatalog = async () => ({ ok: true, products: (globalThis.__data && globalThis.__data.boxes) || [] });`;
 const STRIPE_STUB = `export const stripePromise = Promise.resolve({ confirmCardPayment: async () => ({ paymentIntent: { status: 'succeeded' } }) });`;
 const NOTIFY_STUB = `export const showManualToast = (t, b) => { (globalThis.__toasts = globalThis.__toasts || []).push(t); };`;
 const NULLCOMP = `const N = () => null; export default N;`;
@@ -69,6 +74,7 @@ function stubPlugin() {
     [/(OnboardingCoach|WarmReentryWelcome|BusinessGiftCreditsPanel)$/, NULLCOMP, "nullc"],
     [/\.png$/, `export default "img.png";`, "png"],
     [/stripe[\\/]stripeProvider$/, STRIPE_STUB, "stripe"],
+    [/api[\\/]providerCheckout$/, PROVIDER_STUB, "provider"],
   ];
   return { name: "stub", setup(b) {
     for (const [filter, contents, ns] of map) {
@@ -151,9 +157,11 @@ const state = () => ({
 let currentRoot = null;
 const VALID_CARD = { present: true, expMonth: 12, expYear: 2030 };
 const PREFLIGHT = { ok: true, canSendGreeting: true, remaining: 20, sendLimitUnlimited: false, aiDaily: { limit: 20, used: 0, remaining: 20 } };
-async function mount({ contacts = CONTACTS(), upcoming = UPCOMING(), sent = SENT(), tiles = { ok: true, tiles: [] }, user, saveResult, card = VALID_CARD, preflight = PREFLIGHT, sendFail } = {}) {
+const BOXES = [{ providerProductId: "goody-1", name: "Cookie Box", priceMinor: 3699, currency: "USD" }];
+async function mount({ contacts = CONTACTS(), upcoming = UPCOMING(), sent = SENT(), tiles = { ok: true, tiles: [] }, user, saveResult, card = VALID_CARD, preflight = PREFLIGHT, sendFail, boxes = BOXES } = {}) {
   if (currentRoot) { const r = currentRoot; currentRoot = null; await act(async () => { r.unmount(); }); }
-  globalThis.__data = { contacts, upcoming, sent, tiles, saveResult, card, preflight, sendFail };
+  globalThis.__data = { contacts, upcoming, sent, tiles, saveResult, card, preflight, sendFail, boxes };
+  globalThis.__quotes = []; globalThis.__boxCharges = [];
   globalThis.__user = user || { name: "Alex Rivera", voiceId: "v1", photoUrl: "p.jpg" };
   globalThis.__nav = []; globalThis.__saves = []; globalThis.__toasts = []; globalThis.__calls = []; globalThis.__sends = []; globalThis.__charges = [];
   window.sessionStorage.clear(); window.localStorage.clear();
@@ -228,7 +236,7 @@ test("group Send Now: one review with each person's gift and cost and the total;
   assert.ok($("[data-testid=gx-group-review]"), "the review opens");
   assert.equal($$("[data-testid=grv-row]").length, 3);
   await setValue($("[data-testid=grv-default-gift]"), "qrcash:25");
-  assert.match($("[data-testid=grv-total]").textContent, /Gifts \$75\.00 \+ fees \$8\.22 = \$83\.22/, "3 x ($25 + $1.99 + 3%)");
+  assert.match($("[data-testid=grv-total]").textContent, /Gifts \$75\.00 \+ QR Cash fees \$8\.22 = \$83\.22/, "3 x ($25 + $1.99 + 3%)");
   assert.match($("[data-testid=grv-total]").textContent, /saved/);
   // individual override: Margaret gets no gift
   await setValue(document.querySelector('[aria-label="Gift for Margaret Rivera"]'), "none");
@@ -551,4 +559,63 @@ test("Smart Card slide: 'Coming later' and no add action unless the server repor
   await click($$(".dot")[4]);
   assert.match($(".slide-l").textContent, /One card, spent at the brands they love/);
   assert.equal($("[data-testid=gx-add-gift]").style.visibility, "visible");
+});
+
+test("G7: a gift box for everyone — address per person (prefilled only from saved data), quotes for all before the one confirmation, then confirmed orders attached", async () => {
+  await mount();
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await click(byText(".track button", "Everyone"));
+  await click($("[data-testid=gx-who-done]"));
+  await click(state().cont);
+  await settle();
+  await setValue($("[data-testid=grv-default-gift]"), "box:goody-1");
+  assert.equal($$("[data-testid=grv-address]").length, 3, "an address for each gift-box recipient");
+  assert.equal(document.querySelector('[aria-label="Theresa Morgan street address"]').value, "1 Main", "prefilled from the saved address");
+  assert.equal(document.querySelector('[aria-label="Theresa Morgan first name"]').value, "", "a first name is never split from the full name");
+  assert.equal($("[data-testid=grv-send]").disabled, true, "no price yet");
+  // fill the names and the two missing addresses
+  for (const [n, addr] of [["Theresa Morgan", null], ["Margaret Rivera", "2 Elm"], ["Daniel Okafor", "3 Oak"]]) {
+    await setValue(document.querySelector(`[aria-label="${n} first name"]`), n.split(" ")[0]);
+    if (addr) {
+      await setValue(document.querySelector(`[aria-label="${n} street address"]`), addr);
+      await setValue(document.querySelector(`[aria-label="${n} city"]`), "Town");
+      await setValue(document.querySelector(`[aria-label="${n} state"]`), "NJ");
+      await setValue(document.querySelector(`[aria-label="${n} ZIP"]`), "07000");
+    }
+  }
+  await click($("[data-testid=grv-get-prices]"));
+  await settle();
+  assert.equal(globalThis.__quotes.length, 3, "every gift box quoted, together");
+  assert.equal($$("[data-testid=grv-quote-lines]").length, 3);
+  assert.match($$("[data-testid=grv-quote-lines]")[0].textContent, /Product \$36\.99 · S\/H \$6\.00 · Tax \$3\.00 · Total \$45\.99/, "the four lines");
+  assert.match($("[data-testid=grv-total]").textContent, /= \$137\.97/);
+  assert.equal(globalThis.__boxCharges.length, 0, "nothing charged at review");
+  assert.equal($("[data-testid=grv-send]").disabled, false);
+  await click($("[data-testid=grv-send]"));
+  await settle();
+  assert.equal(globalThis.__boxCharges.length, 3);
+  assert.ok(globalThis.__boxCharges.every((b) => b.useSavedPaymentMethod === true && !("paymentMethodId" in b) && b.quotedTotalCents === 4599));
+  assert.deepEqual(globalThis.__boxCharges.map((b) => b.contactId), ["c1", "c2", "c3"], "bound per recipient");
+  assert.equal(new Set(globalThis.__boxCharges.map((b) => b.giftRequestId)).size, 3);
+  assert.deepEqual(globalThis.__sends.find((p) => p.contactId === "c2").gift, { type: "gift_boxes", claimToken: "box-c2" });
+  assert.equal($$("[data-testid=grv-status]").filter((e) => e.textContent === "Sent").length, 3);
+});
+
+test("G7: gift box for one person as an override, QR Cash for everyone else; an address that is incomplete is reported for that person", async () => {
+  await mount();
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await click(byText(".track button", "Everyone"));
+  await click($("[data-testid=gx-who-done]"));
+  await click(state().cont);
+  await settle();
+  await setValue($("[data-testid=grv-default-gift]"), "qrcash:25");
+  await setValue(document.querySelector('[aria-label="Gift for Margaret Rivera"]'), "box:goody-1");
+  assert.equal($$("[data-testid=grv-address]").length, 1);
+  await click($("[data-testid=grv-get-prices]"));
+  await settle();
+  assert.match($("[data-testid=grv-quote-error]").textContent, /first name/);
+  assert.equal(globalThis.__quotes.length, 0, "nothing quoted for an incomplete address");
+  assert.equal($("[data-testid=grv-send]").disabled, true);
 });

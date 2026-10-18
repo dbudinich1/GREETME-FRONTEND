@@ -74,8 +74,8 @@ test("gift default for everyone, individual override per person; only supported 
 test("costs: per recipient and total, with the backend's fee arithmetic ($1.99 + 3%)", () => {
   const run = G.createGroupRun({ occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 25 }, overrides: { c2: { type: "none" } } });
   const c = G.groupCosts(run.items);
-  assert.deepEqual(c.rows[0], { contactId: "c1", giftCents: 2500, feeCents: 274, totalCents: 2774 });
-  assert.deepEqual(c.rows[1], { contactId: "c2", giftCents: 0, feeCents: 0, totalCents: 0 });
+  assert.deepEqual(c.rows[0], { contactId: "c1", kind: "qrcash", giftCents: 2500, feeCents: 274, totalCents: 2774 });
+  assert.deepEqual(c.rows[1], { contactId: "c2", kind: "none", giftCents: 0, feeCents: 0, totalCents: 0 });
   assert.equal(c.totalCents, 5548);
 });
 
@@ -91,7 +91,8 @@ test("happy path: each recipient charged once (QR Cash ones only) then sent once
   const { api, calls } = fakeApi();
   const run = G.createGroupRun({ occasion: "Birthday", recipients: people(3), defaultGift: { type: "qrcash", amount: 25 }, overrides: { c2: { type: "none" } } });
   await G.runGroup(run, deps(api));
-  assert.deepEqual(G.runSummary(run), { total: 3, sent: 3, failed: 0, pending: 0, done: true });
+  const sum = G.runSummary(run);
+  assert.equal(sum.sent, 3); assert.equal(sum.failed, 0); assert.equal(sum.done, true);
   assert.equal(calls.charge.length, 2);
   assert.ok(calls.charge.every((c) => c.useSavedPaymentMethod === true && !("paymentMethodId" in c)), "saved card (G3), never a typed card");
   assert.equal(calls.send.length, 3);
@@ -136,7 +137,9 @@ test("run-wide refusals STOP the run and keep every unsent recipient: rate limit
     const { api, calls } = fakeApi(opts);
     const run = G.createGroupRun({ occasion: "Birthday", recipients: people(4), defaultGift: where === "charge" ? { type: "qrcash", amount: 25 } : undefined });
     await G.runGroup(run, deps(api));
-    assert.deepEqual(run.items.map((i) => i.status), ["sent", "failed", "pending", "pending"], label);
+    // A refusal while placing gifts stops before any greeting is sent (gifts are placed first); the first person's
+    // charged gift is kept with them. A refusal while sending stops the remaining sends.
+    assert.deepEqual(run.items.map((i) => i.status), where === "charge" ? ["ready", "failed", "pending", "pending"] : ["sent", "failed", "pending", "pending"], label);
     assert.ok(run.stopped, `${label}: the run says why it stopped`);
     assert.equal(calls.send.some((p) => p.contactId === "c3"), false, `${label}: nothing after the refusal was attempted`);
   }
@@ -175,4 +178,132 @@ test("a missing recipient fails on its own; the controller refuses a run over 10
   assert.deepEqual(run.items.map((i) => i.status), ["failed", "sent"]);
   const big = { items: people(11).map((p) => ({ ...p, status: "pending", gift: { type: "none" } })) };
   await assert.rejects(() => G.runGroup(big, deps(api)));
+});
+
+// ── G7: gift boxes ──────────────────────────────────────────────────────────────────────────────────────────────
+const BOX = { type: "gift_box", product: { providerProductId: "goody-1", name: "Cookie Box" } };
+const ADDR = { firstName: "Theresa", lastName: "Morgan", address1: "1 Main St", city: "Town", state: "NJ", postalCode: "07000" };
+const QUOTE_RES = (total = 4599) => ({ ok: true, quotedTotalCents: total, providerQuotedTotalCents: total - 300, feeCents: 300, quotedAt: "2026-10-18T12:00:00Z", quoteValidForMs: 120000,
+  display: { productCents: total - 900, shippingHandlingCents: 600, taxCents: 300, totalCents: total } });
+function boxApi({ chargeOutcome = {}, quote = () => QUOTE_RES() } = {}) {
+  const calls = { quote: [], charge: [], finalize: [], send: [] };
+  return { calls, api: {
+    quoteGiftBox: async (b) => { calls.quote.push(b); return quote(b); },
+    chargeGiftBox: async (b) => {
+      calls.charge.push(b);
+      const o = chargeOutcome[b.contactId];
+      if (o) { if (o.throw) throw Object.assign(new Error(o.message || "x"), o.throw); return o; }
+      return { ok: true, fulfillmentStatus: "confirmed", gift: { claimToken: `box-${b.contactId}` } };
+    },
+    finalizeGiftBox: async (b) => { calls.finalize.push(b); return { ok: true, fulfillmentStatus: "confirmed", gift: { claimToken: "box-final" } }; },
+    sendGreeting: async (p) => { calls.send.push(p); return { ok: true, jobId: `job-${p.contactId}` }; },
+    chargeGift: async () => ({ ok: true, gift: GIFT_OBJ }),
+  } };
+}
+const boxRun = (n = 3, extra = {}) => G.createGroupRun({ occasion: "Birthday", recipients: people(n), defaultGift: BOX,
+  addresses: Object.fromEntries(people(n).map((p) => [p.contactId, { ...ADDR, firstName: p.name.split(" ")[0] }])), ...extra });
+
+test("G7: same gift box for everyone with individual overrides; a gift box is a supported group gift", () => {
+  const run = boxRun(3, { overrides: { c2: { type: "qrcash", amount: 10 }, c3: { type: "none" } } });
+  assert.deepEqual(run.items.map((i) => i.gift.type), ["gift_box", "qrcash", "none"]);
+  assert.equal(G.groupGift({ type: "gift_box", product: {} }).type, "none", "a gift box needs a product");
+});
+
+test("G7: each gift-box recipient is quoted with the existing route; only server quotes are shown; unpriced boxes are never estimated", async () => {
+  const run = boxRun(2);
+  const c0 = G.groupCosts(run.items);
+  assert.equal(c0.unpriced, 2); assert.equal(c0.totalCents, 0);
+  const { api, calls } = boxApi();
+  assert.equal(await G.quoteGroupGiftBoxes(run.items, { api }), true);
+  assert.equal(calls.quote.length, 2);
+  assert.deepEqual(calls.quote[0], { providerProductId: "goody-1", quantity: 1, recipient: { address: { address1: "1 Main St", city: "Town", state: "NJ", postalCode: "07000", country: "US" }, firstName: "Person", lastName: "Morgan" } });
+  const c = G.groupCosts(run.items);
+  assert.equal(c.unpriced, 0);
+  assert.deepEqual(c.rows[0].display, { productCents: 3699, shippingHandlingCents: 600, taxCents: 300, totalCents: 4599 }, "the four lines");
+  assert.equal(c.totalCents, 9198);
+});
+
+test("G7: a missing or invalid address is reported per person and nothing is quoted for them", async () => {
+  const run = boxRun(2, { addresses: { c1: { firstName: "", address1: "", city: "", state: "", postalCode: "" } } });
+  const { api, calls } = boxApi();
+  assert.equal(await G.quoteGroupGiftBoxes(run.items, { api }), false);
+  assert.match(run.items[0].quoteError, /first name/);
+  assert.match(run.items[1].quoteError, /first name/, "no address at all is also reported");
+  assert.equal(calls.quote.length, 0);
+});
+
+test("G7: a confirmed order per recipient (saved card, own key, own contact binding) is attached to that recipient's greeting", async () => {
+  const run = boxRun(2);
+  const { api, calls } = boxApi();
+  await G.quoteGroupGiftBoxes(run.items, { api });
+  await G.runGroup(run, deps(api));
+  assert.deepEqual(run.items.map((i) => i.status), ["sent", "sent"]);
+  assert.ok(calls.charge.every((b) => b.useSavedPaymentMethod === true && !("paymentMethodId" in b)));
+  assert.deepEqual(calls.charge.map((b) => b.contactId), ["c1", "c2"], "per-recipient order binding");
+  assert.equal(new Set(calls.charge.map((b) => b.giftRequestId)).size, 2);
+  assert.equal(calls.charge[0].quotedTotalCents, 4599); assert.equal(calls.charge[0].providerQuotedTotalCents, 4299);
+  assert.deepEqual(calls.send[0].gift, { type: "gift_boxes", claimToken: "box-c1" });
+  assert.equal(calls.send[1].gift.claimToken, "box-c2");
+  // gifts are all placed before any greeting is sent
+  assert.equal(calls.charge.length, 2); assert.ok(calls.send.length === 2);
+});
+
+test("G7: PENDING (paid, not confirmed) holds the greeting and is only re-finalized later, never re-placed", async () => {
+  const run = boxRun(2);
+  const { api, calls } = boxApi({ chargeOutcome: { c1: { ok: true, pending: true, paymentIntentId: "pi_1" } } });
+  await G.quoteGroupGiftBoxes(run.items, { api });
+  await G.runGroup(run, deps(api));
+  assert.deepEqual(run.items.map((i) => i.status), ["held", "sent"]);
+  assert.equal(calls.send.some((p) => p.contactId === "c1"), false, "the greeting is held");
+  await G.runGroup(run, deps(api));
+  assert.equal(calls.charge.filter((b) => b.contactId === "c1").length, 1, "never charged again");
+  assert.equal(calls.finalize.length, 1, "only re-finalized");
+  assert.equal(run.items[0].status, "sent");
+  assert.equal(calls.send.find((p) => p.contactId === "c1").gift.claimToken, "box-final");
+});
+
+test("G7: REFUSED (paid order failed) and UNCERTAIN (unknown outcome) are never re-placed and are shown in the results", async () => {
+  const run = boxRun(3);
+  const { api, calls } = boxApi({ chargeOutcome: {
+    c1: { ok: true, fulfillmentStatus: "failed", error: "The vendor refused this order.", gift: { claimToken: "t" } },
+    c2: { throw: { status: 500, code: "SERVER_ERROR" } },
+  } });
+  await G.quoteGroupGiftBoxes(run.items, { api });
+  await G.runGroup(run, deps(api));
+  assert.equal(run.items[0].status, "held"); assert.equal(run.items[0].error.refused, true);
+  assert.equal(run.items[1].status, "unknown");
+  assert.ok(run.stopped, "an unknown outcome stops the run");
+  const before = calls.charge.length;
+  await G.runGroup(run, deps(api));
+  assert.equal(calls.charge.filter((b) => b.contactId === "c1" || b.contactId === "c2").length, 2, "neither is placed again");
+  assert.ok(calls.charge.length > before, "the rest continue");
+  assert.equal(calls.send.some((p) => p.contactId === "c1" || p.contactId === "c2"), false);
+  // the sender may send those greetings without their gift
+  G.sendWithoutGift(run, "c1"); G.sendWithoutGift(run, "c2");
+  await G.runGroup(run, deps(api));
+  assert.equal(calls.send.find((p) => p.contactId === "c1").includeGift, false);
+  assert.ok(run.items.every((i) => i.status === "sent"));
+});
+
+test("G7: an expired or changed price stops before charging and needs fresh prices; a decline is that person's only", async () => {
+  let t = 0;
+  const run = boxRun(3);
+  const { api, calls } = boxApi({ chargeOutcome: { c2: { throw: { status: 402, code: "card_declined", message: "Declined" } } } });
+  await G.quoteGroupGiftBoxes(run.items, { api, now: () => t });
+  t = 0;
+  await G.runGroup(run, deps(api, { now: () => t }));
+  assert.equal(run.items[1].status, "failed"); assert.equal(run.stopped, null, "a decline does not stop the run");
+  const keyBefore = run.items[1].giftRequestId;
+  // later, the prices have expired
+  t = 10 * 60 * 1000;
+  run.items[1].status = "pending";
+  await G.runGroup(run, deps(api, { now: () => t }));
+  assert.equal(run.items[1].status, "needs_quote");
+  assert.equal(run.stopped.code, "GIFT_BOX_QUOTE_EXPIRED");
+  assert.notEqual(keyBefore, undefined);
+  const charges = calls.charge.length;
+  await G.quoteGroupGiftBoxes(run.items.filter((i) => i.status === "needs_quote"), { api, now: () => t });
+  run.items[1].status = "pending";
+  await G.runGroup(run, deps(api, { now: () => t }));
+  assert.equal(calls.charge.length, charges + 1, "charged once, after fresh prices");
 });

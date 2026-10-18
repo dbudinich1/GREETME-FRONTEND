@@ -257,6 +257,10 @@ export const DASHBOARD_HOME_CSS = `
 .gx .grv-cost { font-size:13px; color:var(--body); text-align:right; }
 .gx .grv-total { display:grid; gap:2px; font:600 15px var(--sans); color:var(--ink); border-top:1px solid var(--line); padding-top:10px; }
 .gx .grv-actions { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+.gx .grv-addr { grid-column:2 / -1; display:grid; gap:6px; border-top:1px dashed var(--p100); padding-top:8px; }
+.gx .grv-addr-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px; }
+.gx .grv-addr-grid .wide { grid-column:span 3; }
+.gx .grv-addr input { height:36px; border:1px solid var(--p200); border-radius:10px; padding:0 8px; font:14px var(--sans); color:var(--ink); background:#fff; min-width:0; width:100%; }
 @keyframes gxIn { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:none; } }
 @media (prefers-reduced-motion: reduce) { .gx *, .gx *::after { transition:none !important; animation:none !important; } }
 @media (max-width: 900px) {
@@ -310,6 +314,9 @@ export const DASHBOARD_HOME_CSS = `
   .gx .grv-row { grid-template-columns:auto minmax(0,1fr); }
   .gx .grv-row select, .gx .grv-row .grv-cost, .gx .grv-row .tag { grid-column:2 / -1; text-align:left; justify-self:start; }
   .gx .grv-actions .btn-primary { width:100%; }
+  .gx .grv-addr { grid-column:1 / -1; }
+  .gx .grv-addr-grid { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+  .gx .grv-addr-grid .wide { grid-column:span 2; }
   .gx .resolver { height:330px; padding:10px; }
   .gx .rrow { grid-template-columns:auto 1fr; }
   .gx .rdate, .gx .rgift, .gx .rline { grid-column:1 / -1; }
