@@ -45,23 +45,46 @@ const C = {
 };
 
 const CSS = `
-  .gm-landing { --col: 570px; --gap: .85rem; --panel-pad: 1.05rem; --panel-r: 22px; --card-r: 16px;
-    --hc-pad: 1.7rem 1.9rem 1.5rem; --h1: 1.85rem; --sup: 1.064rem; --sup-w: 430px; --sup-mb: 1.15rem;
-    --btn-pad: .75rem 1.5rem; --btn-h: 44px; --btn-fs: .95rem; --small: .82rem;
-    --tile-pad: 1.3rem 1.7rem; --tile-btn-w: 330px; --tile-fs: .95rem; --note-w: 400px;
-    --ctrl-pad: .45rem .8rem; --ctrl-h: 36px; --ctrl-fs: .82rem; --bar-pad: .6rem .8rem; --play: 64px;
+  .gm-landing { --col: 513px; --gap: .765rem; --panel-pad: .945rem; --panel-r: 20px; --card-r: 14.5px;
+    --hc-pad: 1.53rem 1.71rem 1.35rem; --h1: 1.665rem; --sup: .958rem; --sup-w: 387px; --sup-mb: 1.035rem;
+    --btn-pad: .675rem 1.35rem; --btn-h: 40px; --btn-fs: .855rem; --small: .75rem;
+    --tile-pad: 1.17rem 1.53rem; --tile-btn-w: 297px; --tile-fs: .855rem; --note-w: 360px;
+    --ctrl-pad: .405rem .72rem; --ctrl-h: 32px; --ctrl-fs: .75rem; --bar-pad: .54rem .72rem; --play: 58px;
     --top-fs: .85rem; --top-pad: .4rem .75rem; --page-pad: .9rem 1.25rem 2rem;
-    min-height: 100vh; box-sizing: border-box; font-family: ${FONT}; padding: var(--page-pad);
+    position: relative; min-height: 100vh; box-sizing: border-box; font-family: ${FONT}; padding: var(--page-pad);
     background: radial-gradient(1200px 500px at 50% -15%, #34205f 0%, transparent 60%), linear-gradient(180deg, ${C.pageTop} 0%, ${C.pageBottom} 100%); }
   @media (max-width: 640px) {
-    .gm-landing { --col: 100%; --gap: clamp(.7rem, 3vw, 1rem); --panel-pad: clamp(.55rem, 2.6vw, .9rem); --card-r: 18px;
-      --hc-pad: clamp(1.2rem, 6vw, 1.6rem) clamp(1rem, 5vw, 1.4rem); --h1: clamp(1.6rem, 7.6vw, 2rem); --sup: 1.12rem; --sup-w: 100%;
-      --btn-pad: .9rem 1.4rem; --btn-h: 48px; --btn-fs: 1.02rem; --small: .85rem; --tile-pad: clamp(1.1rem, 5vw, 1.4rem) clamp(1rem, 5vw, 1.4rem);
-      --tile-btn-w: 100%; --tile-fs: 1.05rem; --note-w: 100%; --ctrl-pad: .55rem .9rem; --ctrl-h: 44px; --ctrl-fs: .9rem; --play: 72px;
+    .gm-landing { --col: 100%; --gap: clamp(.7rem, 3vw, 1rem); --panel-pad: clamp(.5rem, 2.34vw, .81rem); --card-r: 16px;
+      --hc-pad: clamp(1.08rem, 5.4vw, 1.44rem) clamp(.9rem, 4.5vw, 1.26rem); --h1: clamp(1.44rem, 6.84vw, 1.8rem); --sup: 1.01rem; --sup-w: 100%;
+      --btn-pad: .81rem 1.26rem; --btn-h: 48px; --btn-fs: .95rem; --small: .78rem; --tile-pad: clamp(1rem, 4.5vw, 1.26rem) clamp(.9rem, 4.5vw, 1.26rem);
+      --tile-btn-w: 100%; --tile-fs: .95rem; --note-w: 100%; --ctrl-pad: .5rem .81rem; --ctrl-h: 44px; --ctrl-fs: .85rem; --play: 65px;
       --top-fs: .92rem; --top-pad: .5rem .85rem; --page-pad: .6rem clamp(.5rem, 2.5vw, .9rem) 1.5rem; }
   }
-  .gm-landing-top { width: 100%; max-width: calc(var(--col) + 2 * var(--panel-pad)); margin: 0 auto .9rem; display: flex; justify-content: flex-end; gap: .6rem; }
-  .gm-landing-top a { font-size: var(--top-fs); padding: var(--top-pad); border-radius: 999px; text-decoration: none; font-weight: 600; }
+  /* Menu (hamburger): wide screens in the screen's top-right corner; narrow screens inside the first card's corner,
+     beside the centred logo, so it never covers content and reserves no row. */
+  .gm-menu { position: absolute; z-index: 20; }
+  .gm-menu-page { top: .9rem; right: 1.25rem; }
+  .gm-menu-card { top: .55rem; right: .55rem; display: none; }
+  @media (max-width: 699px) { .gm-menu-page { display: none; } .gm-menu-card { display: block; } }
+  .gm-menu-btn { width: 44px; height: 44px; min-width: 44px; border-radius: 50%; padding: 0; cursor: pointer; display: inline-flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px; background: transparent; }
+  .gm-menu-page .gm-menu-btn { border: 1.5px solid rgba(239,234,255,.55); }
+  .gm-menu-page .gm-menu-btn span { background: ${C.onPage}; }
+  .gm-menu-card .gm-menu-btn { border: 1.5px solid #e4dcf7; }
+  .gm-menu-card .gm-menu-btn span { background: ${C.purple}; }
+  .gm-menu-btn span { display: block; width: 18px; height: 2px; border-radius: 2px; }
+  .gm-menu-list { position: absolute; right: 0; top: 52px; min-width: 248px; background: #fff; border-radius: 14px; padding: .45rem;
+    box-shadow: 0 14px 36px rgba(10, 4, 30, .35); display: flex; flex-direction: column; gap: .2rem; text-align: left; }
+  .gm-menu-item { display: flex; align-items: center; justify-content: flex-start; width: 100%; box-sizing: border-box; gap: .55rem; min-height: 44px; padding: .55rem .85rem; border-radius: 10px; border: 0; background: transparent;
+    font: 600 .92rem ${FONT}; color: ${C.ink}; text-decoration: none; cursor: pointer; text-align: left; }
+  .gm-menu-item:hover { background: #f3effc; }
+  .gm-menu-item.primary { background: ${C.purple}; color: #fff; }
+  .gm-menu-item.primary:hover { background: ${C.purpleDark}; }
+  .gm-landing-head { position: relative; }
+  /* Fit-to-screen: the whole panel scales (same proportions) so it sits inside the window on arrival. */
+  .gm-landing-panel { zoom: var(--fit, 1); }
+  .gm-menu-card { zoom: calc(1 / var(--fit, 1)); }
+  .gm-landing-foot { zoom: 1; }
   .gm-landing-panel { width: 100%; max-width: calc(var(--col) + 2 * var(--panel-pad)); margin: 0 auto; box-sizing: border-box; padding: var(--panel-pad);
     background: linear-gradient(180deg, ${C.panel} 0%, ${C.panelBottom} 100%); border: 1px solid ${C.panelLine}; border-radius: var(--panel-r);
     box-shadow: 0 30px 80px rgba(8, 3, 25, .45), inset 0 1px 0 rgba(255,255,255,.12); display: grid; gap: var(--gap); }
@@ -134,6 +157,73 @@ export default function Landing() {
     sampleBtnRef.current?.focus();
   }, [sampleOpen, scanRevealOpen]);
 
+  // Fit-to-screen (preview): scale = available height / natural panel height, between FIT_MIN and 1.
+  const FIT_MIN = 0.75;
+  const rootRef = useRef(null);
+  useEffect(() => {
+    const root = rootRef.current; if (!root) return undefined;
+    const panel = root.querySelector('[data-testid="landing-panel"]'); if (!panel) return undefined;
+    const fit = () => {
+      const cur = parseFloat(window.getComputedStyle(root).getPropertyValue('--fit')) || 1;
+      const rect = panel.getBoundingClientRect();
+      const natural = rect.height / cur;                      // zoom scales width and height together
+      if (!(natural > 0)) return;                             // not laid out (e.g. test DOM)
+      const top = rect.top + window.scrollY;
+      const avail = window.innerHeight - top - 12;
+      const next = Math.max(FIT_MIN, Math.min(1, avail / natural));
+      if (Math.abs(next - cur) > 0.004) {
+        root.style.setProperty('--fit', next.toFixed(3));
+        // On phones the panel keeps full width while text shrinks, so height is not proportional: re-check until it settles.
+        if ((fit.passes = (fit.passes || 0) + 1) < 8 && window.requestAnimationFrame) window.requestAnimationFrame(fit);
+      } else { fit.passes = 0; }
+    };
+    fit();
+    const ro = typeof window.ResizeObserver === 'function' ? new window.ResizeObserver(fit) : null; ro?.observe(panel);
+    window.addEventListener('resize', fit);
+    document.fonts?.ready?.then(fit).catch(() => {});
+    const t1 = setTimeout(fit, 300); const t2 = setTimeout(fit, 1200);
+    return () => { ro?.disconnect(); window.removeEventListener('resize', fit); clearTimeout(t1); clearTimeout(t2); };
+  }, [SHOW_SAMPLE_ENTRY]);
+
+  // Hamburger menu (one open state; only one of the two placements is visible at a time).
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRefs = useRef([]);
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onDown = (e) => { if (!menuRefs.current.some((el) => el && el.contains(e.target))) setMenuOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') { setMenuOpen(false); menuRefs.current.forEach((el) => el?.offsetParent && el.querySelector('button')?.focus()); } };
+    document.addEventListener('mousedown', onDown); document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [menuOpen]);
+  const videoCardRef = useRef(null);
+  const playDemo = () => {
+    setMenuOpen(false);
+    videoCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (!intro.playing) { focusBarRef.current = true; intro.tap(); }
+  };
+  const renderMenu = (placement, i) => (
+    <div className={`gm-menu gm-menu-${placement}`} ref={(el) => { menuRefs.current[i] = el; }} data-testid={`landing-menu-${placement}`}>
+      <button type="button" className="gm-menu-btn" aria-label="Menu" aria-haspopup="true" aria-expanded={menuOpen}
+        aria-controls={`landing-menu-list-${placement}`} data-testid={`landing-menu-btn-${placement}`} onClick={() => setMenuOpen((o) => !o)}>
+        <span /><span /><span />
+      </button>
+      {menuOpen ? (
+        <nav className="gm-menu-list" id={`landing-menu-list-${placement}`} aria-label="Greet-Me menu">
+          <Link to="/login" className="gm-menu-item" data-testid="landing-signin">Sign in</Link>
+          <Link to="/register" className="gm-menu-item primary" data-testid="landing-register-top">{REGISTER_LABEL}</Link>
+          {SHOW_SAMPLE_ENTRY ? (
+            <button type="button" className="gm-menu-item" data-testid="landing-menu-sample" onClick={() => { setMenuOpen(false); openSample(); }}>
+              <span aria-hidden="true">✉</span> {SAMPLE_CHROME.ctaLabel}
+            </button>
+          ) : null}
+          <button type="button" className="gm-menu-item" data-testid="landing-menu-play" onClick={playDemo} disabled={videoStatus === 'failed'}>
+            <span aria-hidden="true">▶</span> Play demo
+          </button>
+        </nav>
+      ) : null}
+    </div>
+  );
+
   // Demo mode: ?demo=1 prevents auth redirect so founder can show landing while logged in.
   // A scanned sample QR (?sample=credit) is exempt the same way, so a signed-in visitor sees the sample reveal,
   // but only when the sample is actually shown; if its video is missing, the usual redirect applies.
@@ -160,18 +250,16 @@ export default function Landing() {
   const coverLabel = intro.ended ? 'Replay intro video from the start' : 'Play intro video';
 
   return (
-    <div className="gm-landing" data-testid="landing-page">
+    <div className="gm-landing" data-testid="landing-page" ref={rootRef}>
       <style>{CSS}</style>
 
-      {/* Sign in and registration: always reachable, separate actions */}
-      <div className="gm-landing-top">
-        <Link to="/login" data-testid="landing-signin" style={{ color: C.onPage, border: '1.5px solid rgba(239,234,255,.55)' }}>Sign in</Link>
-        <Link to="/register" data-testid="landing-register-top" style={{ color: C.purple, background: '#fff', fontWeight: 700 }}>{REGISTER_LABEL}</Link>
-      </div>
+      {/* Sign in, registration, sample and demo: one menu in the top-right corner */}
+      {renderMenu('page', 0)}
 
       {/* One grouping panel behind the three cards */}
       <div className="gm-landing-panel" data-testid="landing-panel">
         <section className="gm-landing-card gm-landing-head" data-testid="landing-headcard">
+          {renderMenu('card', 1)}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '.9rem' }}>
             <GreetMeLogo />
           </div>
@@ -188,7 +276,7 @@ export default function Landing() {
         </section>
 
         {/* Intro video (content unchanged). Controls call useIntroVideo only. */}
-        <section className="gm-landing-card" data-testid="landing-videocard">
+        <section className="gm-landing-card" data-testid="landing-videocard" ref={videoCardRef}>
           <div className="gm-landing-video" onClick={intro.tap}>
             <video
               ref={intro.videoRef}

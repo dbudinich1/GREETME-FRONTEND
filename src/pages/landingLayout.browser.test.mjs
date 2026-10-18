@@ -95,7 +95,17 @@ test("settled copy and structure; the sample entry stays off", async () => {
   for (const id of ["landing-headcard", "landing-videocard", "landing-tile"]) assert.ok($("landing-panel").contains($(id)), `${id} sits inside the panel`);
   assert.match(text, /Greetings and gifts that keep on giving\./);
   assert.equal($("landing-support").textContent, "Personalized, automatic moments. Truly unforgettable!");
+  // Sign in / Create account live in the top-right menu (founder-approved hamburger, Report 108): closed on arrival.
+  const menuBtn = $("landing-menu-btn-page");
+  assert.ok(menuBtn, "menu button in the page corner");
+  assert.ok($("landing-menu-btn-card"), "menu button for narrow screens (inside the first card)");
+  assert.equal(menuBtn.getAttribute("aria-expanded"), "false");
+  assert.equal($("landing-register-top"), null, "menu items are not rendered while the menu is closed");
+  await click(menuBtn);
+  assert.equal(menuBtn.getAttribute("aria-expanded"), "true");
   assert.equal($("landing-register-top").textContent, "Create your free account");
+  assert.equal($("landing-menu-play").textContent.trim(), "▶ Play demo");
+  assert.equal($("landing-menu-sample"), null, "the menu's View Sample item follows the same gate as the main button");
   assert.equal($("landing-register-tile").textContent.trim(), "Create your free account");
   assert.match(text, /New accounts include 5 free sends during your 7-day trial\./);
   assert.match(text, /Your first test Greet-Me is free and doesn’t count against your five trial sends\./);
