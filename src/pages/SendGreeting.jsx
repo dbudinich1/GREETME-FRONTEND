@@ -16,7 +16,8 @@
 //   1c43a750, f98ffdb5. The verification gate, voice-missing recovery, review, payment and send paths are unchanged.
 
 import { useState, useEffect } from 'react';
-import { SEND_OCCASION_OPTIONS, SEND_OCCASION_KEY_OVERRIDES, matchSendOccasion, takeDashboardHandoff } from '../utils/dashboardSendHandoff';
+import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff } from '../utils/dashboardSendHandoff';
+import { buildGreetingPayload, qrCashGiftForPayload } from '../utils/sendGreetingPayload';
 import { getPhotoSrc } from '../utils/getPhotoSrc';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Send, Edit3, Gift, ArrowLeft, Camera, Plus, X, Check } from 'lucide-react';
@@ -60,7 +61,6 @@ import api from '../api/api';
 import draftService from '../services/draftService';
 import { pushInApp, showManualToast } from '../utils/notify';
 import { COMMS_EVENTS, COMMS_CATEGORIES } from '../utils/commsCatalog';
-import { normalizeOccasionKey } from '../utils/normalizeOccasionKey';
 import { getErrorMessage } from '../utils/errorMessages';
 import {
   isUnsubscribedAccount, emailConfirmationBlock, paymentInProgressMessage, PAYMENT_ALREADY_IN_PROGRESS_CODE,
@@ -1293,59 +1293,12 @@ export default function SendGreeting() {
 
   // Build greeting payload (shared by direct send and QR Cash flow)
   const buildGreetingData = (selectedContact) => {
-    const effectivePhotoUrl = user?.photoUrl || '';
-    const payload = {
-      userId: user?.id || user?.email || '',
-      recipientName: selectedContact.name,
-      recipientEmail: selectedContact.email,
-      greetingText: formData.customMessage || '',
-      voiceId: user?.voiceId || '',
-      photoUrl: effectivePhotoUrl,
-      occasionKey: SEND_OCCASION_KEY_OVERRIDES[formData.occasionType] || normalizeOccasionKey(formData.occasionType) || formData.occasionType,
-      occasionType: formData.occasionType,
-      relationshipKey: selectedContact.relationship || 'friend',
-      relationshipNote: selectedContact.relationshipContext || '',
-      personalSentiment: formData.customMessage || '',
-      tone: formData.tone || 'warm',
-      photos: [...new Set([
-        ...memoryPhotos,
-        ...(useMemoryPhotos
-          ? (selectedContact.memoryPhotos || [])
-              .map(p => typeof p === 'string' ? p : p?.url)
-              .filter(Boolean)
-              .filter(url => !excludedMemoryPhotos.has(url))
-          : []),
-      ])].slice(0, MAX_MEMORY_PHOTOS),
-      layoutBudget: { introMaxChars: 280 },
-      // GIFTING-INTEGRITY: recipient pointer. The backend re-validates it
-      // against the sender's own records before any gift is attached; it grants
-      // nothing on its own.
-      contactId: selectedContact.id,
-      // GIFTING-INTEGRITY: `includeGift` is a promise that a VALIDATED Greet-Me gift record will be
-      // attached, and the backend resolver refuses the whole send when it cannot build one. Flowers
-      // never can: the arrangement is dispatched to the recipient's street address by the provider,
-      // who is the merchant of record, so there is no claim token, no QR and nothing to reveal at
-      // /gift/:claimToken. Setting the flag for it would have sent every flower Greet-Me into
-      // SEND_GIFT_ERRORS.MALFORMED — "Please re-select your gift" — for a selection that was
-      // perfectly valid. The flower order is confirmed to the SENDER, beside the send itself.
-      // A gift box is the same: its gift record exists only once it has been paid for, and
-      // dispatchGiftBoxGreeting sets the flag then, with the server's own claim token.
-      includeGift: Boolean(
-        giftSettings?.type && giftSettings.type !== 'none' && giftSettings.type !== 'flowers'
-          && giftSettings.type !== 'gift_boxes',
-      ),
-      // Curated is founder-fulfilled out of band — there is no payment to
-      // wait on, so the selected spend tier IS the evidence that a gift was
-      // chosen. GIFTING-INTEGRITY: the backend validates that tier, mints the
-      // claim token at the send endpoint, and builds the stored gift object
-      // itself; the tier never reaches the recipient-facing payload.
-      ...(giftSettings?.type === 'curated' && {
-        gift: {
-          type: 'curated',
-          maxSpendCents: (giftSettings.maxSpend || 0) * 100,
-        },
-      }),
-    };
+    // G5 (Report 103 §0k): the payload is built by utils/sendGreetingPayload.js — moved there unchanged so group
+    // sending sends exactly what this page sends.
+    const payload = buildGreetingPayload({
+      user, contact: selectedContact, formData, memoryPhotos, useMemoryPhotos, excludedMemoryPhotos, giftSettings,
+      maxPhotos: MAX_MEMORY_PHOTOS,
+    });
 
     // Demo mode: attach pre-written content to skip AI generation
     if (isDemo) {
@@ -2003,17 +1956,7 @@ export default function SendGreeting() {
       const greetingDataWithGift = {
         ...pendingGreetingData,
         includeGift: true,
-        gift: {
-          type: 'qrcash',
-          amount: giftAmountDollars,
-          feeAmount: giftObj.feeCents / 100,
-          totalAmount: giftObj.totalCents / 100,
-          status: 'charged',
-          claimToken: giftObj.claimToken,
-          qrUrl: giftObj.qrImageUrl,
-          qrBlobUrl: giftObj.qrBlobUrl,
-          claimUrl: giftObj.claimUrl,
-        },
+        gift: qrCashGiftForPayload(giftAmountDollars, giftObj),
       };
 
       // Show brief payment success confirmation before sending

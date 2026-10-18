@@ -34,7 +34,9 @@ test("the words/photos hand-off is read once, only from=dashboard, AFTER the dra
 });
 
 test("Baby and Season's Greetings reach the backend as its existing keys; everything else is normalised as before", () => {
-  assert.match(SRC, /occasionKey: SEND_OCCASION_KEY_OVERRIDES\[formData\.occasionType\] \|\| normalizeOccasionKey\(formData\.occasionType\) \|\| formData\.occasionType,/);
+  const PAYLOAD = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "utils", "sendGreetingPayload.js"), "utf8");
+  assert.match(PAYLOAD, /occasionKey: SEND_OCCASION_KEY_OVERRIDES\[formData\.occasionType\] \|\| normalizeOccasionKey\(formData\.occasionType\) \|\| formData\.occasionType,/);
+  assert.match(SRC, /const payload = buildGreetingPayload\(\{/);
 });
 
 test("'Add a gift' from the dashboard reuses the canonical gift-chooser entry effect (no new opener)", () => {
