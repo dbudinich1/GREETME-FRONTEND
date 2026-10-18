@@ -291,6 +291,7 @@ test("resolver save: PUT /api/contacts/:id with the FULL record; other data unto
   assert.deepEqual(body.occasionGiftSettings.birthday, { type: "qrcash", autoGift: true, amount: 50 }, "the saved QR Cash setting is unchanged");
   assert.deepEqual(body.occasionGiftSettings.anniversary, { type: "merch", autoGift: false });
   assert.match($("[data-testid=gx-fine]").textContent, /Saved: 2 scheduled Greet-Mes for Theresa/);
+  assert.match($$("[data-testid=gx-resolver-row]")[0].textContent, /QR Cash \$50/, "the saved QR Cash amount is shown");
   assert.deepEqual(globalThis.__toasts, ["Saved ✓"]);
   assert.equal(globalThis.__nav.length, 0, "the screen stays put");
 });

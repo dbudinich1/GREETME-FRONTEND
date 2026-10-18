@@ -63,6 +63,10 @@ test("a gift choice is explicit; re-choosing the saved type keeps the saved sett
   assert.equal(R.chooseGift(b, "qrcash"), CONTACT.occasionGiftSettings.birthday, "same object: amount/autoGift untouched");
   assert.deepEqual(R.chooseGift(b, "none"), { type: "none", autoGift: false });
   assert.deepEqual(R.chooseGift({ gift: null }, "merch"), { type: "merch", autoGift: false });
+  assert.deepEqual(R.chooseGift({ gift: null }, "qrcash"), { type: "qrcash", autoGift: false, amount: 25 },
+    "QR Cash saves the $25 the scheduler displays by default, exactly like ContactForm");
+  assert.equal(R.resolverGiftAmount({ type: "qrcash", autoGift: true, amount: 50 }), 50, "a saved amount is shown as saved");
+  assert.equal(R.resolverGiftAmount({ type: "merch" }), null);
   assert.equal(R.rowComplete({ date: "2026-12-25", gift: { type: "none", autoGift: false } }), true, "'No gift' is a complete choice");
   assert.equal(R.rowComplete({ date: "2026-12-25", gift: null }), false, "a date alone is not complete");
 });

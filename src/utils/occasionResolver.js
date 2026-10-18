@@ -7,7 +7,7 @@
 //
 // Pure functions only (no React, no network) so the save payload can be tested directly.
 import { occasionTypes } from './helpers';
-import { normalizeGiftSettingsForSave } from './occasionGiftSave';
+import { normalizeGiftSettingsForSave, QRCASH_DEFAULT_DOLLARS } from './occasionGiftSave';
 import { SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_QRCASH_UNAVAILABLE_COPY } from '../config/scheduledQrCash';
 
 // Dashboard occasion label -> Occasion Scheduler type (utils/helpers.js occasionTypes). Only these occasions exist
@@ -67,7 +67,16 @@ export function prefillRow(contact, label, now = new Date()) {
 /** A new gift choice for a row: unchanged type keeps the saved setting; a new type starts like the scheduler's own default. */
 export function chooseGift(row, giftType) {
   if (row.gift && row.gift.type === giftType) return row.gift;
+  // Exactly as the scheduler does when QR Cash is picked (ContactForm handleOccasionGiftChange): the amount it
+  // displays by default is written, so nothing is saved that the sender was not shown.
+  if (giftType === 'qrcash') return { type: 'qrcash', autoGift: false, amount: QRCASH_DEFAULT_DOLLARS };
   return { type: giftType, autoGift: false };
+}
+
+/** The QR Cash amount shown in a resolver row (the saved amount, else the scheduler's displayed default). */
+export function resolverGiftAmount(gift) {
+  if (!gift || gift.type !== 'qrcash') return null;
+  return gift.amount === undefined || gift.amount === null ? QRCASH_DEFAULT_DOLLARS : gift.amount;
 }
 
 export const rowComplete = (row) => Boolean(row && row.date && row.gift && row.gift.type);
