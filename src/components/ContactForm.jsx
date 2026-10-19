@@ -306,6 +306,11 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
           budgetCap: '',
           giftingMode: 'always',
         },
+        // Address-loss fix (Team 6, 2026-10-19): load the saved address so an edit never saves it blank.
+        shippingAddress: {
+          ...getInitialFormData().shippingAddress,
+          ...(contact.shippingAddress && typeof contact.shippingAddress === 'object' ? contact.shippingAddress : {}),
+        },
       });
 
       // Extract selected faiths from occasions
