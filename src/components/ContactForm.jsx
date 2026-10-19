@@ -21,7 +21,7 @@ import SaveAuthorizationModal from './w07Auth/SaveAuthorizationModal';
 import ScheduledGiftPicker from './scheduledGift/ScheduledGiftPicker';
 import ScheduledGiftEntry from './scheduledGift/ScheduledGiftEntry';
 import { SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from '../config/scheduledPhysicalGift';
-import { needsScheduledGiftConsent, scheduledGiftConsentsFor } from '../utils/scheduledPhysicalGift';
+import { scheduledGiftConsentsFor } from '../utils/scheduledPhysicalGift';
 import PaymentInfoTriangle from './w07Auth/PaymentInfoTriangle';
 import { planAuthorization } from '../utils/scheduledQrCashConsent';
 import { QRCASH_DEFAULT_DOLLARS, normalizeGiftSettingsForSave } from '../utils/occasionGiftSave';
@@ -390,18 +390,19 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
     return formData.occasionGiftSettings?.[occasionValue] || { type: 'none', autoGift: false };
   };
 
-  // Scheduled physical gift (Report 117 U1): the occasion whose picker is open, and the occasions whose Auto-Gift
-  // consent the sender gave in the picker this session (sent with the save; the server records it).
+  // Scheduled physical gift (Report 117 U1): the occasion whose picker is open. Its card and consent are collected at
+  // SAVE, in the scheduler's own authorisation step, never in the picker.
   const [sgPicker, setSgPicker] = useState(null);
-  const [sgConsented, setSgConsented] = useState({});
   const sgDateLabel = (occ) => {
     const d = ((formData.occasions || []).find((o) => o.type === occ) || {}).date;
     const t = d ? new Date(`${String(d).slice(0, 10)}T12:00:00`) : null;
     return t && !Number.isNaN(t.getTime()) ? t.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : 'the occasion date';
   };
-  const renderScheduledGift = (occ) => (SCHEDULED_PHYSICAL_GIFT_AVAILABLE ? (
+  // Only for the physical gift types whose exact product can be chosen (as in the dashboard): never under QR Cash or
+  // "Let Greet-Me select a gift" (Team 6 Christmas-journey finding).
+  const renderScheduledGift = (occ) => (SCHEDULED_PHYSICAL_GIFT_AVAILABLE && ['merch', 'marketplace', 'gift_boxes'].includes(getOccasionGiftSetting(occ).type) ? (
     <ScheduledGiftEntry setting={getOccasionGiftSetting(occ)} onChoose={() => setSgPicker(occ)}
-      onRemove={() => { setFormData((prev) => ({ ...prev, occasionGiftSettings: { ...prev.occasionGiftSettings, [occ]: { type: 'none', autoGift: false } } })); setSgConsented((c) => ({ ...c, [occ]: false })); }} />
+      onRemove={() => { setFormData((prev) => ({ ...prev, occasionGiftSettings: { ...prev.occasionGiftSettings, [occ]: { type: 'none', autoGift: false } } })); }} />
   ) : null);
 
   const isAddGiftChecked = (occ) => (addGiftOn[occ] !== undefined ? addGiftOn[occ] : getOccasionGiftSetting(occ).type !== 'none');
@@ -552,9 +553,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
   };
 
   // The one place a recipient is actually handed to the parent. `consents` is the W07 occasionGiftConsents array (empty otherwise).
-  const commitSave = async (toSave, consents = []) => {
-    const initial = (contact && contact.occasionGiftSettings) || {};
-    const sgTypes = Object.keys(toSave.occasionGiftSettings || {}).filter((t) => sgConsented[t] && needsScheduledGiftConsent(initial[t], toSave.occasionGiftSettings[t]));
+  const commitSave = async (toSave, consents = [], sgTypes = []) => {
     await onSubmit({
       ...toSave,
       occasionGiftSettings: normalizeGiftSettingsForSave(toSave.occasionGiftSettings),
@@ -563,8 +562,11 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
     });
     // Clear draft on successful submission
     clearFormDraft();
-    // Show saved toast
-    showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
+    // Show saved toast — only now, after the save succeeded. A scheduled physical gift on Auto-Gift says what happens on its date.
+    const sgAuto = Object.entries(toSave.occasionGiftSettings || {}).filter(([, g]) => g && g.scheduledGift && g.autoGift === true);
+    showManualToast('Saved ✓', sgAuto.length
+      ? sgAuto.map(([t, g]) => `${(occasionTypes.find((o) => o.value === t) || {}).label || t}: on ${sgDateLabel(t)} the greeting is sent and ${g.scheduledGift.name || 'the gift'} is charged to your saved card and ordered. Delivery follows after that date.`).join(' ')
+      : 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
   };
 
   const handleSubmit = async (e) => {
@@ -580,7 +582,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
         // W07: before saving, work out what the sender still has to give us (consent per new or changed QR Cash Auto-Gift, a card
         // when none usable is on file, the mailing address of a shipped gift). Nothing is requested when no QR Cash Auto-Gift exists.
         let card = null;
-        if (Object.values(settings || {}).some((g) => g && g.type === 'qrcash' && g.autoGift === true)) {
+        if (Object.values(settings || {}).some((g) => g && g.autoGift === true && (g.type === 'qrcash' || g.scheduledGift))) {
           try {
             const res = await api.getQrCashCardStatus();
             card = (res && res.card) || null;
@@ -594,7 +596,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
           labelFor: (type) => (occasionTypes.find((o) => o.value === type) || {}).label,
           requiresDelivery: requiresDeliveryAddress,
         });
-        if (plan.need.consent || plan.need.address) { setAuthModal({ plan, card }); return; }
+        if (plan.need.consent || plan.need.address || plan.need.scheduledGiftConsent || plan.need.card) { setAuthModal({ plan, card }); return; }
       }
       await commitSave(toSave);
     } catch (error) {
@@ -3040,10 +3042,9 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
           occasionDateLabel={sgDateLabel(sgPicker)}
           initial={getOccasionGiftSetting(sgPicker)}
           onClose={() => setSgPicker(null)}
-          onSave={(setting, { consented }) => {
+          onSave={(setting) => {
             setFormData((prev) => ({ ...prev, occasionGiftSettings: { ...prev.occasionGiftSettings, [sgPicker]: setting } }));
             setAddGiftOn((prev) => ({ ...prev, [sgPicker]: true }));
-            setSgConsented((prev) => ({ ...prev, [sgPicker]: consented }));
             setSgPicker(null);
           }} />
       ) : null}
@@ -3054,8 +3055,8 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
           plan={authModal.plan} card={authModal.card}
           formData={formData} setFormData={setFormData}
           onCancel={() => setAuthModal(null)}
-          onSave={async (consents) => {
-            await commitSave(sanitizeRelationshipForSave(formData), consents);
+          onSave={async (consents, sgTypes = []) => {
+            await commitSave(sanitizeRelationshipForSave(formData), consents, sgTypes);
             setAuthModal(null);
           }}
         />

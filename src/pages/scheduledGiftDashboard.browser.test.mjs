@@ -61,7 +61,7 @@ const CONTACTFORM_STUB = `export const DELIVERY_REQUIRED_GIFT_TYPES = ['curated'
 const AUTHMODAL_STUB = `import React from "react";
 export default function M({ onSave, onCancel, plan }) {
   return React.createElement("div", { "data-testid": "auth-modal", "data-need": JSON.stringify(plan.need) },
-    React.createElement("button", { "data-testid": "auth-save", onClick: () => onSave([]) }, "save"),
+    React.createElement("button", { "data-testid": "auth-save", onClick: () => onSave([], (plan.scheduledGiftItems || []).map((i) => i.key)) }, "save"),
     React.createElement("button", { "data-testid": "auth-cancel", onClick: onCancel }, "cancel"));
 }`;
 
@@ -197,6 +197,7 @@ async function mount({ contacts = CONTACTS(), upcoming = UPCOMING(), sent = SENT
 const pickTab = async (k) => { await click($(`[data-testid=sg-tab-${k}]`)); };
 const chooseFirst = async () => { await click([...$("[data-testid=sg-step-product]").querySelectorAll("button")].find((b) => /Choose/.test(b.textContent))); };
 const fill = async (k, v) => setValue($(`[data-testid=sg-delivery-${k}]`), v);
+const authNeed = () => JSON.parse($("[data-testid=auth-modal]").dataset.need);
 async function toPicker(opts) {
   await mount(opts);
   await click(byText(".mode", "Schedule the Love"));
@@ -208,24 +209,37 @@ async function toPicker(opts) {
   await setValue($$("[data-testid=gx-resolver-row]")[0].querySelector("select"), "merch");
   await click($("[data-testid=sg-choose]"));
 }
-
-test("gift box: chosen product, delivery completed, today's total, maximum and consent -> saved exactly as contract v1, consent sent", async () => {
-  await toPicker();
-  assert.ok($("[data-testid=sg-picker]"));
+async function chooseBox() {
   await chooseFirst();
   for (const [k, v] of [["firstName", "Margaret"], ["lastName", "Rivera"], ["address1", "2 Elm St"], ["city", "Town"], ["state", "nj"], ["postalCode", "07001"]]) await fill(k, v);
-  assert.equal($("[data-testid=sg-delivery-state]").value, "NJ", "state is upper-cased to 2 letters");
   await click($("[data-testid=sg-get-total]"));
+}
+
+test("the picker ends at the selection: no card and no consent inside it; Auto-Gift on by default; 'Use this gift'", async () => {
+  await toPicker();
+  assert.equal($("[data-testid=sg-picker]").textContent.includes("saved card"), true, "it says the card is confirmed at save");
+  assert.equal($("[data-testid=sg-consent]"), null); assert.equal($("[data-testid=sg-add-card]"), null);
+  assert.equal($("[data-testid=sg-autogift]").checked, true);
+  await chooseBox();
   assert.match($("[data-testid=sg-quote]").textContent, /total \$45\.99/);
-  assert.equal($("[data-testid=sg-max]").value, "46.00", "maximum prefilled from today's total");
+  assert.equal($("[data-testid=sg-max]").value, "46.00");
   assert.equal(globalThis.__quotes.length, 1, "the quote writes nothing and charges nothing");
-  await click($("[data-testid=sg-save-autogift]"));
-  assert.ok($("[data-testid=sg-picker]"), "Auto-Gift needs the consent first");
-  await click($("[data-testid=sg-consent]"));
-  await click($("[data-testid=sg-save-autogift]"));
+  await click($("[data-testid=sg-use]"));
   assert.equal($("[data-testid=sg-picker]"), null);
   assert.match($("[data-testid=sg-entry]").textContent, /Auto-Gift on/);
+  assert.equal(globalThis.__saves.length, 0, "nothing saved by choosing");
+});
+
+test("Save schedules: the consent is asked at the final confirmation; the save sends exactly contract v1 and the consent; 'Saved' with the date only after success", async () => {
+  await toPicker();
+  await chooseBox();
+  await click($("[data-testid=sg-use]"));
   await click($("[data-testid=gx-dates-save]"));
+  assert.ok($("[data-testid=auth-modal]"), "the scheduler's own final confirmation opens");
+  assert.deepEqual(authNeed(), { card: false, consent: false, scheduledGiftConsent: true, address: false });
+  assert.equal(globalThis.__saves.length, 0, "nothing is saved before the confirmation");
+  assert.doesNotMatch($("[data-testid=gx-fine]").textContent, /Saved/);
+  await click($("[data-testid=auth-save]"));
   assert.equal(globalThis.__saves.length, 1);
   const body = globalThis.__saves[0].body;
   assert.deepEqual(body.occasionGiftSettings.birthday, { type: "gift_boxes", autoGift: true, scheduledGift: {
@@ -233,11 +247,42 @@ test("gift box: chosen product, delivery completed, today's total, maximum and c
     delivery: { firstName: "Margaret", lastName: "Rivera", address1: "2 Elm St", city: "Town", state: "NJ", postalCode: "07001", country: "US" },
     providerProductId: "goody-1", variants: [], quantity: 1 } });
   assert.deepEqual(body.scheduledGiftConsents, { birthday: { accepted: true, wordingVersion: "sched-gift-v1" } });
+  assert.match($("[data-testid=gx-fine]").textContent, /Saved: 1 scheduled Greet-Me for Margaret.*On February 11, the greeting is sent and Cookie Box is charged to your saved card and ordered; delivery follows after that date\./);
   assert.equal(globalThis.__charges.length + globalThis.__boxCharges.length, 0, "nothing charged at scheduling");
 });
 
-test("Branded Goods: option and quantity -> one items[] entry per unit; 'Keep as a reminder' saves Auto-Gift off and sends no consent", async () => {
-  await toPicker();
+test("no saved card: the final confirmation asks for the card too; Cancel saves nothing and keeps every selection", async () => {
+  await toPicker({ card: null });
+  await chooseBox();
+  await click($("[data-testid=sg-use]"));
+  await click($("[data-testid=gx-dates-save]"));
+  assert.deepEqual(authNeed(), { card: true, consent: false, scheduledGiftConsent: true, address: false });
+  await click($("[data-testid=auth-cancel]"));
+  assert.equal($("[data-testid=auth-modal]"), null);
+  assert.equal(globalThis.__saves.length, 0, "cancelled: nothing saved");
+  assert.doesNotMatch($("[data-testid=gx-fine]").textContent, /Saved/, "never 'Saved' before success");
+  assert.match($("[data-testid=sg-entry]").textContent, /Cookie Box/, "the selection is kept");
+  assert.equal($$("[data-testid=gx-resolver-row]")[0].querySelector("input").value, "1960-02-11", "the date is kept");
+});
+
+test("reuse: a valid card and an unchanged, already-consented selection save with no confirmation step", async () => {
+  const g = { type: "gift_boxes", autoGift: true, scheduledGift: { v: 1, vendor: "gift_boxes", name: "Cookie Box", imageUrl: "", maxTotalCents: 4600,
+    delivery: { firstName: "Margaret", address1: "2 Elm St", city: "Town", state: "NJ", postalCode: "07001", country: "US" }, providerProductId: "goody-1", variants: [], quantity: 1 } };
+  const contacts = CONTACTS(); contacts[1] = { ...contacts[1], occasions: [{ id: "m1", type: "birthday", date: "1960-02-11", autoSend: true }], occasionGiftSettings: { birthday: g } };
+  await mount({ contacts });
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday"));
+  await pickPerson("Margaret");
+  await click($("[data-testid=gx-who-done]"));
+  assert.match($("[data-testid=sg-entry]").textContent, /Cookie Box/, "the saved gift is shown");
+  await click($("[data-testid=gx-dates-save]"));
+  assert.equal($("[data-testid=auth-modal]"), null, "nothing asked again");
+  assert.equal(globalThis.__saves.length, 1);
+  assert.equal("scheduledGiftConsents" in globalThis.__saves[0].body, false, "the recorded consent is reused");
+});
+
+test("Branded Goods kept as a reminder: one items[] entry per unit; no confirmation, no consent", async () => {
+  await toPicker({ card: null });
   await pickTab("merch");
   await chooseFirst();
   await setValue($("[data-testid=sg-variant]"), "40023");
@@ -245,38 +290,28 @@ test("Branded Goods: option and quantity -> one items[] entry per unit; 'Keep as
   assert.match($("[data-testid=sg-items]").textContent, /Items \(2\) \$92\.00 · S&H added on the date · tax \$0\.00/);
   for (const [k, v] of [["firstName", "Margaret"], ["address1", "2 Elm St"], ["city", "Town"], ["state", "NJ"], ["postalCode", "07001"]]) await fill(k, v);
   await setValue($("[data-testid=sg-max]"), "120");
-  await click($("[data-testid=sg-save-reminder]"));
+  await click($("[data-testid=sg-autogift]"));
+  await click($("[data-testid=sg-use]"));
   assert.match($("[data-testid=sg-entry-status]").textContent, /Reminder only/);
   await click($("[data-testid=gx-dates-save]"));
+  assert.equal($("[data-testid=auth-modal]"), null, "a reminder needs no card and no consent");
   const b = globalThis.__saves[0].body;
-  assert.equal(b.occasionGiftSettings.birthday.type, "merch");
   assert.equal(b.occasionGiftSettings.birthday.autoGift, false);
   assert.deepEqual(b.occasionGiftSettings.birthday.scheduledGift.items, [{ syncVariantId: 40023 }, { syncVariantId: 40023 }]);
-  assert.equal(b.occasionGiftSettings.birthday.scheduledGift.maxTotalCents, 12000);
-  assert.equal("scheduledGiftConsents" in b, false, "no consent for a reminder");
+  assert.equal("scheduledGiftConsents" in b, false);
 });
 
-test("no saved card: Auto-Gift cannot be turned on (the consent box is unavailable); a maximum over $1,000 is refused", async () => {
-  await toPicker({ card: null });
-  assert.ok($("[data-testid=sg-no-card]"));
+test("a maximum over $1,000 is refused in the picker; changing the row's gift type drops the chosen product", async () => {
+  await toPicker();
   await pickTab("merch"); await chooseFirst();
   await setValue($("[data-testid=sg-variant]"), "40021");
   for (const [k, v] of [["firstName", "M"], ["address1", "2 Elm"], ["city", "Town"], ["state", "NJ"], ["postalCode", "07001"]]) await fill(k, v);
   await setValue($("[data-testid=sg-max]"), "1000.01");
   assert.ok($("[data-testid=sg-over-limit]"));
+  await click($("[data-testid=sg-use]"));
+  assert.ok($("[data-testid=sg-picker]"), "not accepted over the limit");
   await setValue($("[data-testid=sg-max]"), "60");
-  assert.equal($("[data-testid=sg-consent]").disabled, true);
-  await click($("[data-testid=sg-save-autogift]"));
-  assert.ok($("[data-testid=sg-picker]"), "still open: Auto-Gift needs a saved card");
-});
-
-test("changing the row to another gift type drops the chosen product", async () => {
-  await toPicker();
-  await pickTab("merch"); await chooseFirst();
-  await setValue($("[data-testid=sg-variant]"), "40021");
-  for (const [k, v] of [["firstName", "M"], ["address1", "2 Elm"], ["city", "Town"], ["state", "NJ"], ["postalCode", "07001"]]) await fill(k, v);
-  await setValue($("[data-testid=sg-max]"), "60");
-  await click($("[data-testid=sg-save-reminder]"));
+  await click($("[data-testid=sg-use]"));
   await setValue($$("[data-testid=gx-resolver-row]")[0].querySelector("select"), "none");
   await click($("[data-testid=gx-dates-save]"));
   assert.deepEqual(globalThis.__saves[0].body.occasionGiftSettings.birthday, { type: "none", autoGift: false });

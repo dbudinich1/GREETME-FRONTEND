@@ -180,7 +180,7 @@ export async function saveGroupSchedules({ people, rowFor, api, sanitize, plan, 
       if (validate && !validate(built)) { results.push({ id: person.id, status: 'needs_scheduler', need: { relationship: true } }); onProgress(results.slice()); continue; }
       const toSave = sanitize(built);
       const need = plan ? await plan(person, toSave) : null;
-      if (need && (need.consent || need.address)) { results.push({ id: person.id, status: 'needs_scheduler', need }); onProgress(results.slice()); continue; }
+      if (need && (need.consent || need.address || need.scheduledGiftConsent || need.card)) { results.push({ id: person.id, status: 'needs_scheduler', need }); onProgress(results.slice()); continue; }
       const res = await api.updateContact(person.id, finalizeResolverSave(toSave, [], scheduledGiftConsentsFor(person, toSave)));
       if (res && res.ok === false) {
         throw new Error(res.networkError ? 'We couldn’t save — check your connection and try again.' : (res.error || res.message || 'We couldn’t save this schedule.'));

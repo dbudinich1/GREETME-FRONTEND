@@ -3,9 +3,10 @@
 // Choose the ACTUAL gift for a scheduled occasion (Report 117 rev 3, U1; Team 6 contract v1): a gift box or a
 // Branded Goods item, its option and quantity, where it is delivered, and the most the sender authorises on
 // the occasion date. Built from the existing pieces — the Gift Place catalogue hook and product cards, the Branded
-// Goods catalogue, the gift-box address rules and the gift-box quote (which writes nothing and charges nothing), the
-// saved-card status and the scheduler's own card step. NOTHING is charged or ordered here: the selection is saved
-// on the recipient's occasion, and on the occasion date the server checks availability and the full total first.
+// Goods catalogue, the gift-box address rules and the gift-box quote (which writes nothing and charges nothing).
+// The picker ends at the SELECTION (gift, delivery, maximum, Auto-Gift on or off). The saved card and the consent are
+// collected at the final confirmation, when the schedule is saved (the scheduler's SaveAuthorizationModal), and a
+// valid card and a matching consent are reused. NOTHING is charged or ordered here.
 // Shown only while SCHEDULED_PHYSICAL_GIFT_AVAILABLE is true (the caller gates it).
 import { useEffect, useState } from 'react';
 import Modal from '../Modal';
@@ -14,15 +15,13 @@ import { useProviderCatalogue } from '../giftPlace/useProviderCatalogue';
 import { GiftProductGrid } from '../giftPlace/GiftProductCard';
 import { fromCatalogProduct, fromProviderProduct, projectGiftCards } from '../../pages/giftPlaceViewModel';
 import { toGiftBoxQuoteRequest, parseGiftBoxQuote, giftBoxErrorCopy } from '../providerCheckout/giftBoxRules';
-import SaveAuthorizationModal from '../w07Auth/SaveAuthorizationModal';
 import { centsToDollarString } from '../../utils/qrCashAmount';
 import {
-  deliveryFromContact, missingDelivery, buildScheduledGiftSetting, scheduledGiftProblems, scheduledGiftConsentText,
+  deliveryFromContact, missingDelivery, buildScheduledGiftSetting, scheduledGiftProblems,
   GIFT_BOX_MAX_QUANTITY, MAX_TOTAL_CENTS_LIMIT,
 } from '../../utils/scheduledPhysicalGift';
 
 const FIELD_LABELS = { firstName: 'First name', lastName: 'Last name', address1: 'Street address', address2: 'Apt, suite (optional)', city: 'City', state: 'State (2 letters)', postalCode: 'ZIP code' };
-const card = (s) => s && s.present === true && s.expired !== true;
 const box = { border: '1px solid var(--border)', borderRadius: 14, padding: '0.9rem 1rem', marginTop: 12, background: '#fff' };
 const h = { fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px' };
 const sub = { fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: '2px 0 0', lineHeight: 1.5 };
@@ -45,20 +44,17 @@ export default function ScheduledGiftPicker({ isOpen, onClose, contact, occasion
   const [quoteState, setQuoteState] = useState('idle');
   const [quoteError, setQuoteError] = useState('');
   const [maxDollars, setMaxDollarsRaw] = useState(prior ? (prior.maxTotalCents / 100).toFixed(2) : '');
-  const [cardStatus, setCardStatus] = useState(undefined); // undefined = loading
-  const [cardStep, setCardStep] = useState(false);
-  const [consent, setConsent] = useState(false);
+  const [autoGift, setAutoGift] = useState(prior ? prior.autoGift !== false && initial.autoGift !== false : true);
   const [tried, setTried] = useState(false);
 
-  // Any change to what is chosen, where it goes or how many clears a gift-box total already shown and the consent
-  // given for the previous choice; a changed option or maximum clears the consent.
-  const invalidate = () => { setQuote(null); setQuoteState('idle'); setQuoteError(''); setConsent(false); };
+  // Any change to what is chosen, where it goes or how many clears a gift-box total already shown.
+  const invalidate = () => { setQuote(null); setQuoteState('idle'); setQuoteError(''); };
   const setVendor = (v) => { setVendorRaw(v); invalidate(); };
   const setBoxProduct = (v) => { setBoxProductRaw(v); invalidate(); };
   const setQuantity = (v) => { setQuantityRaw(v); invalidate(); };
   const setDelivery = (f) => { setDeliveryRaw(f); invalidate(); };
-  const setVariantId = (v) => { setVariantIdRaw(v); setConsent(false); };
-  const setMaxDollars = (v) => { setMaxDollarsRaw(v); setConsent(false); };
+  const setVariantId = (v) => { setVariantIdRaw(v); };
+  const setMaxDollars = (v) => { setMaxDollarsRaw(v); };
 
   const boxes = useProviderCatalogue(isOpen && vendor === 'gift_boxes' ? 'gift_boxes' : null, deps.catalogue || {});
   useEffect(() => {
@@ -78,15 +74,6 @@ export default function ScheduledGiftPicker({ isOpen, onClose, contact, occasion
   const priorVariantId = prior && prior.vendor === 'merch' && prior.items && prior.items[0] ? prior.items[0].syncVariantId : null;
   const merchProduct = merchProductRaw || (merchProducts && priorVariantId !== null
     ? merchProducts.find((x) => (x.variants || []).some((v) => Number(v.syncVariantId) === Number(priorVariantId))) || null : null);
-  const loadCard = async () => {
-    try { const r = await client.getQrCashCardStatus(); return (r && r.card) || null; } catch { return null; }
-  };
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    let cancelled = false;
-    (async () => { const c = await loadCard(); if (!cancelled) setCardStatus(c); })();
-    return () => { cancelled = true; };
-  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const variant = merchProduct ? (merchProduct.variants || []).find((v) => Number(v.syncVariantId) === Number(variantId)) || null : null;
   const product = vendor === 'gift_boxes' ? boxProduct : merchProduct;
@@ -101,7 +88,6 @@ export default function ScheduledGiftPicker({ isOpen, onClose, contact, occasion
   const problems = setting ? scheduledGiftProblems(setting) : ['product'];
   const belowGuide = Number.isInteger(minCents) && maxCents > 0 && maxCents < minCents;
   const ready = setting && problems.length === 0 && !belowGuide;
-  const canAutoGift = ready && card(cardStatus) && consent;
 
   const getTotal = async () => {
     if (!boxProduct || missing.length) return;
@@ -116,11 +102,10 @@ export default function ScheduledGiftPicker({ isOpen, onClose, contact, occasion
     } catch (e) { setQuoteState('failed'); setQuoteError(giftBoxErrorCopy(e)); }
   };
 
-  const save = (autoGift) => {
+  const save = () => {
     setTried(true);
     if (!ready) return;
-    if (autoGift && !canAutoGift) return;
-    onSave(autoGift ? setting : { ...setting, autoGift: false }, { consented: autoGift });
+    onSave(autoGift ? setting : { ...setting, autoGift: false });
   };
 
   if (!isOpen) return null;
@@ -212,37 +197,21 @@ export default function ScheduledGiftPicker({ isOpen, onClose, contact, occasion
           {belowGuide ? <p role="alert" style={{ ...sub, color: '#b45309' }}>Your maximum is below {vendor === 'gift_boxes' ? 'today’s total' : 'the item price'} ({centsToDollarString(minCents)}), so the gift would not be ordered.</p> : null}
         </section>
 
-        <section style={box} data-testid="sg-step-consent">
+        <section style={box} data-testid="sg-step-autogift">
           <p style={h}>4. Auto-Gift</p>
-          {cardStatus === undefined ? <p style={sub}>Checking your saved card…</p>
-            : card(cardStatus) ? <p style={sub} data-testid="sg-card">Charged on {occasionDateLabel} to your saved {cardStatus.brand ? `${cardStatus.brand[0].toUpperCase()}${cardStatus.brand.slice(1)}` : 'card'}{cardStatus.last4 ? ` •••• ${cardStatus.last4}` : ''}.</p>
-              : (
-                <div data-testid="sg-no-card">
-                  <p style={sub}>{cardStatus && cardStatus.expired ? 'Your saved card has expired.' : 'Auto-Gift needs a saved card.'} Add one to turn Auto-Gift on, or keep this gift as a reminder.</p>
-                  <button type="button" data-testid="sg-add-card" style={{ ...btn(false), marginTop: 6 }} onClick={() => setCardStep(true)}>Add a card</button>
-                </div>
-              )}
-          {ready ? (
-            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 10, fontSize: '0.8125rem', lineHeight: 1.5 }}>
-              <input type="checkbox" data-testid="sg-consent" checked={consent} disabled={!card(cardStatus)} onChange={(e) => setConsent(e.target.checked)} style={{ marginTop: 3 }} />
-              <span data-testid="sg-consent-text">{scheduledGiftConsentText({ dateLabel: occasionDateLabel, maxTotalCents: maxCents })}</span>
-            </label>
-          ) : tried ? <p role="alert" style={{ ...sub, color: '#b45309' }} data-testid="sg-problems">{problems.includes('product') ? 'Choose a gift and its option. ' : ''}{problems.includes('delivery') ? 'Complete the delivery address. ' : ''}{problems.includes('maxTotal') ? 'Set your maximum. ' : ''}</p> : null}
+          <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: '0.875rem', lineHeight: 1.5 }}>
+            <input type="checkbox" data-testid="sg-autogift" checked={autoGift} onChange={(e) => setAutoGift(e.target.checked)} style={{ marginTop: 3 }} />
+            <span>Order it automatically on {occasionDateLabel}: we charge your saved card the full total, up to your maximum, and place the order.</span>
+          </label>
+          <p style={sub}>{autoGift ? 'You confirm your card and authorize the charge when you save the schedule. Nothing is charged today.' : 'Off: you get a reminder 10 days before to confirm the gift; nothing is ordered or charged automatically.'}</p>
+          {tried && !ready ? <p role="alert" style={{ ...sub, color: '#b45309' }} data-testid="sg-problems">{problems.includes('product') ? 'Choose a gift and its option. ' : ''}{problems.includes('delivery') ? 'Complete the delivery address. ' : ''}{problems.includes('maxTotal') ? 'Set your maximum. ' : ''}{belowGuide ? 'Raise your maximum. ' : ''}</p> : null}
         </section>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
           <button type="button" style={btn(false)} data-testid="sg-cancel" onClick={onClose}>Cancel</button>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button type="button" style={btn(false)} data-testid="sg-save-reminder" onClick={() => save(false)}>Keep as a reminder</button>
-            <button type="button" style={{ ...btn(true), opacity: canAutoGift ? 1 : 0.55 }} data-testid="sg-save-autogift" aria-disabled={!canAutoGift} onClick={() => save(true)}>Turn on Auto-Gift</button>
-          </div>
+          <button type="button" style={btn(true)} data-testid="sg-use" onClick={save}>Use this gift</button>
         </div>
       </div>
-      {cardStep ? (
-        <SaveAuthorizationModal plan={{ items: [], cardState: 'none', need: { card: true, consent: false, address: false } }} card={null}
-          formData={{}} setFormData={() => {}} onCancel={() => setCardStep(false)}
-          onSave={async () => { setCardStep(false); setCardStatus(await loadCard()); }} />
-      ) : null}
     </Modal>
   );
 }

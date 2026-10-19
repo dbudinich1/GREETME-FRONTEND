@@ -14,6 +14,7 @@
 // WORDING: founder-approved text, version w07-sched-qrcash-v1 (FOUNDER_REPORTS/30_W07_consent_wording..., reward phrase dropped).
 // Changing a word here means a new version string, in step with the backend's accepted list.
 import { qrCashQuote, centsToDollarString } from './qrCashAmount.js';
+import { needsScheduledGiftConsent } from './scheduledPhysicalGift.js';
 
 export const SCHED_QRCASH_WORDING_VERSION = 'w07-sched-qrcash-v1';
 export const CONSENT_TICK_LABEL = 'I agree';
@@ -103,11 +104,23 @@ export function planAuthorization({ settings, initialSettings, occasions, card, 
     const date = typeof occ.date === 'string' ? occ.date.slice(0, 10) : '';
     all.push({ key, label: (labelFor && labelFor(key)) || key, date, dateLabel: monthDay(date) || DATE_FALLBACK, amountCents: Math.round(dollars * 100), changed: !sameSetting(init[key], g) });
   }
-  const state = all.length ? cardStateFor(card, all.map((i) => i.date)) : 'ok';
+  // Scheduled physical gifts (Report 117 contract v1) on Auto-Gift: a consent item for each NEW or CHANGED selection (any
+  // product/option/quantity/delivery change or a higher maximum; a lower maximum keeps the recorded consent), and the
+  // same saved card as QR Cash Auto-Gift. An unchanged, already-consented selection with a usable card asks nothing.
+  const sgAll = [];
+  for (const [key, g] of Object.entries(settings || {})) {
+    if (!g || !g.scheduledGift || g.autoGift !== true) continue;
+    const occ = (occasions || []).find((o) => o && o.type === key) || {};
+    const date = typeof occ.date === 'string' ? occ.date.slice(0, 10) : '';
+    sgAll.push({ key, label: (labelFor && labelFor(key)) || key, date, dateLabel: monthDay(date) || DATE_FALLBACK, name: g.scheduledGift.name || '', maxTotalCents: g.scheduledGift.maxTotalCents, changed: needsScheduledGiftConsent(init[key], g) });
+  }
+  const dated = [...all, ...sgAll];
+  const state = dated.length ? cardStateFor(card, dated.map((i) => i.date)) : 'ok';
   const items = all.filter((i) => state !== 'ok' || i.changed).map(({ changed, ...rest }) => rest);
+  const scheduledGiftItems = sgAll.filter((i) => i.changed).map(({ changed: _changed, ...rest }) => rest);
   return {
-    items, cardState: state,
-    need: { card: all.length > 0 && state !== 'ok', consent: items.length > 0, address: addressMissing(formData, settings, requiresDelivery) },
+    items, scheduledGiftItems, cardState: state,
+    need: { card: dated.length > 0 && state !== 'ok', consent: items.length > 0, scheduledGiftConsent: scheduledGiftItems.length > 0, address: addressMissing(formData, settings, requiresDelivery) },
   };
 }
 
