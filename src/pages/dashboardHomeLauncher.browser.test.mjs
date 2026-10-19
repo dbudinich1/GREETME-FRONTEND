@@ -751,6 +751,7 @@ test("N-6: with no recorded voice, Personalize says the voice is required for gr
   await mount({ user: { id: "u1", name: "Alex Rivera", photoUrl: "p.jpg" } });
   const step3 = $("[data-testid=gx-step-3]").textContent;
   assert.match($("[data-testid=gx-voice-tile]").textContent, /Record your voice.*Required for group sending — about 15 seconds is plenty\./);
-  assert.equal(/Personalize — optional|Optional — about 15/.test(step3), false);
+  assert.equal(/Personalize — optional|Optional — about 15|Nothing here is required/.test(step3), false);
+  assert.match(step3, /Words and memory photos are optional\./);
   assert.match(step3, /A few words from you \(optional\)/); assert.match(step3, /Memory photos \(optional\)/);
 });

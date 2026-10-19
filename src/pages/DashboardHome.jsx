@@ -858,7 +858,7 @@ export default function DashboardHome() {
             </div>
             <input ref={memoryInputRef} type="file" accept="image/jpeg,image/jpg,image/png" multiple onChange={addMemoryPhotos} style={{ display: 'none' }} data-testid="gx-moments-input" />
             <div className="donerow">
-              <span className="hint">Nothing here is required.</span>
+              <span className="hint">Words and memory photos are optional.</span>
               <button type="button" className="btn btn-sm btn-primary" style={{ height: 40 }} data-testid="gx-pers-done" onClick={() => setPersDone(true)}><Check size={15} /> Done</button>
             </div>
           </div>
