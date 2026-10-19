@@ -309,3 +309,29 @@ test("W38: one effective status joins stored status and the platform switches", 
   assert.equal(tid("fcc-effective-status").getAttribute("data-state"), "inactive");
   assert.equal(off.calls.filter((c) => /status|rotate|reactivate|disable/i.test(c[0])).length, 0, "no mutation call was made to show it");
 });
+// ══ commission grouping (collapsible panels) ═══════════════════════════════════════════════
+test("every commission section sits in ONE Commissions group of collapsible panels; collapsed rows show SAVED terms", async () => {
+  const saved = { salespersonId: "sp1", displayName: "Rep North", status: "active", referralSlug: "",
+    compensation: { year_1: 2000, year_2: 1000, year_3_plus: 1000 }, referral: null };
+  const a = api({
+    read: async () => ({ ok: true, status: 200, data: { ok: true, salesperson: saved } }),
+    giftCommission: async () => ({ ok: true, status: 200, data: { ok: true, giftCommission: { current: { enabled: true, rateSource: "customer_schedule", rateBps: null, duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes"], effectiveFrom: "2026-10-01T00:00:00.000Z" }, history: [] } } }),
+    setGiftCommission: async () => ({ ok: true, status: 200, data: { ok: true } }),
+  });
+  await open(a); await flush();
+  const group = tid("fcc-commissions");
+  assert.ok(group, "one Commissions group");
+  const panels = [...group.querySelectorAll(":scope > details")].map((d) => d.getAttribute("data-testid"));
+  assert.deepEqual(panels, ["fcc-commission-subscription", "fcc-commission-gift", "fcc-commission-activity"]);
+  for (const id of panels) assert.equal(tid(id).open, false, `${id} collapsed by default`);
+  assert.equal(tid("fcc-commission-subscription-summary").textContent, "Year 1 / 2 / 3+: 20% / 10% / 10% · No override");
+  assert.equal(tid("fcc-commission-gift-summary").textContent, "Subscription schedule (20% / 10% / 10%) · ongoing · gift boxes");
+  assert.equal(tid("fcc-commission-activity-summary").textContent, "Pending 2,500 (minor units) · Approved 1,000 (minor units) · Paid 750 (minor units)", "same money formatting as the page itself");
+  assert.ok(group.querySelector('[data-testid="fcc-rate-y1"]'), "the subscription form lives in its panel");
+  assert.ok(group.querySelector('[data-testid="cc-giftcomm"]'), "the gift panel lives in its panel");
+  assert.ok(group.querySelector('[data-testid="fcc-report"]'), "the reporting lives in its panel");
+  assert.equal(tid("cc-profile-additions").querySelector('[data-testid="cc-giftcomm"]'), null, "no longer among the profile additions");
+  // An unsaved draft never leaks into the collapsed row.
+  setVal(tid("fcc-rate-y1"), "33"); await flush();
+  assert.match(tid("fcc-commission-subscription-summary").textContent, /^Year 1 \/ 2 \/ 3\+: 20%/);
+});
