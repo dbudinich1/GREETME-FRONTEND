@@ -48,8 +48,10 @@ const IMAGE_FIT = {
   backgroundColor: 'var(--bg-secondary, #f8fafc)',
 };
 
-export function GiftProductCard({ card, actionLabel, onAction, selected = false, isNarrow = false, disabled = false }) {
+export function GiftProductCard({ card, actionLabel, onAction, selected = false, isNarrow = false, disabled: disabledProp = false }) {
   if (!card) return null;
+  // A card that cannot be chosen here (e.g. a gift box whose provider requires options) says why and cannot be acted on.
+  const disabled = disabledProp || Boolean(card.unavailableNote);
   const isSelect = actionLabel === 'Select Gift';
 
   return (
@@ -128,7 +130,7 @@ export function GiftProductCard({ card, actionLabel, onAction, selected = false,
             overflow: 'hidden',
           }}
         >
-          {card.description || ' '}
+          {card.unavailableNote ? <span data-testid="gift-card-unavailable" style={{ color: '#b45309', fontWeight: 600 }}>{card.unavailableNote}</span> : (card.description || ' ')}
         </p>
 
         {/* 4 + 5. PRICE AND ACTION — pinned to the bottom by marginTop:auto, so they sit at the same

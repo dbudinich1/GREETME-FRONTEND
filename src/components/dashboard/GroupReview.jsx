@@ -82,7 +82,10 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
     ['none', 'No gift'],
     ...GROUP_QRCASH_AMOUNTS.map((a) => [`qrcash:${a}`, `QR Cash™ $${a}`]),
     // The catalogue's actual starting price; shipping and tax depend on the address and come with the total.
-    ...(giftBoxes || []).map((p) => [`box:${p.providerProductId}`, `Gift box: ${p.name}${Number.isFinite(p.priceMinor) ? ` \u00b7 From ${centsToDollarString(p.priceMinor)} + S&H` : ''}`]),
+    // A gift box whose provider requires options cannot be ordered here yet: listed, but not selectable.
+    ...(giftBoxes || []).map((p) => (p.requiresOptions === true
+      ? [`box:${p.providerProductId}`, `Gift box: ${p.name} \u00b7 options can't be chosen here yet`, true]
+      : [`box:${p.providerProductId}`, `Gift box: ${p.name}${Number.isFinite(p.priceMinor) ? ` \u00b7 From ${centsToDollarString(p.priceMinor)} + S&H` : ''}`])),
   ];
 
   const included = recipients.filter((r) => !left.includes(r.id));
@@ -193,7 +196,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
             <div className="grv-default">
               <span className="fieldlabel"><label htmlFor={defaultGiftSelectId}>Gift for everyone</label>{(giftBoxes || []).length ? <> <InfoTip label="About gift box prices" testid="grv-box-info">{SHIPPING_TAX_NOTE}</InfoTip></> : null}</span>
               <select id={defaultGiftSelectId} data-testid="grv-default-gift" value={giftValue(defaultGift)} onChange={(e) => { setExpiredNote(false); setQuotes({}); setQuoteErrors({}); setDefaultGift(giftFromValue(e.target.value)); }}>
-                {giftOptions.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                {giftOptions.map(([v, t, off]) => <option key={v} value={v} disabled={Boolean(off)}>{t}</option>)}
               </select>
               <span className="sub">{defaultGiftChoice && defaultGiftChoice.type === 'other'
                 ? 'A group can include QR Cash or a gift box; other gifts are chosen one person at a time in the send flow.'
@@ -214,7 +217,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
                     <div className="grv-who"><b>{r.name}</b><span>{r.email}</span></div>
                     <select aria-label={`Gift for ${r.name}`} disabled={out} value={overrides[r.id] ? giftValue(groupGift(overrides[r.id])) : 'default'} onChange={(e) => { clearQuote(r.id); setOverrides((cur) => { const n = { ...cur }; if (e.target.value === 'default') delete n[r.id]; else n[r.id] = giftFromValue(e.target.value); return n; }); }}>
                       <option value="default">Same as everyone</option>
-                      {giftOptions.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                      {giftOptions.map(([v, t, off]) => <option key={v} value={v} disabled={Boolean(off)}>{t}</option>)}
                     </select>
                     <span className="grv-cost" data-testid="grv-cost">{out ? 'Left out'
                       : row && row.kind === 'qrcash' ? <>{`${centsToDollarString(row.giftCents)} + ${centsToDollarString(row.feeCents)} fee = ${centsToDollarString(row.totalCents)}`} <InfoTip label="About the QR Cash fee" testid="grv-fee-info">{QR_FEE_NOTE}</InfoTip></>

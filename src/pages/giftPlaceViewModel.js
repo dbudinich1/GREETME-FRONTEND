@@ -123,9 +123,23 @@ export function fromCatalogProduct(p) {
  * The provider's own price, passed through exactly as received. It is never an input: what is
  * charged comes from the provider's quote at checkout, after delivery and tax are known.
  */
+// A gift box whose provider REQUIRES options (catalog flag `requiresOptions: true`, set only then): no Greet-Me screen
+// can take those options yet, so it is shown but cannot be chosen. The server refuses it before any charge regardless
+// (quote -> gift_box_selection_invalid); this only keeps the shopper from choosing something that cannot be ordered.
+export const OPTIONS_UNAVAILABLE_NOTE = "Options can't be chosen here yet";
+export const requiresOptions = (p) => Boolean(p) && p.requiresOptions === true;
+
+/** Curated cards whose gift box (looked up in the provider catalog) requires options carry the same note. */
+export function withOptionsNote(cards, providerProducts) {
+  const flagged = new Set((providerProducts || []).filter(requiresOptions).map((p) => String(p.providerProductId)));
+  if (!flagged.size) return cards;
+  return cards.map((c) => (c && c.providerProductId && flagged.has(String(c.providerProductId)) ? Object.freeze({ ...c, unavailableNote: OPTIONS_UNAVAILABLE_NOTE }) : c));
+}
+
 export function fromProviderProduct(p) {
   if (!p) return null;
   return Object.freeze({
+    ...(requiresOptions(p) ? { unavailableNote: OPTIONS_UNAVAILABLE_NOTE } : {}),
     id: String(p.providerProductId ?? ""),
     source: GIFT_SOURCES.PROVIDER,
     name: String(p.name ?? ""),

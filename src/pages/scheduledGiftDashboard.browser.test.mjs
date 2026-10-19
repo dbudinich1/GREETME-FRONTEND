@@ -361,3 +361,42 @@ test("group schedule: a person whose scheduled gift needs consent is not saved s
   assert.deepEqual(m.occasionGiftSettings.birthday.scheduledGift.items, [{ syncVariantId: 40021 }]);
   assert.match($("[data-testid=gx-fine]").textContent, /Saved 2 of 2 scheduled Greet-Mes for Birthday/);
 });
+
+// Gift boxes whose provider REQUIRES an option (catalog flag requiresOptions: true, BE 519928c) cannot be chosen here
+// yet: shown with a note, never selectable. A box that merely LISTS options carries no flag and stays selectable.
+const OPTION_BOXES = [...BOXES,
+  { providerProductId: "goody-req", name: "Speaker", priceMinor: 5999, currency: "USD", requiresOptions: true },
+  { providerProductId: "goody-listed", name: "Charger", priceMinor: 4499, currency: "USD", variants: [{ id: "blk", name: "Black" }] }];
+
+test("required-option gift box: shown in the picker with a note and not selectable; a box that only lists options stays selectable", async () => {
+  await toPicker({ boxes: OPTION_BOXES });
+  const req = $("[data-testid=gift-card-goody-req]");
+  assert.ok(req, "the box is shown");
+  assert.equal($("[data-testid=gift-card-action-goody-req]").disabled, true, "Choose is disabled");
+  assert.equal(req.querySelector("[data-testid=gift-card-unavailable]").textContent, "Options can't be chosen here yet");
+  await click($("[data-testid=gift-card-action-goody-req]"));
+  assert.equal($("[data-testid=sg-chosen]"), null, "clicking it selects nothing");
+  assert.equal(globalThis.__quotes.length, 0, "nothing is quoted");
+  assert.equal($("[data-testid=gift-card-action-goody-listed]").disabled, false, "options listed, no flag: selectable as today");
+  assert.equal($("[data-testid=gift-card-goody-listed]").querySelector("[data-testid=gift-card-unavailable]"), null);
+  await click($("[data-testid=gift-card-action-goody-listed]"));
+  assert.match($("[data-testid=sg-chosen]").textContent, /Charger/, "the listed-options box is chosen");
+});
+
+test("required-option gift box: listed in the group review's gift choices but disabled; the listed-options box is a normal choice", async () => {
+  await mount({ boxes: OPTION_BOXES });
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await pickPerson("Theresa"); await pickPerson("Margaret");
+  await click($("[data-testid=gx-picker-done]"));
+  await click($("[data-testid=gx-continue]"));
+  await settle();
+  const opts = [...$("[data-testid=grv-default-gift]").options];
+  const req = opts.find((o) => o.value === "box:goody-req");
+  const listed = opts.find((o) => o.value === "box:goody-listed");
+  assert.ok(req && listed, "both boxes are listed");
+  assert.equal(req.disabled, true);
+  assert.equal(req.textContent, "Gift box: Speaker · options can't be chosen here yet");
+  assert.equal(listed.disabled, false);
+  assert.match(listed.textContent, /^Gift box: Charger · From \$44\.99 \+ S&H$/);
+});
