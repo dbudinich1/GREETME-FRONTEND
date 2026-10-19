@@ -76,7 +76,10 @@ export function cardStateFor(card, dates = []) {
 /** Is a physical gift selected whose recipient has no complete delivery address yet? */
 /** `requiresDelivery(giftType)` is ContactForm's own requiresDeliveryAddress (passed in so there is one definition of "physical"). */
 export function addressMissing(formData, settings, requiresDelivery) {
-  const physical = Object.values(settings || {}).some((g) => g && typeof requiresDelivery === 'function' && requiresDelivery(g.type));
+  // A scheduled physical gift (Report 117 contract v1) carries its own complete delivery snapshot, chosen in its picker,
+  // so it never needs the recipient's stored address here.
+  const ownsDelivery = (g) => Boolean(g && g.scheduledGift && g.scheduledGift.delivery && g.scheduledGift.delivery.address1 && g.scheduledGift.delivery.postalCode);
+  const physical = Object.values(settings || {}).some((g) => g && !ownsDelivery(g) && typeof requiresDelivery === 'function' && requiresDelivery(g.type));
   if (!physical) return false;
   const a = (formData && formData.shippingAddress) || {};
   const ok = (v) => typeof v === 'string' && v.trim() !== '';

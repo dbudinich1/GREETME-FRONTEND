@@ -1,14 +1,15 @@
 // src/utils/scheduledPhysicalGift.js
 //
-// The scheduled physical gift (Report 117 rev 3, Team 6 contract v1): a Goody gift box or a Printful Branded Goods
+// The scheduled physical gift (Report 117 rev 3, Team 6 contract v1): a gift box or a Branded Goods
 // item chosen while scheduling, saved under the recipient's occasion as
 //   occasionGiftSettings[occasionType] = { type: 'gift_boxes' | 'merch', autoGift: true, scheduledGift: { v: 1, ... } }
 // with a sibling consent request scheduledGiftConsents[occasionType] = { accepted: true, wordingVersion }.
 // Nothing here prices, charges or orders: the server re-quotes and decides on the occasion date. Pure functions only.
 import { SCHEDULED_GIFT_WORDING_VERSION } from '../config/scheduledPhysicalGift.js';
 
-export const SCHEDULED_GIFT_TYPES = Object.freeze({ goody: 'gift_boxes', printful: 'merch' });
-export const GOODY_MAX_QUANTITY = 10;
+export const SCHEDULED_GIFT_TYPES = Object.freeze({ gift_boxes: 'gift_boxes', merch: 'merch' });
+export const GIFT_BOX_MAX_QUANTITY = 10;
+export const MAX_TOTAL_CENTS_LIMIT = 100000; // contract v1: maxTotalCents 1..100000 ($1,000)
 
 // US state names the stored address may carry -> 2-letter code (the contract requires 2 letters).
 const STATES = { alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA', colorado: 'CO', connecticut: 'CT', delaware: 'DE', 'district of columbia': 'DC', florida: 'FL', georgia: 'GA', hawaii: 'HI', idaho: 'ID', illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS', kentucky: 'KY', louisiana: 'LA', maine: 'ME', maryland: 'MD', massachusetts: 'MA', michigan: 'MI', minnesota: 'MN', mississippi: 'MS', missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH', oklahoma: 'OK', oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI', 'south carolina': 'SC', 'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT', vermont: 'VT', virginia: 'VA', washington: 'WA', 'west virginia': 'WV', wisconsin: 'WI', wyoming: 'WY' };
@@ -36,11 +37,10 @@ export function deliveryFromContact(contact) {
   };
 }
 
-/** The delivery fields still missing (contract: firstName, lastName, address1, city, 2-letter state, US ZIP, country US). */
+/** The delivery fields still missing (contract v1, as gift-box checkout: first name, address1, city, 2-letter state, US ZIP, country US). */
 export function missingDelivery(d) {
   const out = [];
   if (!s(d && d.firstName)) out.push('firstName');
-  if (!s(d && d.lastName)) out.push('lastName');
   if (!s(d && d.address1)) out.push('address1');
   if (!s(d && d.city)) out.push('city');
   if (!/^[A-Z]{2}$/.test(s(d && d.state))) out.push('state');
@@ -56,19 +56,20 @@ export function shippingAddressFromDelivery(stored, d) {
 
 /**
  * The occasion's gift setting for a chosen product. selection:
- *   Goody:    { vendor: 'goody', providerProductId, variants: string[], quantity, name, imageUrl }
- *   Printful: { vendor: 'printful', syncVariantId, quantity, name, imageUrl }   (one items[] entry per unit)
+ *   Gift box:      { vendor: 'gift_boxes', providerProductId, variants: string[], quantity, name, imageUrl }
+ *   Branded Goods: { vendor: 'merch', syncVariantId, quantity, name, imageUrl }   (one items[] entry per unit)
  */
 export function buildScheduledGiftSetting(selection, { maxTotalCents, delivery }) {
   const vendor = selection.vendor;
   const base = { v: 1, vendor, name: s(selection.name), imageUrl: s(selection.imageUrl), maxTotalCents: Math.round(Number(maxTotalCents)), delivery: { ...delivery } };
   if (!base.delivery.phone) delete base.delivery.phone;
   if (!base.delivery.address2) delete base.delivery.address2;
+  if (!base.delivery.lastName) delete base.delivery.lastName; // optional (contract v1): left out rather than sent empty
   let scheduledGift;
-  if (vendor === 'goody') {
-    const quantity = Math.max(1, Math.min(GOODY_MAX_QUANTITY, Math.floor(Number(selection.quantity) || 1)));
+  if (vendor === 'gift_boxes') {
+    const quantity = Math.max(1, Math.min(GIFT_BOX_MAX_QUANTITY, Math.floor(Number(selection.quantity) || 1)));
     scheduledGift = { ...base, providerProductId: String(selection.providerProductId), variants: (selection.variants || []).map(String), quantity };
-  } else if (vendor === 'printful') {
+  } else if (vendor === 'merch') {
     const n = Math.max(1, Math.floor(Number(selection.quantity) || 1));
     scheduledGift = { ...base, items: Array.from({ length: n }, () => ({ syncVariantId: Number(selection.syncVariantId) })) };
   } else {
@@ -82,8 +83,8 @@ export function scheduledGiftProblems(setting) {
   const g = setting && setting.scheduledGift;
   if (!g) return ['product'];
   const out = [];
-  if (g.vendor === 'goody' ? !g.providerProductId : !(g.items && g.items.length && g.items.every((i) => Number.isInteger(i.syncVariantId) && i.syncVariantId > 0))) out.push('product');
-  if (!Number.isInteger(g.maxTotalCents) || g.maxTotalCents <= 0) out.push('maxTotal');
+  if (g.vendor === 'gift_boxes' ? !g.providerProductId : !(g.items && g.items.length && g.items.every((i) => Number.isInteger(i.syncVariantId) && i.syncVariantId > 0))) out.push('product');
+  if (!Number.isInteger(g.maxTotalCents) || g.maxTotalCents < 1 || g.maxTotalCents > MAX_TOTAL_CENTS_LIMIT) out.push('maxTotal');
   if (missingDelivery(g.delivery).length) out.push('delivery');
   return out;
 }

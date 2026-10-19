@@ -51,6 +51,10 @@ import InfoTip from '../components/dashboard/InfoTip';
 import { qrCashQuote, centsToDollarString } from '../utils/qrCashAmount';
 import { DASHBOARD_HOME_CSS } from './dashboardHomeStyles';
 import { OCCASION_CHIPS, OCCASION_MENUS } from '../utils/dashboardOccasions';
+import ScheduledGiftPicker from '../components/scheduledGift/ScheduledGiftPicker';
+import ScheduledGiftEntry from '../components/scheduledGift/ScheduledGiftEntry';
+import { SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from '../config/scheduledPhysicalGift';
+import { needsScheduledGiftConsent, scheduledGiftConsentsFor } from '../utils/scheduledPhysicalGift';
 import { saveLauncherState, readLauncherState, clearLauncherState } from '../utils/dashboardLauncherState';
 import giftLuxuryBox from '../assets/gifts/gift-luxury-box.png';
 import giftBouquet from '../assets/gifts/gift-bouquet.png';
@@ -288,6 +292,10 @@ export default function DashboardHome() {
   const [giftNote, setGiftNote] = useState('');
   const [rows, setRows] = useState(K('rows', {}));
   const [datesOpen, setDatesOpen] = useState(K('datesOpen', false));
+  // Scheduled physical gift (Report 117 U1): the row whose product picker is open, and the rows whose Auto-Gift consent
+  // the sender gave in it (key "personId:occasionType"), sent with that person's save where newly needed.
+  const [sgPick, setSgPick] = useState(null);
+  const [sgConsented, setSgConsented] = useState({});
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
   const [authModal, setAuthModal] = useState(null);
@@ -427,6 +435,7 @@ export default function DashboardHome() {
       const results = await saveGroupSchedules({
         people, rowFor: (p) => groupRowOf(p), api, sanitize: sanitizeRelationshipForSave, plan,
         validate: (built) => !relationshipWouldBeCleared(built),
+        scheduledGiftConsentsFor: sgConsentsFor,
         onProgress: (rs) => setGroupResults(Object.fromEntries(rs.map((x) => [x.id, x]))),
       });
       setSaveMsg(groupSaveMsg(results));
@@ -435,6 +444,14 @@ export default function DashboardHome() {
       setSaving(false);
     }
   };
+
+  const sgConsentsFor = (person, toSave) => {
+    const initial = (person && person.occasionGiftSettings) || {};
+    const types = Object.keys(toSave.occasionGiftSettings || {}).filter((t) => sgConsented[`${person.id}:${t}`] && needsScheduledGiftConsent(initial[t], toSave.occasionGiftSettings[t]));
+    return types.length ? scheduledGiftConsentsFor(types) : null;
+  };
+  // Physical gift types whose exact product can be chosen for the date (Goody gift box, Printful Branded Goods).
+  const sgChoosable = (g) => SCHEDULED_PHYSICAL_GIFT_AVAILABLE && g && ['merch', 'marketplace', 'gift_boxes'].includes(g.type);
 
   const groupSaveMsg = (results) => {
     const saved = results.filter((x) => x.status === 'saved').length;
@@ -460,7 +477,7 @@ export default function DashboardHome() {
     setAuthForm(toSave); setAuthModal({ plan, card, person, group: true });
   };
   const commitGroupPerson = async (person, toSave, consents = []) => {
-    const res = await api.updateContact(person.id, finalizeResolverSave(toSave, consents));
+    const res = await api.updateContact(person.id, finalizeResolverSave(toSave, consents, sgConsentsFor(person, toSave)));
     if (res && res.ok === false) {
       throw new Error(res.networkError ? 'We couldn’t save — check your connection and try again.' : (res.error || res.message || 'We couldn’t save this schedule.'));
     }
@@ -472,7 +489,7 @@ export default function DashboardHome() {
   };
 
   const commitSchedules = async (person, toSave, consents = []) => {
-    const res = await api.updateContact(person.id, finalizeResolverSave(toSave, consents));
+    const res = await api.updateContact(person.id, finalizeResolverSave(toSave, consents, sgConsentsFor(person, toSave)));
     if (res && res.ok === false) {
       throw new Error(res.networkError ? 'We couldn’t save — check your connection and try again.' : (res.error || res.message || 'We couldn’t save those schedules. Please try again.'));
     }
@@ -1035,7 +1052,13 @@ export default function DashboardHome() {
         {/* Dates & gifts: one scheduled Greet-Me per occasion (or per person), saved through each recipient's own Occasion
             Scheduler. Close keeps every choice; Save schedules saves. It steps aside while the scheduler's own
             authorisation step (consent, card, address) is open. */}
-        {datesOpen && (resolverOn || groupSchedOn) && !authModal ? (
+        {SCHEDULED_PHYSICAL_GIFT_AVAILABLE && sgPick ? (
+          <ScheduledGiftPicker isOpen contact={sgPick.person} occasionLabel={sgPick.occasion}
+            occasionDateLabel={sgPick.date ? new Date(`${String(sgPick.date).slice(0, 10)}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : 'the occasion date'}
+            initial={sgPick.initial} onClose={() => setSgPick(null)}
+            onSave={(setting, { consented }) => { sgPick.apply(setting); setSgConsented((c) => ({ ...c, [`${sgPick.person.id}:${sgPick.type}`]: consented })); setSgPick(null); }} />
+        ) : null}
+        {datesOpen && (resolverOn || groupSchedOn) && !authModal && !sgPick ? (
           <div className="grv-backdrop" role="dialog" aria-modal="true" aria-labelledby="gx-dates-title" data-testid="gx-dates-modal" onKeyDown={(e) => { if (e.key === 'Escape') setDatesOpen(false); }}>
             <div className="grv">
               <div className="grv-head">
@@ -1062,8 +1085,10 @@ export default function DashboardHome() {
                         <input type="date" aria-label={`${o} date`} value={r.date || ''} onChange={(e) => setRow(o, { date: e.target.value })} className="rdate" />
                         <select aria-label={`${o} gift`} value={r.gift ? r.gift.type : ''} onChange={(e) => setRow(o, { gift: chooseGift(r, e.target.value) })} className="rgift">
                           {RESOLVER_GIFT_OPTIONS.map(([v, t]) => <option key={v} value={v} disabled={v === ''}>{t}</option>)}
+                          {r.gift && r.gift.type === 'gift_boxes' ? <option value="gift_boxes">Gift box</option> : null}
                         </select>
                         <span className="rline"><ScheduledGiftLine gift={r.gift} />{r.gift && r.gift.type !== 'none' ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(resolvePerson.id, r.type)}>Gift details in their Occasion Scheduler</button></> : null}</span>
+                        {sgChoosable(r.gift) ? <div style={{ gridColumn: '1 / -1' }}><ScheduledGiftEntry compact setting={r.gift} onChoose={() => setSgPick({ person: resolvePerson, occasion: o, type: r.type, date: r.date, initial: r.gift, apply: (g) => setRow(o, { gift: g }) })} onRemove={() => setRow(o, { gift: { type: 'none', autoGift: false } })} /></div> : null}
                       </div>
                     );
                   })}
@@ -1091,9 +1116,11 @@ export default function DashboardHome() {
                             <select aria-label={`${p.name} gift`} value={raw.chosen ? raw.chosen.type : 'default'} onChange={(e) => setGroupRow(p, { chosen: e.target.value === 'default' ? null : chooseGift({ gift: raw.gift }, e.target.value) })} className="rgift">
                               <option value="default">{raw.gift ? `Keep their saved gift (${(RESOLVER_GIFT_OPTIONS.find(([v]) => v === raw.gift.type) || [null, raw.gift.type])[1]})` : groupDefaultGift ? 'Same as everyone' : 'Choose a gift…'}</option>
                               {RESOLVER_GIFT_OPTIONS.filter(([v]) => v !== '').map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                              {raw.chosen && raw.chosen.type === 'gift_boxes' ? <option value="gift_boxes">Gift box</option> : null}
                             </select>
                             <span className="rline">{res && res.status === 'failed' ? res.message : null}{res && res.status === 'needs_scheduler' ? (res.need && res.need.relationship ? 'Their relationship details need finishing in their Occasion Scheduler. '
                               : <>{res.need && res.need.address && !res.need.consent && !res.need.card ? 'Their delivery address is needed. ' : res.need && (res.need.consent || res.need.card) && !res.need.address ? 'Your Auto-Gift authorization is needed. ' : 'Their delivery address and your Auto-Gift authorization are needed. '}<button type="button" className="btn btn-xs btn-primary" style={{ height: 30 }} data-testid="gx-group-finish" onClick={() => finishGroupPerson(p)}>Add missing details</button> </>) : null}{!res || res.status !== 'failed' ? <ScheduledGiftLine gift={r.gift} /> : null}{r.gift && r.gift.type !== 'none' || (res && res.status === 'needs_scheduler') ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(p.id, SCHEDULER_TYPE_OF(occasions[0]))}>Gift details in their Occasion Scheduler</button></> : null}</span>
+                            {sgChoosable(r.gift) ? <div style={{ gridColumn: '1 / -1' }}><ScheduledGiftEntry compact setting={r.gift} onChoose={() => setSgPick({ person: p, occasion: occasions[0], type: SCHEDULER_TYPE_OF(occasions[0]), date: r.date, initial: r.gift, apply: (g) => setGroupRow(p, { chosen: g }) })} onRemove={() => setGroupRow(p, { chosen: { type: 'none', autoGift: false } })} /></div> : null}
                           </div>
                         );
                       })}

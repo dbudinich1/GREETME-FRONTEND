@@ -18,6 +18,10 @@ import api from '../api/api';
 import { SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_QRCASH_UNAVAILABLE_COPY } from '../config/scheduledQrCash';
 // W07 SAVE-time authorization (DORMANT: every use below is behind SCHEDULED_QRCASH_AVAILABLE, which is false until activation).
 import SaveAuthorizationModal from './w07Auth/SaveAuthorizationModal';
+import ScheduledGiftPicker from './scheduledGift/ScheduledGiftPicker';
+import ScheduledGiftEntry from './scheduledGift/ScheduledGiftEntry';
+import { SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from '../config/scheduledPhysicalGift';
+import { needsScheduledGiftConsent, scheduledGiftConsentsFor } from '../utils/scheduledPhysicalGift';
 import PaymentInfoTriangle from './w07Auth/PaymentInfoTriangle';
 import { planAuthorization } from '../utils/scheduledQrCashConsent';
 import { QRCASH_DEFAULT_DOLLARS, normalizeGiftSettingsForSave } from '../utils/occasionGiftSave';
@@ -386,6 +390,20 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
     return formData.occasionGiftSettings?.[occasionValue] || { type: 'none', autoGift: false };
   };
 
+  // Scheduled physical gift (Report 117 U1): the occasion whose picker is open, and the occasions whose Auto-Gift
+  // consent the sender gave in the picker this session (sent with the save; the server records it).
+  const [sgPicker, setSgPicker] = useState(null);
+  const [sgConsented, setSgConsented] = useState({});
+  const sgDateLabel = (occ) => {
+    const d = ((formData.occasions || []).find((o) => o.type === occ) || {}).date;
+    const t = d ? new Date(`${String(d).slice(0, 10)}T12:00:00`) : null;
+    return t && !Number.isNaN(t.getTime()) ? t.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : 'the occasion date';
+  };
+  const renderScheduledGift = (occ) => (SCHEDULED_PHYSICAL_GIFT_AVAILABLE ? (
+    <ScheduledGiftEntry setting={getOccasionGiftSetting(occ)} onChoose={() => setSgPicker(occ)}
+      onRemove={() => { setFormData((prev) => ({ ...prev, occasionGiftSettings: { ...prev.occasionGiftSettings, [occ]: { type: 'none', autoGift: false } } })); setSgConsented((c) => ({ ...c, [occ]: false })); }} />
+  ) : null);
+
   const isAddGiftChecked = (occ) => (addGiftOn[occ] !== undefined ? addGiftOn[occ] : getOccasionGiftSetting(occ).type !== 'none');
   // Unticking == choosing "None" in the old dropdown: the very same handleOccasionGiftChange(type, 'none').
   const handleAddGiftToggle = (occ, on) => {
@@ -425,8 +443,10 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
             <option value="merch">Branded Goods</option>
             <option value="curated">Let Greet-Me select a gift</option>
             <option value="marketplace">Browse Marketplace</option>
+            {gs.type === 'gift_boxes' ? <option value="gift_boxes">Gift box</option> : null}
           </select>
         </div>
+        {checked ? renderScheduledGift(occ) : null}
       </div>
     );
   };
@@ -438,6 +458,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
     setFormData(prev => {
       const current = getOccasionGiftSetting(occasionValue);
       const next = { ...current, [field]: value };
+      if (field === 'type' && current.scheduledGift) { delete next.scheduledGift; next.autoGift = false; }
       if (field === 'type' && value === 'qrcash' && (next.amount === undefined || next.amount === null)) {
         next.amount = QRCASH_DEFAULT_DOLLARS;
       }
@@ -532,10 +553,13 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
 
   // The one place a recipient is actually handed to the parent. `consents` is the W07 occasionGiftConsents array (empty otherwise).
   const commitSave = async (toSave, consents = []) => {
+    const initial = (contact && contact.occasionGiftSettings) || {};
+    const sgTypes = Object.keys(toSave.occasionGiftSettings || {}).filter((t) => sgConsented[t] && needsScheduledGiftConsent(initial[t], toSave.occasionGiftSettings[t]));
     await onSubmit({
       ...toSave,
       occasionGiftSettings: normalizeGiftSettingsForSave(toSave.occasionGiftSettings),
       ...(consents.length > 0 ? { occasionGiftConsents: consents } : {}),
+      ...(sgTypes.length > 0 ? { scheduledGiftConsents: scheduledGiftConsentsFor(sgTypes) } : {}),
     });
     // Clear draft on successful submission
     clearFormDraft();
@@ -1583,7 +1607,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                         )}
 
                         {/* Choose Item button for merch/subscription */}
-                        {(giftSetting.type === 'merch' || giftSetting.type === 'marketplace' || giftSetting.type === 'subscription') && (
+                        {(giftSetting.type === 'merch' || giftSetting.type === 'marketplace' || giftSetting.type === 'subscription') && !giftSetting.scheduledGift && (
                           <button
                             type="button"
                             onClick={() => {
@@ -1616,7 +1640,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                       </div>
 
                       {/* Auto-Gift toggle with badge - only when gift is selected */}
-                      {giftSetting.type !== 'none' && (
+                      {giftSetting.type !== 'none' && !giftSetting.scheduledGift && (
                         <div style={{ marginTop: '0.625rem' }}>
                           <div style={{
                             display: 'flex',
@@ -2100,7 +2124,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                         )}
 
                         {/* Choose Item button for merch/subscription */}
-                        {(giftSetting.type === 'merch' || giftSetting.type === 'marketplace' || giftSetting.type === 'subscription') && (
+                        {(giftSetting.type === 'merch' || giftSetting.type === 'marketplace' || giftSetting.type === 'subscription') && !giftSetting.scheduledGift && (
                           <button
                             type="button"
                             onClick={() => {
@@ -2133,7 +2157,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                       </div>
 
                       {/* Auto-Gift toggle with badge - only when gift is selected */}
-                      {giftSetting.type !== 'none' && (
+                      {giftSetting.type !== 'none' && !giftSetting.scheduledGift && (
                         <div style={{ marginTop: '0.625rem' }}>
                           <div style={{
                             display: 'flex',
@@ -2600,8 +2624,10 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                             <option value="merch">Branded Goods</option>
                             <option value="curated">Let Greet-Me select a gift</option>
                             <option value="marketplace">Browse Marketplace</option>
+                            {giftSetting.type === 'gift_boxes' ? <option value="gift_boxes">Gift box</option> : null}
                           </select>
                         </div>
+                        {giftSetting.type !== 'none' ? renderScheduledGift(occ.type) : null}
 
                         {/* Curated gift max spend selector */}
                         {giftSetting.type === 'curated' && (
@@ -2675,7 +2701,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                         )}
 
                         {/* Choose Item button for merch/marketplace/subscription */}
-                        {(giftSetting.type === 'merch' || giftSetting.type === 'marketplace' || giftSetting.type === 'subscription') && (
+                        {(giftSetting.type === 'merch' || giftSetting.type === 'marketplace' || giftSetting.type === 'subscription') && !giftSetting.scheduledGift && (
                           <button
                             type="button"
                             onClick={() => {
@@ -2705,7 +2731,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                       </div>
 
                       {/* Auto-Gift toggle with badge - only when gift is selected */}
-                      {giftSetting.type !== 'none' && (
+                      {giftSetting.type !== 'none' && !giftSetting.scheduledGift && (
                         <div style={{ marginTop: '0.625rem' }}>
                           <div style={{
                             display: 'flex',
@@ -3006,6 +3032,21 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
         </button>
       </div>
     </form>
+
+      {SCHEDULED_PHYSICAL_GIFT_AVAILABLE && sgPicker ? (
+        <ScheduledGiftPicker isOpen
+          contact={{ ...formData, shippingAddress: formData.shippingAddress || (contact && contact.shippingAddress) }}
+          occasionLabel={(occasionTypes.find((o) => o.value === sgPicker) || {}).label || sgPicker}
+          occasionDateLabel={sgDateLabel(sgPicker)}
+          initial={getOccasionGiftSetting(sgPicker)}
+          onClose={() => setSgPicker(null)}
+          onSave={(setting, { consented }) => {
+            setFormData((prev) => ({ ...prev, occasionGiftSettings: { ...prev.occasionGiftSettings, [sgPicker]: setting } }));
+            setAddGiftOn((prev) => ({ ...prev, [sgPicker]: true }));
+            setSgConsented((prev) => ({ ...prev, [sgPicker]: consented }));
+            setSgPicker(null);
+          }} />
+      ) : null}
 
       {/* W07 SAVE-time authorization (dormant: authModal is only ever set when SCHEDULED_QRCASH_AVAILABLE) */}
       {SCHEDULED_QRCASH_AVAILABLE && authModal && (

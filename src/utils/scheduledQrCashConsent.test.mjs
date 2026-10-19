@@ -191,3 +191,11 @@ t("an unchanged occasion needs no entry: the server keeps it (the form omits it)
   assert.deepEqual(Object.keys(res.snapshots).sort(), ["birthday", "christmas"]);
   assert.equal(res.snapshots.birthday.acceptedAt, "2026-01-01T00:00:00.000Z", "the earlier consent is untouched");
 });
+
+test("addressMissing: a scheduled physical gift with its own complete delivery snapshot never asks for the stored address; a plain shipped gift still does", async () => {
+  const { addressMissing } = await import("./scheduledQrCashConsent.js");
+  const req = (t) => ["curated", "flowers", "gift_boxes"].includes(t);
+  const sched = { christmas: { type: "gift_boxes", autoGift: true, scheduledGift: { v: 1, vendor: "goody", delivery: { firstName: "J", lastName: "R", address1: "12 Harbor Way", city: "Portland", state: "OR", postalCode: "97201", country: "US" } } } };
+  assert.equal(addressMissing({ firstName: "", shippingAddress: {} }, sched, req), false);
+  assert.equal(addressMissing({ firstName: "", shippingAddress: {} }, { christmas: { type: "curated", autoGift: false } }, req), true);
+});
