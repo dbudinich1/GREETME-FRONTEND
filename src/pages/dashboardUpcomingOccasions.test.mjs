@@ -98,7 +98,10 @@ test("the edit-recipient action only appears when the occasion actually carries 
   const populated = SRC.slice(populatedStart, populatedEnd);
 
   assert.match(populated, /\{occasion\.contactId && \(/);
-  assert.match(populated, /navigate\('\/dashboard\/contacts', \{ state: \{ openEditRecipientId: occasion\.contactId \} \}\)/);
+  // the row's edit goes through goEdit, which opens the same edit form (openEditRecipientId) and keeps the dashboard's
+  // in-progress choices for the return (Report 114)
+  assert.match(populated, /onClick=\{\(\) => goEdit\(occasion\.contactId\)\}/);
+  assert.match(SRC, /const goEdit = \(id\) => \{ keepChoices\(\); navigate\('\/dashboard\/contacts', \{ state: \{ openEditRecipientId: id, returnTo: 'dashboard' \} \}\); \};/);
 });
 
 // ===========================================================================
