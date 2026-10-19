@@ -15,17 +15,28 @@ function memStorage() {
   return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), _m: m };
 }
 
-test("the send flow's occasions: the existing five plus the four approved; the three held ones are absent", () => {
-  assert.deepEqual(SEND_OCCASION_OPTIONS, ["Birthday", "Anniversary", "Thank You", "Congratulations", "Just Because", "Season's Greetings"]);
-  for (const held of ["Hanukkah", "Sympathy", "Engagement", "Christmas", "Wedding", "Baby"]) assert.equal(SEND_OCCASION_OPTIONS.includes(held), false, held);
-  assert.deepEqual(SEND_OCCASION_KEY_OVERRIDES, { Baby: "baby", "Season's Greetings": "holiday" });
+test("the send flow's occasions: its own five, Season's Greetings, and the Recipients page's list; nothing outside them", () => {
+  assert.deepEqual(SEND_OCCASION_OPTIONS, ["Birthday", "Anniversary", "Thank You", "Congratulations", "Just Because", "Season's Greetings",
+    "Graduation", "New Year's Day", "Valentine's Day", "Mother's Day", "Father's Day", "Thanksgiving", "Christmas", "Easter",
+    "Rosh Hashanah", "Hanukkah", "Passover", "Eid al-Fitr", "Eid al-Adha", "Ramadan"]);
+  for (const absent of ["Sympathy", "Engagement", "Wedding", "Baby", "Get Well"]) assert.equal(SEND_OCCASION_OPTIONS.includes(absent), false, absent);
+});
+
+test("greeting keys: a Recipients-list occasion uses the Occasion Scheduler's own identifier (the key a scheduled send uses); Season's Greetings is the generic 'holiday'", () => {
+  assert.equal(SEND_OCCASION_KEY_OVERRIDES["Season's Greetings"], "holiday", "never Christmas or another specific holiday");
+  for (const [label, key] of [["Christmas", "christmas"], ["Mother's Day", "mothers_day"], ["New Year's Day", "new_year"], ["Valentine's Day", "valentines"], ["Easter", "easter"], ["Hanukkah", "hanukkah"], ["Eid al-Fitr", "eid_al_fitr"], ["Graduation", "graduation"], ["Birthday", "birthday"]]) {
+    assert.equal(SEND_OCCASION_KEY_OVERRIDES[label], key, label);
+  }
+  for (const l of ["Thank You", "Congratulations", "Just Because", "Baby"]) assert.equal(SEND_OCCASION_KEY_OVERRIDES[l], undefined, `${l} keeps the shared normaliser`);
 });
 
 test("matchSendOccasion returns the page's own option, case-insensitively, or '' for anything else", () => {
   assert.equal(matchSendOccasion("birthday"), "Birthday");
   assert.equal(matchSendOccasion("Season's Greetings"), "Season's Greetings");
-  assert.equal(matchSendOccasion("mothers_day"), "");
-  assert.equal(matchSendOccasion("Hanukkah"), "", "held occasions never prefill");
+  assert.equal(matchSendOccasion("mothers_day"), "Mother's Day", "a scheduler identifier (reminder links) finds its option");
+  assert.equal(matchSendOccasion("Hanukkah"), "Hanukkah");
+  assert.equal(matchSendOccasion("Wedding"), "", "not on the Recipients list: no prefill");
+  assert.equal(matchSendOccasion("getwell"), "");
   assert.equal(matchSendOccasion(null), "");
 });
 

@@ -6,17 +6,17 @@
 // The scheduler, its 10-day reminder, consent and fulfilment take over exactly as for a ContactForm save.
 //
 // Pure functions only (no React, no network) so the save payload can be tested directly.
-import { occasionTypes } from './helpers';
+import { occasionTypes, calculateVaryingOccasionDate } from './helpers';
+import { RECIPIENT_OCCASIONS } from './dashboardOccasions.js';
 import { normalizeGiftSettingsForSave, QRCASH_DEFAULT_DOLLARS } from './occasionGiftSave';
 import { SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_QRCASH_UNAVAILABLE_COPY } from '../config/scheduledQrCash';
 
-// Dashboard occasion label -> Occasion Scheduler type (utils/helpers.js occasionTypes). Only these occasions exist
-// in the scheduler; every other dashboard occasion is sent with Send Now, one at a time.
-export const SCHEDULER_OCCASION_TYPES = Object.freeze({
-  Birthday: 'birthday',
-  Anniversary: 'anniversary',
-  Christmas: 'christmas',
-});
+// Dashboard occasion label -> Occasion Scheduler type: every occasion on the Recipients page's list (utils/helpers.js
+// occasionTypes) that the backend scheduler auto-sends. Graduation and Get Well are one-time occasions the scheduler
+// never auto-sends (backend scheduler.js), so, like the send page's own occasions, they are sent with Send Now.
+export const SCHEDULER_OCCASION_TYPES = Object.freeze(Object.fromEntries(
+  RECIPIENT_OCCASIONS.filter((o) => o.value !== 'graduation' && o.value !== 'getwell').map((o) => [o.label, o.value]),
+));
 
 export const isSchedulerOccasion = (label) => Object.prototype.hasOwnProperty.call(SCHEDULER_OCCASION_TYPES, label);
 
@@ -47,9 +47,12 @@ export function resolverGiftStatus(gift, scheduledQrCashAvailable = SCHEDULED_QR
   return { label: 'Reminder only \u2014 confirmation required', detail: 'We\u2019ll remind you 10 days before so you can confirm the gift. If you don\u2019t, the greeting goes without it, and nothing is charged automatically.' };
 }
 
+// The scheduler's own date prefill for a newly added occasion (ContactForm handleOccasionToggle): the fixed date
+// (Christmas 12-25), else the calculated date (Mother's Day, Thanksgiving, Easter…), else empty for the sender to set.
 function fixedDateFor(type, year) {
   const def = occasionTypes.find((o) => o.value === type);
-  return def && def.fixedDate ? `${year}-${def.fixedDate}` : '';
+  if (def && def.fixedDate) return `${year}-${def.fixedDate}`;
+  return calculateVaryingOccasionDate(type, year) || '';
 }
 
 /**
@@ -154,17 +157,21 @@ export function finalizeResolverSave(toSave, consents = []) {
  * @param {(person) => object} p.rowFor   the person's resolver row { type, date, gift }
  * @param {object}   p.api           { updateContact }
  * @param {(o) => object} p.sanitize sanitizeRelationshipForSave
+ * @param {(built) => boolean} [p.validate] the scheduler's own pre-save check (ContactForm validate: relationshipErrors);
+ *        false = not saved here, reported as needing their Occasion Scheduler (sanitising alone would blank fields)
  * @param {(person, toSave) => Promise<{consent?:boolean,address?:boolean}|null>} [p.plan] the scheduler's planAuthorization
  * @param {(results) => void} [p.onProgress]
  * @returns {Promise<Array<{id:string,status:'saved'|'needs_scheduler'|'failed',message?:string,need?:object}>>}
  */
-export async function saveGroupSchedules({ people, rowFor, api, sanitize, plan, onProgress = () => {} }) {
+export async function saveGroupSchedules({ people, rowFor, api, sanitize, plan, validate, onProgress = () => {} }) {
   const results = [];
   for (const person of people) {
     try {
       const row = rowFor(person);
       if (!rowComplete(row)) { results.push({ id: person.id, status: 'failed', message: 'A date and a gift choice are needed.' }); onProgress(results.slice()); continue; }
-      const toSave = sanitize(buildResolverContact(person, [row]));
+      const built = buildResolverContact(person, [row]);
+      if (validate && !validate(built)) { results.push({ id: person.id, status: 'needs_scheduler', need: { relationship: true } }); onProgress(results.slice()); continue; }
+      const toSave = sanitize(built);
       const need = plan ? await plan(person, toSave) : null;
       if (need && (need.consent || need.address)) { results.push({ id: person.id, status: 'needs_scheduler', need }); onProgress(results.slice()); continue; }
       const res = await api.updateContact(person.id, finalizeResolverSave(toSave));

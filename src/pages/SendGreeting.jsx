@@ -3958,7 +3958,9 @@ if (typeof window !== "undefined") {
         onGiftChange={(occasionType, field, value) => {
           setGiftSettings(prev => ({ ...prev, [field]: value }));
         }}
-        getOccasionLabel={() => 'Just Because'}
+        // The chooser's heading names this greeting's occasion (it read "Just Because" for every greeting). The gift
+        // itself is this composer's single gift setting, unchanged.
+        getOccasionLabel={() => formData.occasionType || 'Just Because'}
         getOccasionEmoji={() => '💝'}
         context="oneoff"
         onBrowse={(type) => {

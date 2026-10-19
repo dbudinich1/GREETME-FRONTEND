@@ -184,6 +184,7 @@ export const AuthProvider = ({ children }) => {
     // Group sending (Report 112, Team 5 H-1): an unfinished group run belongs to this account only.
     safeRemove('gm_group_run_v1');
     try { sessionStorage.removeItem('gm_dashboard_send_handoff_v1'); } catch { /* ignore */ }
+    try { sessionStorage.removeItem('gm_dashboard_launcher_v1'); } catch { /* ignore */ }  // dashboard choices kept across a recipient edit
     // Import Wizard sample workspace is session-scoped — clear it on logout so it can never bleed
     // into the next login (the wizard also fails closed on session/user change). Additive only.
     try { sessionStorage.removeItem('greetme_sample_workspace'); } catch { /* ignore */ }

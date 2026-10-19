@@ -146,6 +146,9 @@ const setValue = async (el, value) => {
   await settle();
 };
 const occ = (label) => byText("[data-testid=gx-occasion] .occ", label);
+const menuItems = () => $$(".menu button").map((b) => b.textContent.trim());
+const menuOcc = async (key, label) => { if (!$(`.menu-${key}`)) await click($(`[data-testid=gx-menu-${key}]`)); await click($$(`.menu-${key} button`).find((b) => b.textContent.trim() === label)); };
+const datesSave = () => $("[data-testid=gx-dates-save]");
 const pickPerson = async (name) => { if (!$("[data-testid=gx-picker]")) await click($("[data-testid=gx-addsome]")); await click(byText(".prow", name)); };
 const state = () => ({
   occ: $$("[data-testid=gx-occasion] .occ[aria-pressed=true]").map((e) => e.textContent.trim()),
@@ -158,6 +161,18 @@ let currentRoot = null;
 const VALID_CARD = { present: true, expMonth: 12, expYear: 2030 };
 const PREFLIGHT = { ok: true, canSendGreeting: true, remaining: 20, sendLimitUnlimited: false, aiDaily: { limit: 20, used: 0, remaining: 20 } };
 const BOXES = [{ providerProductId: "goody-1", name: "Cookie Box", priceMinor: 3699, currency: "USD" }];
+async function mountKeeping(snapshot, user) {
+  await mount(user ? { user } : {});
+  if (currentRoot) { const r = currentRoot; currentRoot = null; await act(async () => { r.unmount(); }); }
+  window.sessionStorage.setItem("gm_dashboard_launcher_v1", snapshot);
+  globalThis.__nav = []; globalThis.__saves = [];
+  const host = document.createElement("div"); document.body.innerHTML = ""; document.body.appendChild(host);
+  const root = createRoot(host);
+  currentRoot = root;
+  await act(async () => { root.render(React.createElement(DashboardHome)); });
+  await settle();
+}
+
 async function mount({ contacts = CONTACTS(), upcoming = UPCOMING(), sent = SENT(), tiles = { ok: true, tiles: [] }, user, saveResult, card = VALID_CARD, preflight = PREFLIGHT, sendFail, boxes = BOXES } = {}) {
   if (currentRoot) { const r = currentRoot; currentRoot = null; await act(async () => { r.unmount(); }); }
   globalThis.__data = { contacts, upcoming, sent, tiles, saveResult, card, preflight, sendFail, boxes };
@@ -174,18 +189,25 @@ async function mount({ contacts = CONTACTS(), upcoming = UPCOMING(), sent = SENT
   return root;
 }
 
-test("renders the approved sections; held occasions are not rendered; Upcoming asks for 60 days", async () => {
+test("renders the sections; occasions are the Recipients page's list and groups plus the send page's own; no Quick Gift; Upcoming asks for 60 days", async () => {
   await mount();
-  for (const id of ["gx-hero", "gx-modes", "gx-step-1", "gx-step-2", "gx-resolver", "gx-step-3", "gx-step-4", "gx-footbar", "gx-lower", "gx-install"]) {
+  for (const id of ["gx-hero", "gx-modes", "gx-step-1", "gx-step-2", "gx-step-3", "gx-step-4", "gx-footbar", "gx-lower", "gx-install"]) {
     assert.ok($(`[data-testid=${id}]`), id);
   }
+  assert.equal($("[data-testid=gx-resolver]"), null, "Dates & gifts is a modal, not part of the page");
   const chips = $$("[data-testid=gx-occasion] .occ").map((e) => e.textContent.trim());
-  assert.deepEqual(chips.slice(0, 5), ["Birthday", "Anniversary", "Thank You", "Congratulations", "Just Because"]);
-  await click($("[data-testid=gx-season]"));
-  assert.deepEqual($$(".menu button").map((b) => b.textContent.trim()), ["Season's Greetings"]);
-  const occasionChoices = [...chips, ...$$(".menu button").map((b) => b.textContent.trim())];
-  for (const held of ["Engagement", "Sympathy", "Hanukkah", "Christmas", "Wedding", "Baby"]) assert.equal(occasionChoices.includes(held), false, `${held} is held from the dashboard selections`);
-  for (const held of ["Engagement", "Sympathy", "Hanukkah"]) assert.equal(document.body.textContent.includes(held), false, `${held} is held`);
+  assert.deepEqual(chips, ["Birthday", "Anniversary", "Graduation", "Thank You", "Congratulations", "Just Because", "Holidays", "Faith holidays"]);
+  await click($("[data-testid=gx-menu-holidays]"));
+  assert.deepEqual($$(".menu .mgroup").map((e) => e.textContent), ["Secular holidays", "Any holiday"]);
+  assert.deepEqual(menuItems(), ["New Year's Day", "Valentine's Day", "Mother's Day", "Father's Day", "Thanksgiving", "Season's Greetings"]);
+  const holidays = menuItems();
+  await click($("[data-testid=gx-menu-faith]"));
+  assert.deepEqual($$(".menu .mgroup").map((e) => e.textContent), ["Christianity", "Judaism", "Islam"]);
+  assert.deepEqual(menuItems(), ["Christmas", "Easter", "Rosh Hashanah", "Hanukkah", "Passover", "Eid al-Fitr", "Eid al-Adha", "Ramadan"]);
+  const occasionChoices = [...chips, ...holidays, ...menuItems()];
+  for (const absent of ["Engagement", "Sympathy", "Wedding", "Baby", "Get Well"]) assert.equal(occasionChoices.includes(absent), false, `${absent} is not on the Recipients list`);
+  assert.equal($("[data-testid=gx-quick-hero]"), null); assert.equal($("[data-testid=gx-quick-banner]"), null);
+  assert.equal(document.body.textContent.includes("Quick Gift"), false, "Quick Gift is removed from the dashboard");
   // N-6 (founder 2026-10-18): a recorded voice is required for group sending; words and memory photos stay optional
   assert.equal($("[data-testid=gx-step-3]").textContent.includes("Personalize — optional"), false);
   const step3 = $("[data-testid=gx-step-3]").textContent;
@@ -339,15 +361,18 @@ test("S3: Schedule the Love for a group saves the occasion to each person's own 
   await click(occ("Birthday"));
   await click(byText(".track button", "Everyone"));
   await click($("[data-testid=gx-who-done]"));
+  assert.ok($("[data-testid=gx-dates-modal]"), "Done opens Dates & gifts");
   const rows = $$("[data-testid=gx-group-row]");
   assert.equal(rows.length, 3);
-  assert.equal(state().cont.disabled, true, "dates and gifts are needed for everyone");
+  assert.equal(datesSave().disabled, true, "dates and gifts are needed for everyone");
   await setValue($("[data-testid=gx-group-default-gift]"), "none");
   await setValue($$("[data-testid=gx-group-row]")[1].querySelector("input"), "1960-02-11");
   await setValue($$("[data-testid=gx-group-row]")[2].querySelector("input"), "1985-09-30");
-  assert.equal(state().cont.disabled, false);
-  await click(state().cont);
+  assert.equal(datesSave().disabled, false);
+  assert.equal(datesSave().textContent.trim(), "Save 3 schedules");
+  await click(datesSave());
   await settle();
+  assert.equal($("[data-testid=gx-dates-modal]"), null, "closes after a save that needs nothing more");
   assert.equal(globalThis.__saves.length, 3, "one save per person, through the existing endpoint");
   const t = globalThis.__saves.find((x) => x.id === "c1").body;
   assert.deepEqual(t.occasionGiftSettings.birthday, { type: "qrcash", autoGift: true, amount: 50 }, "Theresa's own saved gift is kept");
@@ -365,8 +390,9 @@ test("S3: a person whose save needs the scheduler's card/consent step is listed,
   await setValue($("[data-testid=gx-group-default-gift]"), "none");
   await setValue($$("[data-testid=gx-group-row]")[1].querySelector("input"), "1960-02-11");
   await setValue($$("[data-testid=gx-group-row]")[2].querySelector("input"), "1985-09-30");
-  await click(state().cont);
+  await click(datesSave());
   await settle();
+  assert.ok($("[data-testid=gx-dates-modal]"), "stays open: one person still needs their scheduler");
   assert.equal(globalThis.__saves.length, 2, "Theresa (existing QR Cash Auto-Gift, no usable card) is not saved");
   assert.equal(globalThis.__saves.some((x) => x.id === "c1"), false);
   assert.match($("[data-testid=gx-fine]").textContent, /Saved 2 of 3.*1 needs their Occasion Scheduler/);
@@ -417,11 +443,12 @@ test("resolver: one person + several occasions -> prefilled rows, blocked until 
   assert.equal(rows[1].querySelector("select").value, "", "no saved gift: explicit choice required");
   assert.ok($("[data-testid=gx-resolver-sendnow]"), "Send Now is explained");
   assert.equal($(".mode[aria-pressed=true]").textContent.includes("Send Now"), true, "mode is not changed");
-  assert.equal(state().cont.disabled, true);
+  assert.equal(datesSave().disabled, true);
   await setValue(rows[1].querySelector("input"), "2026-06-20");
-  assert.equal(state().cont.disabled, true, "a date alone does not complete a row");
+  assert.equal(datesSave().disabled, true, "a date alone does not complete a row");
   await setValue($$("[data-testid=gx-resolver-row]")[1].querySelector("select"), "none");
-  assert.equal(state().cont.disabled, false);
+  assert.equal(datesSave().disabled, false);
+  assert.equal(datesSave().textContent.trim(), "Save schedules");
   assert.equal(state().cont.textContent.trim(), "Save schedules");
 });
 
@@ -444,6 +471,8 @@ test("resolver save: PUT /api/contacts/:id with the FULL record; other data unto
   assert.deepEqual(body.occasionGiftSettings.birthday, { type: "qrcash", autoGift: true, amount: 50 }, "the saved QR Cash setting is unchanged");
   assert.deepEqual(body.occasionGiftSettings.anniversary, { type: "merch", autoGift: false });
   assert.match($("[data-testid=gx-fine]").textContent, /Saved: 2 scheduled Greet-Mes for Theresa/);
+  assert.equal($("[data-testid=gx-dates-modal]"), null, "Dates & gifts closes after the save");
+  await click($("[data-testid=gx-dates-open]"));
   assert.match($$("[data-testid=gx-resolver-row]")[0].textContent, /QR Cash \$50/, "the saved QR Cash amount is shown");
   assert.deepEqual(globalThis.__toasts, ["Saved ✓"]);
   assert.equal(globalThis.__nav.length, 0, "the screen stays put");
@@ -458,7 +487,8 @@ test("in scheduled mode the carousel gift does not pretend: each occasion's gift
   await click($("[data-testid=gx-add-gift]"));
   assert.equal($("[data-testid=gx-add-gift]").getAttribute("aria-pressed"), "false", "not marked chosen");
   assert.doesNotMatch($("[data-testid=gx-summary]").textContent, /gift/);
-  assert.match($("[data-testid=gx-fine]").textContent, /choose each occasion.s gift under Dates & gifts/);
+  assert.match($("[data-testid=gx-fine]").textContent, /each gift is chosen in Dates & gifts/);
+  assert.ok($("[data-testid=gx-dates-modal]"), "it opens Dates & gifts, the scheduler's own gift choice");
 });
 
 test("resolver save refused by the server: the error is shown and nothing claims success", async () => {
@@ -512,7 +542,7 @@ test("Schedule the Love with an occasion the scheduler does not hold explains it
   await pickPerson("Theresa");
   await click($("[data-testid=gx-who-done]"));
   assert.equal(state().cont.disabled, true);
-  assert.match(state().rule, /Thank You can.t be scheduled/);
+  assert.match(state().rule, /Thank You isn.t an Occasion Scheduler occasion, so it can.t be scheduled/);
 });
 
 test("Upcoming: real statuses; no schedule -> 'Auto-send on' or 'Schedule the Love' (opens that person's scheduler)", async () => {
@@ -542,17 +572,15 @@ test("Past Occasions: dates from completedAt/createdAt; statuses Sent / Not sent
   assert.match(rows[1].textContent, /Thank You/, "a stored key reads with the send flow's label");
 });
 
-test("Recipients: edit pencil opens that recipient's existing edit form", async () => {
+test("Recipients: edit pencil opens that recipient's existing edit form and asks to come back here", async () => {
   await mount();
   await click($$("[data-testid=gx-edit-recipient]")[1]);
-  assert.deepEqual(globalThis.__nav.at(-1), { to: "/dashboard/contacts", opts: { state: { openEditRecipientId: "c2" } } });
+  assert.deepEqual(globalThis.__nav.at(-1), { to: "/dashboard/contacts", opts: { state: { openEditRecipientId: "c2", returnTo: "dashboard" } } });
+  assert.ok(window.sessionStorage.getItem("gm_dashboard_launcher_v1"), "the in-progress choices are kept for the return");
 });
 
-test("Quick Gift in BOTH places opens the Gift Place; Re-record / Revisit open setup re-entry", async () => {
+test("Re-record / Revisit open setup re-entry", async () => {
   await mount();
-  await click($("[data-testid=gx-quick-hero]"));
-  await click($("[data-testid=gx-quick-banner]"));
-  assert.deepEqual(globalThis.__nav.map((n) => n.to), ["/dashboard/gifts", "/dashboard/gifts"]);
   let opened = 0;
   window.addEventListener("gm:open-setup-revisit", () => { opened++; });
   await click($("[data-testid=gx-rerecord]"));
@@ -754,4 +782,132 @@ test("N-6: with no recorded voice, Personalize says the voice is required for gr
   assert.equal(/Personalize — optional|Optional — about 15|Nothing here is required/.test(step3), false);
   assert.match(step3, /Words and memory photos are optional\./);
   assert.match(step3, /A few words from you \(optional\)/); assert.match(step3, /Memory photos \(optional\)/);
+});
+
+test("Step 2 Done: one clear action — under the people, the picker's Done completes the step too; for a send it opens nothing", async () => {
+  await mount();
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  assert.equal($("[data-testid=gx-who-done]").disabled, true, "nobody chosen yet");
+  await pickPerson("Theresa");
+  const step2 = $("[data-testid=gx-step-2]");
+  assert.ok(step2.contains($("[data-testid=gx-who-donerow]")), "Done sits in Step 2, right after the people");
+  await click($("[data-testid=gx-picker-done]"));
+  assert.equal($("[data-testid=gx-picker]"), null, "the picker closes");
+  assert.ok(step2.querySelector(".step-label .num.done"), "Step 2 is complete");
+  assert.equal($("[data-testid=gx-dates-modal]"), null, "a send has no dates to set");
+  assert.equal($("[data-testid=gx-dates-open]"), null);
+});
+
+test("Dates & gifts modal: Close keeps every choice; Escape closes; Save schedules saves; it steps aside for the scheduler's authorisation step", async () => {
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday")); await click(occ("Anniversary"));
+  await pickPerson("Theresa");
+  await click($("[data-testid=gx-who-done]"));
+  assert.ok($("[data-testid=gx-dates-modal]"));
+  assert.equal($("[data-testid=gx-dates-modal]").getAttribute("role"), "dialog");
+  await setValue($$("[data-testid=gx-resolver-row]")[1].querySelector("input"), "2026-06-20");
+  await setValue($$("[data-testid=gx-resolver-row]")[1].querySelector("select"), "none");
+  await click($("[data-testid=gx-dates-close]"));
+  assert.equal($("[data-testid=gx-dates-modal]"), null, "Close closes");
+  assert.equal(globalThis.__saves.length, 0, "Close saves nothing");
+  await click($("[data-testid=gx-dates-open]"));
+  const r = $$("[data-testid=gx-resolver-row]")[1];
+  assert.equal(r.querySelector("input").value, "2026-06-20", "the date is kept");
+  assert.equal(r.querySelector("select").value, "none", "the gift choice is kept");
+  await act(async () => { $("[data-testid=gx-dates-modal]").dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); }); await settle();
+  assert.equal($("[data-testid=gx-dates-modal]"), null, "Escape closes");
+  await click(state().cont);
+  assert.equal(globalThis.__saves.length, 1, "with every row set, Save schedules saves");
+});
+
+test("Faith and secular holidays schedule with the scheduler's own identifiers and dates; Season's Greetings is Send Now only", async () => {
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await menuOcc("faith", "Christmas");
+  assert.equal($("[data-testid=gx-menu-faith]").textContent.trim(), "Christmas", "the chosen holiday is named on its menu");
+  await pickPerson("Margaret");
+  await click($("[data-testid=gx-who-done]"));
+  const row = $$("[data-testid=gx-resolver-row]")[0];
+  assert.match(row.textContent, /Christmas/);
+  assert.match(row.querySelector("input").value, /^\d{4}-12-25$/, "the scheduler's fixed date");
+  await setValue(row.querySelector("select"), "none");
+  await click(datesSave());
+  assert.deepEqual(globalThis.__saves[0].body.occasions.map((o) => o.type), ["christmas"], "saved under the scheduler's own identifier");
+  // Season's Greetings is not an Occasion Scheduler occasion
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await menuOcc("holidays", "Season's Greetings");
+  assert.match(state().rule, /Season.s Greetings isn.t an Occasion Scheduler occasion/);
+  await mount();
+  await click(byText(".mode", "Send Now"));
+  await menuOcc("holidays", "Season's Greetings");
+  await pickPerson("Margaret");
+  await click($("[data-testid=gx-who-done]"));
+  await click(state().cont);
+  assert.equal(new URLSearchParams(globalThis.__nav.at(-1).to.split("?")[1]).get("occasion"), "Season's Greetings", "handed to the send flow as Season's Greetings, never Christmas");
+});
+
+test("Add a gift: a second tap never silently removes it; Remove does; the note says where the gift is chosen", async () => {
+  await mount();
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await pickPerson("Theresa");
+  await click($("[data-testid=gx-who-done]"));
+  await click($("[data-testid=gx-add-gift]"));
+  await click($("[data-testid=gx-add-gift]"));
+  assert.equal($("[data-testid=gx-add-gift]").getAttribute("aria-pressed"), "true", "still added after a second tap");
+  assert.match($("[data-testid=gx-summary]").textContent, /gift/);
+  assert.match($("[data-testid=gx-fine]").textContent, /You choose it on the next screen, before anything is charged/);
+  assert.equal($("[data-testid=gx-gift-remove]").style.visibility, "visible");
+  await click($("[data-testid=gx-gift-remove]"));
+  assert.equal($("[data-testid=gx-add-gift]").getAttribute("aria-pressed"), "false");
+  assert.doesNotMatch($("[data-testid=gx-summary]").textContent, /gift/);
+  await click($("[data-testid=gx-add-gift]"));
+  await click(state().cont);
+  assert.match(globalThis.__nav.at(-1).to, /&gift=choose$/, "the send flow opens its gift chooser");
+});
+
+test("After editing a recipient, the dashboard comes back with the in-progress choices; another account's are never restored", async () => {
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday")); await click(occ("Anniversary"));
+  await pickPerson("Theresa");
+  await click($("[data-testid=gx-who-done]"));
+  await setValue($$("[data-testid=gx-resolver-row]")[1].querySelector("input"), "2026-06-20");
+  await setValue($("[data-testid=gx-words]"), "Thinking of you");
+  // "Gift details in their Occasion Scheduler" opens the recipient's scheduler and asks to come back
+  await click(byText("[data-testid=gx-resolver-row] .link", "Gift details"));
+  const nav = globalThis.__nav.at(-1);
+  assert.equal(nav.to, "/dashboard/contacts?contactId=c1&occasion=birthday");
+  assert.deepEqual(nav.opts, { state: { returnTo: "dashboard" } });
+  const kept = window.sessionStorage.getItem("gm_dashboard_launcher_v1");
+  // ...the Recipients page returns here: the dashboard mounts again with the same tab's storage
+  await mountKeeping(kept);
+  assert.equal($(".mode[aria-pressed=true]").textContent.includes("Schedule the Love"), true, "mode kept");
+  assert.deepEqual(state().occ, ["Birthday", "Anniversary"], "occasions kept");
+  assert.deepEqual(state().picks, ["TMTheresa Morgan"], "people kept (avatar initials + name)");
+  assert.equal($("[data-testid=gx-words]").value, "Thinking of you", "words kept");
+  assert.ok($("[data-testid=gx-dates-modal]"), "Dates & gifts reopens where it was");
+  assert.equal($$("[data-testid=gx-resolver-row]")[1].querySelector("input").value, "2026-06-20", "the date set before leaving is kept");
+  assert.equal(window.sessionStorage.getItem("gm_dashboard_launcher_v1"), null, "used once, then cleared");
+  // another account never receives it
+  await mountKeeping(kept, { id: "someone-else", name: "Bea", voiceId: "v", photoUrl: "p.jpg" });
+  assert.equal($(".mode[aria-pressed=true]"), null, "nothing restored for another account");
+});
+
+test("relationship started but incomplete: the dashboard refuses the save (as the scheduler does) instead of clearing stored closeness", async () => {
+  const contacts = CONTACTS();
+  contacts[1] = { ...contacts[1], relationshipCategory: "family", relationship: "", relationshipCloseness: "very_close", relationshipProfile: { a: 1 } };
+  await mount({ contacts });
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday"));
+  await pickPerson("Margaret");
+  await click($("[data-testid=gx-who-done]"));
+  await setValue($$("[data-testid=gx-resolver-row]")[0].querySelector("input"), "1960-02-11");
+  await setValue($$("[data-testid=gx-resolver-row]")[0].querySelector("select"), "none");
+  await click(datesSave());
+  assert.equal(globalThis.__saves.length, 0, "nothing saved: the stored closeness and profile are not cleared");
+  assert.match($("[data-testid=gx-dates-fine]").textContent, /relationship details are incomplete/);
 });

@@ -151,6 +151,8 @@ export const DASHBOARD_HOME_CSS = `
 .gx .menu { position:absolute; z-index:40; top:calc(100% + 6px); left:0; min-width:220px; background:#fff; border:1px solid var(--line); border-radius:16px; box-shadow:0 24px 50px -24px rgba(44,29,70,.45); padding:6px; }
 .gx .menu button { display:flex; width:100%; align-items:center; gap:10px; border:none; background:none; border-radius:10px; padding:9px 10px; font:500 14.5px var(--sans); color:var(--ink); cursor:pointer; text-align:left; white-space:normal; min-height:0; justify-content:flex-start; }
 .gx .menu button:hover { background:var(--p50); }
+.gx .menu { max-height:min(62vh, 440px); overflow:auto; }
+.gx .menu .mgroup { display:block; padding:8px 10px 2px; font:700 11px var(--sans); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
 .gx .box { width:18px; height:18px; border-radius:6px; border:1.5px solid #BEA6E0; display:grid; place-items:center; flex:none; color:transparent; background:#fff; }
 .gx .box.on { background:var(--p800); border-color:var(--p800); color:#fff; }
 .gx .whobox { margin-top:12px; height:330px; display:flex; flex-direction:column; border:1px solid var(--p100); background:rgba(247,243,252,.55); border-radius:20px; padding:14px; }
@@ -227,6 +229,9 @@ export const DASHBOARD_HOME_CSS = `
 .gx .rdate, .gx .rgift { height:36px; border:1px solid var(--p200); border-radius:10px; padding:0 8px; font:14px var(--sans); color:var(--ink); background:#fff; min-width:0; width:100%; }
 .gx .rline { grid-column:2 / -1; font-size:12.5px; color:var(--muted); min-height:1.2em; }
 .gx .rempty { margin:10px 0 0; font-size:14px; color:var(--muted); }
+/* Dates & gifts in its modal: the panel scrolls, so the rows take their natural height. */
+.gx .resolver.inmodal { height:auto; margin-top:0; border:none; padding:0; background:none; }
+.gx .resolver.inmodal .rrows { overflow:visible; margin-top:0; }
 .gx .moments { height:119px; overflow:hidden; }
 .gx .madd { display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%; background:none; border:none; padding:0; cursor:pointer; font-family:var(--sans); white-space:normal; min-height:0; }
 .gx .madd span { white-space:normal; }
@@ -324,6 +329,7 @@ export const DASHBOARD_HOME_CSS = `
   .gx .grv-addr-grid { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
   .gx .grv-addr-grid .wide { grid-column:span 2; }
   .gx .resolver { height:330px; padding:10px; }
+  .gx .resolver.inmodal { height:auto; padding:0; }
   .gx .rrow { grid-template-columns:auto 1fr; }
   .gx .rdate, .gx .rgift, .gx .rline { grid-column:1 / -1; }
   .gx .rule { min-height:4.8em; }

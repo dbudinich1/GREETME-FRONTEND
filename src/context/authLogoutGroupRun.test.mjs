@@ -20,6 +20,7 @@ test("logout removes the stored group run and the dashboard hand-off", () => {
   const body = SRC.slice(start, SRC.indexOf("setUser(null);", start));
   assert.match(body, /safeRemove\('gm_group_run_v1'\)/);
   assert.match(body, /sessionStorage\.removeItem\('gm_dashboard_send_handoff_v1'\)/);
+  assert.match(body, /sessionStorage\.removeItem\('gm_dashboard_launcher_v1'\)/, "the dashboard's kept choices are cleared too");
 });
 
 test("the key logout removes is the one group runs are stored under", () => {

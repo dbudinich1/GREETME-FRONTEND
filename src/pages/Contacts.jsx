@@ -111,6 +111,17 @@ const OCCASION_CATEGORIES = [
 export default function Recipients() {
   const navigate = useNavigate();
   const location = useLocation();
+  // Opened from the dashboard to edit (or add) a recipient: after saving or closing, go back there, where the
+  // dashboard restores the sender's in-progress choices (utils/dashboardLauncherState.js). Read once on arrival —
+  // the deep-link effects below clear location.state.
+  const returnToDashboardRef = useRef(location.state?.returnTo === 'dashboard');
+  const backToDashboard = (savedMessage) => {
+    if (!returnToDashboardRef.current) return false;
+    returnToDashboardRef.current = false;
+    if (savedMessage) { try { showManualToast('Saved ✓', savedMessage, COMMS_CATEGORIES.PROFILE); } catch { /* ignore */ } }
+    navigate('/dashboard');
+    return true;
+  };
   // Recipients PRACTICE VIEW (fail-closed): render session-scoped Test Drive contacts in the normal
   // layout ONLY when the explicit marker is present AND a valid current-session workspace exists.
   const practiceMarker = new URLSearchParams(location.search || '').get('practice') === '1';
@@ -429,6 +440,7 @@ export default function Recipients() {
       if (response && response.data) {
         fetchRecipients();
       }
+      backToDashboard('Recipient added.');
     } catch (error) {
       console.error('Add recipient error:', error);
 
@@ -489,6 +501,7 @@ export default function Recipients() {
       setShowEditModal(false);
       setEditingContact(null);
       fetchRecipients();
+      backToDashboard('Recipient updated.');
     } catch (error) {
       // LANE E2 — PUT can now return RECIPIENT_LIMIT_REACHED too (email changed to a new recipient).
       if (error?.code === 'RECIPIENT_LIMIT_REACHED') {
@@ -1199,6 +1212,7 @@ export default function Recipients() {
         onClose={() => {
           setShowAddModal(false);
           try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch (e) {}
+          backToDashboard();
         }}
         title="Add New Recipient"
         size="lg"
@@ -1208,6 +1222,7 @@ export default function Recipients() {
           onCancel={() => {
             setShowAddModal(false);
             try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch (e) {}
+            backToDashboard();
           }}
         />
       </Modal>
@@ -1219,6 +1234,7 @@ export default function Recipients() {
           setShowEditModal(false);
           setEditingContact(null);
           setFocusOccasion(null);
+          backToDashboard();
         }}
         title="Edit Recipient"
         size="lg"
@@ -1231,6 +1247,7 @@ export default function Recipients() {
             setShowEditModal(false);
             setEditingContact(null);
             setFocusOccasion(null);
+            backToDashboard();
           }}
         />
       </Modal>

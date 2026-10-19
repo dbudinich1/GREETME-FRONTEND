@@ -31,8 +31,9 @@ test("the recipient, sender, occasion and words fields", () => {
   assert.equal(p.includeGift, false, "no gift selection: no gift promised");
 });
 
-test("occasion keys: Baby and Season's Greetings map to the backend's existing keys; others normalise as before", () => {
-  assert.equal(base({ formData: { occasionType: "Baby" } }).occasionKey, "baby");
+test("occasion keys: Recipients-list occasions use the scheduler identifier; Season's Greetings is 'holiday'; others normalise as before", () => {
+  assert.equal(base({ formData: { occasionType: "Mother's Day" } }).occasionKey, "mothers_day");
+  assert.equal(base({ formData: { occasionType: "Easter" } }).occasionKey, "easter");
   assert.equal(base({ formData: { occasionType: "Season's Greetings" } }).occasionKey, "holiday");
   assert.equal(base({ formData: { occasionType: "Thank You" } }).occasionKey, "thankyou");
 });

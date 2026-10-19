@@ -31,7 +31,8 @@ const CONTACTS = [
 before(async () => {
   writeFileSync(API, `
     export const __calls = [];
-    const impl = { getContacts: async () => { __calls.push("getContacts"); return { ok: true, data: JSON.parse(JSON.stringify(globalThis.__contacts)) }; } };
+    const impl = { getContacts: async () => { __calls.push("getContacts"); return { ok: true, data: JSON.parse(JSON.stringify(globalThis.__contacts)) }; },
+      updateContact: async (id, body) => { __calls.push("updateContact:" + id); return { ok: true, data: { id, ...body } }; } };
     export default new Proxy(impl, { get: (t, k) => (k in t ? t[k] : async () => { throw new Error("network is not available in this test: " + String(k)); }) });
   `);
   writeFileSync(AUTH, `export const useAuth = () => ({ user: { id: "u1", photoUrl: "https://example.test/me.jpg" } });\n`);
@@ -72,7 +73,7 @@ const tid = (t) => document.querySelector(`[data-testid="${t}"]`);
 const txt = () => (document.body.textContent || "").replace(/\s+/g, " ");
 const wait = async (ms = 0) => { await act(async () => { await new Promise((r) => setTimeout(r, ms)); }); };
 let root = null;
-async function open(url, { mountOnly = false } = {}) {
+async function open(url, { mountOnly = false, state } = {}) {
   globalThis.__contacts = CONTACTS; globalThis.__scrolledTo = null;
   M.__calls.length = 0;
   try { window.sessionStorage.clear(); window.localStorage.clear(); } catch { /* ignore */ }
@@ -82,8 +83,11 @@ async function open(url, { mountOnly = false } = {}) {
   const Probe = () => React.createElement("span", { "data-testid": "loc" }, M.useLocation().search || "(none)");
   root = createRoot(host);
   await act(async () => {
-    root.render(React.createElement(M.MemoryRouter, { initialEntries: [url] },
-      React.createElement(M.Routes, null, React.createElement(M.Route, { path: "/dashboard/contacts", element: React.createElement(React.Fragment, null, React.createElement(M.Contacts), React.createElement(Probe)) }))));
+    const [pathname, search = ""] = url.split("?");
+    root.render(React.createElement(M.MemoryRouter, { initialEntries: [state ? { pathname, search: search ? `?${search}` : "", state } : url] },
+      React.createElement(M.Routes, null,
+        React.createElement(M.Route, { path: "/dashboard/contacts", element: React.createElement(React.Fragment, null, React.createElement(M.Contacts), React.createElement(Probe)) }),
+        React.createElement(M.Route, { path: "/dashboard", element: React.createElement("span", { "data-testid": "dashboard-home" }, "dashboard") }))));
   });
   for (let i = 0; i < 6; i += 1) await wait(0);
   await wait(150); // the form's focus timer
@@ -161,4 +165,37 @@ test("source: the link params are read from location.search, only for the person
   assert.match(C, /hasOpenedDeepLinkRef/);
   assert.match(C, /practiceActive \|\| isBusiness \|\| loading/);
   assert.match(C, /\/\^\[a-z0-9_\]\{1,40\}\$\/\.test\(occasion\)/);
+});
+
+test("opened from the dashboard (returnTo): closing the edit goes back to the dashboard; opened any other way it stays", async () => {
+  await open("/dashboard/contacts", { state: { openEditRecipientId: "c1", returnTo: "dashboard" } });
+  assert.ok(editFormOpen(), "the dashboard's edit request opens the form");
+  const cancel = [...document.querySelectorAll('[data-testid="contact-form-footer"] button')].find((b) => /Cancel/.test(b.textContent));
+  await act(async () => { cancel.click(); });
+  await wait(50);
+  assert.ok(tid("dashboard-home"), "back on the dashboard, which restores the in-progress choices");
+  // the scheduler deep link from the dashboard ("Gift details in their Occasion Scheduler") returns too
+  await open("/dashboard/contacts?contactId=c1&occasion=christmas", { state: { returnTo: "dashboard" } });
+  assert.ok(editFormOpen());
+  const cancel2 = [...document.querySelectorAll('[data-testid="contact-form-footer"] button')].find((b) => /Cancel/.test(b.textContent));
+  await act(async () => { cancel2.click(); });
+  await wait(50);
+  assert.ok(tid("dashboard-home"));
+  // without returnTo (the emails' links), closing stays on the Recipients page
+  await open("/dashboard/contacts?contactId=c1&occasion=christmas");
+  const cancel3 = [...document.querySelectorAll('[data-testid="contact-form-footer"] button')].find((b) => /Cancel/.test(b.textContent));
+  await act(async () => { cancel3.click(); });
+  await wait(50);
+  assert.equal(tid("dashboard-home"), null, "stays on the Recipients page");
+});
+
+test("opened from the dashboard (returnTo): a successful save returns to the dashboard after the server accepts it", async () => {
+  await open("/dashboard/contacts", { state: { openEditRecipientId: "c1", returnTo: "dashboard" } });
+  assert.ok(editFormOpen());
+  const save = document.querySelector('[data-testid="contact-form-footer"] button[type="submit"]');
+  assert.ok(save, "the form's save button");
+  await act(async () => { save.click(); });
+  for (let i = 0; i < 8; i += 1) await wait(20);
+  assert.ok(M.__calls.includes("updateContact:c1"), "saved through the Recipients page's own save");
+  assert.ok(tid("dashboard-home"), "then back on the dashboard");
 });

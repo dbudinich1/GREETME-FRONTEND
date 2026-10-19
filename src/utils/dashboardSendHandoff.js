@@ -8,26 +8,38 @@
 //     the same form the send flow already keeps in sessionStorage for its own round trips). The send flow reads
 //     the hand-off once, only for the same recipient and occasion, and removes it.
 
-// The send flow's occasion list: its existing five plus Season's Greetings (approved 2026-10-18, offered by the
-// dashboard). Hanukkah, Sympathy and Engagement are held pending the founder's ruling on their protected content;
-// Christmas, Wedding and Baby are held until their known generation and cover defects are corrected (Report 109).
+import { RECIPIENT_OCCASIONS, SEASONS_GREETINGS } from './dashboardOccasions.js';
+
+// The send flow's occasion list: its existing five, Season's Greetings, and the Recipients page's occasion list
+// (utils/helpers.js occasionTypes, as the Recipients form shows it), so every occasion the dashboard offers reaches
+// the send flow. Wedding, Baby, Sympathy and Engagement are not on the Recipients list and are not offered.
 // GREETING_RULES untouched.
 export const SEND_OCCASION_OPTIONS = Object.freeze([
-  'Birthday', 'Anniversary', 'Thank You', 'Congratulations', 'Just Because', "Season's Greetings",
+  'Birthday', 'Anniversary', 'Thank You', 'Congratulations', 'Just Because', SEASONS_GREETINGS,
+  ...RECIPIENT_OCCASIONS.map((o) => o.label).filter((l) => l !== 'Birthday' && l !== 'Anniversary'),
 ]);
 
-// Occasion labels whose canonical key the shared normaliser does not derive from the label itself. The backend
-// already carries these keys' opening lines (enforceAllSections OCCASION_PHRASES: baby, holiday).
+// The greeting key a send-flow occasion is generated with. Recipients-list occasions use the Occasion Scheduler's own
+// identifier — exactly the key a scheduled send of that occasion is generated with (backend worker occasionKey =
+// occasionType) — so a Send Now and a scheduled send of the same occasion get the same greeting. Season's Greetings
+// is the generic 'holiday' greeting ("Happy Holidays!"), never a specific holiday. Everything else (Thank You,
+// Congratulations, Just Because) keeps the shared normaliser's key, as before.
 export const SEND_OCCASION_KEY_OVERRIDES = Object.freeze({
-  Baby: 'baby',
-  "Season's Greetings": 'holiday',
+  ...Object.fromEntries(RECIPIENT_OCCASIONS.map((o) => [o.label, o.value])),
+  [SEASONS_GREETINGS]: 'holiday',
 });
 
-/** The send flow's own option for a URL occasion value (case-insensitive), or '' when it has none. */
+/**
+ * The send flow's own option for a URL occasion value, or '' when it has none. Matches the option label
+ * (case-insensitive) or a Recipients-list identifier (e.g. "mothers_day", as the scheduler's reminder links carry it).
+ */
 export function matchSendOccasion(value) {
   const v = String(value || '').trim().toLowerCase();
   if (!v) return '';
-  return SEND_OCCASION_OPTIONS.find((o) => o.toLowerCase() === v) || '';
+  const byLabel = SEND_OCCASION_OPTIONS.find((o) => o.toLowerCase() === v);
+  if (byLabel) return byLabel;
+  const byValue = RECIPIENT_OCCASIONS.find((o) => o.value === v);
+  return byValue ? byValue.label : '';
 }
 
 export const DASHBOARD_HANDOFF_KEY = 'gm_dashboard_send_handoff_v1';

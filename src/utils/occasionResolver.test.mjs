@@ -37,11 +37,23 @@ const CONTACT = {
   },
 };
 
-test("only Birthday, Anniversary and Christmas are scheduler occasions; held and send-only occasions are not", () => {
-  for (const l of ["Birthday", "Anniversary", "Christmas"]) assert.equal(R.isSchedulerOccasion(l), true, l);
-  for (const l of ["Thank You", "Congratulations", "Just Because", "Baby", "Wedding", "Season's Greetings", "Hanukkah", "Sympathy", "Engagement"]) {
+test("scheduler occasions are the Recipients page's list (minus the one-time Graduation and Get Well the scheduler never auto-sends), with its own identifiers", () => {
+  assert.deepEqual(R.SCHEDULER_OCCASION_TYPES, {
+    Birthday: "birthday", Anniversary: "anniversary", "New Year's Day": "new_year", "Valentine's Day": "valentines", "Mother's Day": "mothers_day",
+    "Father's Day": "fathers_day", Thanksgiving: "thanksgiving", Christmas: "christmas", Easter: "easter", "Rosh Hashanah": "rosh_hashanah",
+    Hanukkah: "hanukkah", Passover: "passover", "Eid al-Fitr": "eid_al_fitr", "Eid al-Adha": "eid_al_adha", Ramadan: "ramadan",
+  });
+  for (const l of ["Thank You", "Congratulations", "Just Because", "Season's Greetings", "Graduation", "Get Well", "Baby", "Wedding", "Sympathy", "Engagement"]) {
     assert.equal(R.isSchedulerOccasion(l), false, l);
   }
+});
+
+test("prefill dates exactly as the scheduler adds an occasion: fixed date, else the calculated date, else empty", () => {
+  const now = new Date("2026-10-19T12:00:00Z");
+  assert.equal(R.prefillRow({}, "New Year's Day", now).date, "2026-01-01");
+  assert.equal(R.prefillRow({}, "Mother's Day", now).date, "2026-05-10", "2nd Sunday in May");
+  assert.equal(R.prefillRow({}, "Thanksgiving", now).date, "2026-11-26", "4th Thursday in November");
+  assert.equal(R.prefillRow({}, "Hanukkah", now).date, "", "the sender sets it, as in the scheduler");
 });
 
 test("prefill: a saved occasion and gift are prefilled; an unsaved one starts without a gift choice", () => {

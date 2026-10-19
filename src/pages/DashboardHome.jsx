@@ -33,7 +33,7 @@ import { showManualToast } from '../utils/notify';
 import { COMMS_CATEGORIES } from '../utils/commsCatalog';
 import { openSetupRevisit } from '../components/setupRevisit';
 import { requiresDeliveryAddress } from '../components/ContactForm';
-import { sanitizeRelationshipForSave } from '../components/contactFormValidation.js';
+import { relationshipErrors, sanitizeRelationshipForSave } from '../components/contactFormValidation.js';
 import SaveAuthorizationModal from '../components/w07Auth/SaveAuthorizationModal';
 import { planAuthorization } from '../utils/scheduledQrCashConsent';
 import { SCHEDULED_QRCASH_AVAILABLE } from '../config/scheduledQrCash';
@@ -50,6 +50,8 @@ import GroupReview from '../components/dashboard/GroupReview';
 import InfoTip from '../components/dashboard/InfoTip';
 import { qrCashQuote, centsToDollarString } from '../utils/qrCashAmount';
 import { DASHBOARD_HOME_CSS } from './dashboardHomeStyles';
+import { OCCASION_CHIPS, OCCASION_MENUS } from '../utils/dashboardOccasions';
+import { saveLauncherState, readLauncherState, clearLauncherState } from '../utils/dashboardLauncherState';
 import giftLuxuryBox from '../assets/gifts/gift-luxury-box.png';
 import giftBouquet from '../assets/gifts/gift-bouquet.png';
 import giftCard from '../assets/gifts/gift-card.png';
@@ -89,11 +91,8 @@ const SLIDES = [
 ];
 const SMARTCARD_UNAVAILABLE_LINE = 'Coming later — not yet available';
 
-// Occasions (founder 2026-10-18): the send flow's five, and a Season's Greetings menu.
-// Engagement, Sympathy and Hanukkah are held until their protected content is ruled on; Christmas, Wedding and Baby are
-// held until their known generation and cover defects are corrected (Report 109). GREETING_RULES untouched.
-const OCCASIONS = ['Birthday', 'Anniversary', 'Thank You', 'Congratulations', 'Just Because'];
-const SEASON = ["Season's Greetings"];
+// Occasions: the Recipients page's own list and groups (utils/dashboardOccasions.js — OCCASION_CHIPS, OCCASION_MENUS),
+// plus the send page's Thank You, Congratulations, Just Because and the generic Season's Greetings. GREETING_RULES untouched.
 // Base44 "Send to" segments mapped onto the recipient's existing relationshipCategory (family | friend | professional).
 const AUDIENCES = [
   { key: 'one', segment: 'Individuals', label: 'People you choose' },
@@ -112,6 +111,10 @@ function initials(name) { return (name || '?').split(/\s+/).filter(Boolean).map(
 const AVATAR = ['#5A3E8A', '#7C63AE', '#4A3273', '#8A5A2B', '#3E5A7C', '#6B3E6B'];
 function avatarBg(name) { let h = 0; for (const c of name || '') h = (h * 31 + c.charCodeAt(0)) >>> 0; return AVATAR[h % AVATAR.length]; }
 const first = (n) => (n || '').split(' ')[0];
+// The scheduler refuses to save a relationship that is started but missing its group or specific relationship
+// (ContactForm validate -> relationshipErrors); saving it anyway would clear the stored closeness and profile
+// (sanitizeRelationshipForSave). The dashboard refuses exactly that case and sends the sender to the scheduler.
+const relationshipWouldBeCleared = (built) => Boolean(relationshipErrors(built).relationship);
 // A scheduled row's gift, compactly: QR Cash amount + fee = total, one short status, and the explanation (and the
 // fee formula) behind the info icon.
 function ScheduledGiftLine({ gift }) {
@@ -134,7 +137,7 @@ const readAsDataUrl = (file) => new Promise((resolve, reject) => {
   const r = new FileReader(); r.onloadend = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(file);
 });
 
-function GiftCarousel({ chosen, onAdd, onQuickGift, onLearnQr, smartCardAvailable }) {
+function GiftCarousel({ chosen, onAdd, onRemove, onLearnQr, smartCardAvailable }) {
   const [i, setI] = useState(0);
   const paused = useRef(false);
   useEffect(() => {
@@ -170,7 +173,8 @@ function GiftCarousel({ chosen, onAdd, onQuickGift, onLearnQr, smartCardAvailabl
             {chosen === 'gift' ? <><Check size={16} /> Gift added</> : <><Gift size={16} /> Add a gift</>}
           </button>
         )}
-        <button type="button" className="btn btn-sm btn-gold" style={{ height: 40 }} data-testid="gx-quick-banner" onClick={onQuickGift}>Quick Gift <ChevronRight size={15} /></button>
+        {/* Adding never toggles off on a second tap; removing is its own action. */}
+        <button type="button" className="link" data-testid="gx-gift-remove" style={{ visibility: chosen ? 'visible' : 'hidden' }} tabIndex={chosen ? 0 : -1} onClick={onRemove}>Remove {chosen === 'qrcash' ? 'QR Cash' : 'gift'}</button>
         <button type="button" className="link" style={{ visibility: s.key === 'qrcash' ? 'visible' : 'hidden' }} onClick={onLearnQr} tabIndex={s.key === 'qrcash' ? 0 : -1}>How it works</button>
       </div>
     </div>
@@ -258,24 +262,29 @@ export default function DashboardHome() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Launcher state: local to this page, never saved. The send flow and the Occasion Scheduler own the real data.
-  const [mode, setMode] = useState(null);
-  const [occasions, setOccasions] = useState([]);
-  const [seasonOpen, setSeasonOpen] = useState(false);
-  const [audience, setAudience] = useState('one');
-  const [picks, setPicks] = useState([]);
-  const [excluded, setExcluded] = useState([]);
+  // ── Launcher state: local to this page, never saved to the server. The send flow and the Occasion Scheduler own the
+  // real data. Choices are kept for one round trip to the Recipients page (editing a recipient or opening their
+  // Occasion Scheduler) and restored here on return (utils/dashboardLauncherState.js).
+  const [kept] = useState(() => readLauncherState(window.sessionStorage, user?.id));
+  const K = (f, d) => (kept && kept[f] !== undefined ? kept[f] : d);
+  const [mode, setMode] = useState(K('mode', null));
+  const [occasions, setOccasions] = useState(K('occasions', []));
+  const [menuOpen, setMenuOpen] = useState(null);
+  const [audience, setAudience] = useState(K('audience', 'one'));
+  const [picks, setPicks] = useState(K('picks', []));
+  const [excluded, setExcluded] = useState(K('excluded', []));
   const [pickerOpen, setPickerOpen] = useState(false);
   const [find, setFind] = useState('');
-  const [words, setWords] = useState('');
-  const [memoryPhotos, setMemoryPhotos] = useState([]);
+  const [words, setWords] = useState(K('words', ''));
+  const [memoryPhotos, setMemoryPhotos] = useState(K('memoryPhotos', []));
   const [photoNote, setPhotoNote] = useState('');
-  const [gift, setGift] = useState(null);
-  const [whoDone, setWhoDone] = useState(false);
-  const [persDone, setPersDone] = useState(false);
+  const [gift, setGift] = useState(K('gift', null));
+  const [whoDone, setWhoDone] = useState(K('whoDone', false));
+  const [persDone, setPersDone] = useState(K('persDone', false));
   const [ruleNote, setRuleNote] = useState('');
   const [giftNote, setGiftNote] = useState('');
-  const [rows, setRows] = useState({});
+  const [rows, setRows] = useState(K('rows', {}));
+  const [datesOpen, setDatesOpen] = useState(K('datesOpen', false));
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
   const [authModal, setAuthModal] = useState(null);
@@ -284,7 +293,7 @@ export default function DashboardHome() {
   const [groupReviewOpen, setGroupReviewOpen] = useState(false);
   const [pendingRun, setPendingRun] = useState(() => { const r = loadRun(window.localStorage, user?.id); return r && !runSummary(r).done ? r : null; });
   const [resumeRun, setResumeRun] = useState(null);
-  const [groupDefaultGift, setGroupDefaultGift] = useState(null); // scheduled groups: the gift for everyone
+  const [groupDefaultGift, setGroupDefaultGift] = useState(K('groupDefaultGift', null)); // scheduled groups: the gift for everyone
   const [groupResults, setGroupResults] = useState({}); // scheduled groups: per-person save outcome
   const memoryInputRef = useRef(null);
 
@@ -307,9 +316,15 @@ export default function DashboardHome() {
   const photoDone = Boolean(user?.photoUrl);
   const firstName = first(user?.name);
   const goAddRecipient = () => navigate('/dashboard/contacts', { state: { openAddRecipient: true } });
-  const goEdit = (id) => navigate('/dashboard/contacts', { state: { openEditRecipientId: id } });
-  const goScheduler = (contactId, occasionType) => navigate(`/dashboard/contacts?contactId=${encodeURIComponent(contactId)}&occasion=${encodeURIComponent(occasionType)}`);
-  const quickGift = () => navigate('/dashboard/gifts');
+  // Editing a recipient (or opening their Occasion Scheduler) from here keeps the in-progress choices and brings the
+  // sender back to them after saving or closing the edit (Contacts.jsx returnTo).
+  const keepChoices = () => {
+    const kept2 = saveLauncherState(window.sessionStorage, user?.id, { mode, occasions, audience, picks, excluded, words, memoryPhotos, gift, whoDone, persDone, rows, groupDefaultGift, datesOpen });
+    if (kept2 === 'without_photos') showManualToast('Photos not kept', 'Your memory photos were too large to keep on this device while you edit. Your other choices are kept.', COMMS_CATEGORIES.SYSTEM);
+  };
+  const goAddFromFlow = () => { keepChoices(); navigate('/dashboard/contacts', { state: { openAddRecipient: true, returnTo: 'dashboard' } }); };
+  const goEdit = (id) => { keepChoices(); navigate('/dashboard/contacts', { state: { openEditRecipientId: id, returnTo: 'dashboard' } }); };
+  const goScheduler = (contactId, occasionType) => { keepChoices(); navigate(`/dashboard/contacts?contactId=${encodeURIComponent(contactId)}&occasion=${encodeURIComponent(occasionType)}`, { state: { returnTo: 'dashboard' } }); };
   const filtered = useMemo(() => contacts.filter((c) => (c.name || '').toLowerCase().includes(term.toLowerCase()) || (c.relationship || '').toLowerCase().includes(term.toLowerCase())), [contacts, term]);
 
   // Selection only changes styling and completion marks: nothing collapses, scrolls, navigates or resizes.
@@ -341,8 +356,7 @@ export default function DashboardHome() {
     setRuleNote(''); setSaveMsg(null); setAudience(k); setExcluded([]); setPickerOpen(false);
   };
   const aud = AUDIENCES.find((x) => x.key === audience);
-  const seasonSel = occasions.filter((o) => SEASON.includes(o));
-  const occLocked = chosen.length > 1 && occasions.length >= 1;   // several people: no further occasions
+    const occLocked = chosen.length > 1 && occasions.length >= 1;   // several people: no further occasions
   const whoLocked = occasions.length > 1;                          // several occasions: one person only
   const notSchedulable = mode === 'occasion' && occasions.find((o) => !isSchedulerOccasion(o));
   const overCap = chosen.length > GROUP_MAX;
@@ -350,8 +364,8 @@ export default function DashboardHome() {
     : overCap ? `A group is up to ${GROUP_MAX} people. Leave out ${chosen.length - GROUP_MAX} more to continue.`
     : ruleNote === 'occ' ? 'You’re sending to several people, so they share one occasion. Remove people to add more occasions.'
     : ruleNote === 'who' || ruleNote === 'group' ? 'Several occasions go to one person. To send to several people, keep just one occasion.'
-      : ruleNote.startsWith('sched:') ? `${ruleNote.slice(6)} is sent on its own with Send Now. Several occasions for one person are scheduled in their Occasion Scheduler: Birthday and Anniversary.`
-        : notSchedulable ? `${notSchedulable} can’t be scheduled in the Occasion Scheduler. Choose Send Now, or Birthday or Anniversary.`
+      : ruleNote.startsWith('sched:') ? `${ruleNote.slice(6)} is sent on its own with Send Now. Several occasions for one person are each scheduled in their Occasion Scheduler, so they must all be occasions it holds.`
+        : notSchedulable ? `${notSchedulable} isn’t an Occasion Scheduler occasion, so it can’t be scheduled. Choose Send Now for it.`
           : occLocked ? 'Several people share one occasion.'
             : whoLocked ? 'Several occasions go to one person.'
               : 'One person: choose one or more occasions. Several people: one shared occasion.';
@@ -409,12 +423,13 @@ export default function DashboardHome() {
       } : null;
       const results = await saveGroupSchedules({
         people, rowFor: (p) => groupRowOf(p), api, sanitize: sanitizeRelationshipForSave, plan,
+        validate: (built) => !relationshipWouldBeCleared(built),
         onProgress: (rs) => setGroupResults(Object.fromEntries(rs.map((x) => [x.id, x]))),
       });
       const saved = results.filter((x) => x.status === 'saved').length;
       const needs = results.filter((x) => x.status === 'needs_scheduler').length;
       const failed = results.filter((x) => x.status === 'failed').length;
-      setSaveMsg({ ok: failed === 0 && needs === 0, text: `Saved ${saved} of ${results.length} scheduled Greet-Mes for ${occasions[0]}.${needs ? ` ${needs} need${needs === 1 ? 's' : ''} their Occasion Scheduler (card, consent or address): open it from the row.` : ''}${failed ? ` ${failed} couldn\u2019t be saved; see the row.` : ''}` });
+      setSaveMsg({ ok: failed === 0 && needs === 0, text: `Saved ${saved} of ${results.length} scheduled Greet-Mes for ${occasions[0]}.${needs ? ` ${needs} need${needs === 1 ? 's' : ''} their Occasion Scheduler (card, consent, address or relationship details): open it from the row.` : ''}${failed ? ` ${failed} couldn\u2019t be saved; see the row.` : ''}` });
       if (saved) { showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE); fetchDashboardData(); }
     } finally {
       setSaving(false);
@@ -437,7 +452,12 @@ export default function DashboardHome() {
     setSaving(true); setSaveMsg(null);
     try {
       const person = resolvePerson;
-      const toSave = sanitizeRelationshipForSave(buildResolverContact(person, occasions.map((o) => rowOf(o))));
+      const built = buildResolverContact(person, occasions.map((o) => rowOf(o)));
+      if (relationshipWouldBeCleared(built)) {
+        setSaveMsg({ ok: false, text: `${first(person.name)}’s relationship details are incomplete. Finish them in their Occasion Scheduler (“Gift details in their Occasion Scheduler”), then save here.` });
+        return;
+      }
+      const toSave = sanitizeRelationshipForSave(built);
       const settings = normalizeGiftSettingsForSave(toSave.occasionGiftSettings);
       if (SCHEDULED_QRCASH_AVAILABLE) {
         // The scheduler's own SAVE-time authorisation: consent for a new or changed QR Cash Auto-Gift, a card when
@@ -462,11 +482,23 @@ export default function DashboardHome() {
   };
 
   useEffect(() => {
-    if (!pickerOpen && !seasonOpen) return undefined;
-    const close = (e) => { if (!e.target.closest('.picker, .addsome, .menu, .relpop')) { setPickerOpen(false); setSeasonOpen(false); } };
+    if (!pickerOpen && !menuOpen) return undefined;
+    const close = (e) => { if (!e.target.closest('.picker, .addsome, .menu, .relpop')) { setPickerOpen(false); setMenuOpen(null); } };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
-  }, [pickerOpen, seasonOpen]);
+  }, [pickerOpen, menuOpen]);
+
+  // Back from a recipient edit: the kept choices are used once, then cleared; the flow is brought into view.
+  useEffect(() => {
+    if (!kept) return;
+    clearLauncherState(window.sessionStorage);
+    if (kept.photosDropped) setPhotoNote('Your memory photos were too large to keep while you edited. Add them again here.');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (kept && !loading) { const el = document.getElementById('gx-flow'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' }); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   const addMemoryPhotos = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -484,15 +516,26 @@ export default function DashboardHome() {
   const sendNowSingle = mode === 'now' && chosen.length === 1 && occasions.length === 1;
   const sendNowGroup = mode === 'now' && isGroup && !overCap && occasions.length === 1;
   const canContinue = step1Done && step2Done && !overCap && !notSchedulable && !saving && (
-    resolverOn ? resolverComplete
-      : groupSchedOn ? groupSchedComplete
-        : sendNowGroup ? true
-          : sendNowSingle);
+    resolverOn || groupSchedOn ? true
+      : sendNowGroup ? true
+        : sendNowSingle);
+  const datesComplete = resolverOn ? resolverComplete : groupSchedOn ? groupSchedComplete : false;
+  const canSaveDates = step1Done && chosen.length > 0 && !overCap && !notSchedulable && !saving && datesComplete;
+  const saveDates = () => {
+    if (!canSaveDates) return;
+    setWhoDone(true);
+    if (resolverOn) saveSchedules(); else saveGroupSchedulesNow();
+  };
+  // Step 2's Done: one clear action. It completes the step and, when the choices are schedules, opens Dates & gifts.
+  const completeWho = () => {
+    if (!chosen.length) return;
+    setWhoDone(true); setPickerOpen(false);
+    if (resolverOn || groupSchedOn) setDatesOpen(true);
+  };
 
   const handoff = () => {
     if (!canContinue) return;
-    if (resolverOn) { saveSchedules(); return; }
-    if (groupSchedOn) { saveGroupSchedulesNow(); return; }
+    if (resolverOn || groupSchedOn) { if (datesComplete) saveDates(); else setDatesOpen(true); return; }
     if (sendNowGroup) { setResumeRun(null); setGroupReviewOpen(true); return; }
     const person = chosen[0];
     const occasion = occasions[0];
@@ -505,12 +548,16 @@ export default function DashboardHome() {
     navigate(`/dashboard/send?${p.toString()}`);
   };
 
+  useEffect(() => { if (saveMsg && saveMsg.ok && datesOpen) setDatesOpen(false); }, [saveMsg]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Only once the recipients have loaded: a restored Dates & gifts waits for the people it belongs to.
+  useEffect(() => { if (contactsLoaded && !(resolverOn || groupSchedOn) && datesOpen) setDatesOpen(false); }, [contactsLoaded, resolverOn, groupSchedOn]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const occLabel = occasions.length === 0 ? 'no occasion yet' : occasions.length <= 2 ? occasions.join(' + ') : `${occasions.length} occasions`;
   const whoLabel = chosen.length === 0 ? 'no one yet' : chosen.length === 1 ? first(chosen[0].name) : `${chosen.length} people`;
   const summary = !mode ? 'Choose Send Now or Schedule the Love'
-    : [mode === 'now' ? 'Send Now' : 'Schedule the Love', occLabel, whoLabel, gift && !resolverOn ? `${gift === 'qrcash' ? 'QR Cash' : 'gift'}${chosen.length > 1 ? ' for everyone · change per person at review' : ''}` : null].filter(Boolean).join(' · ');
+    : [mode === 'now' ? 'Send Now' : 'Schedule the Love', occLabel, whoLabel, gift && !resolverOn && !groupSchedOn ? `${gift === 'qrcash' ? 'QR Cash' : 'gift'}${chosen.length > 1 ? ' for everyone · change per person at review' : ''}` : null].filter(Boolean).join(' · ');
   const fineText = saveMsg ? saveMsg.text
-    : giftNote && resolverOn ? giftNote
+    : giftNote ? giftNote
     : overCap ? `A group is up to ${GROUP_MAX} people.`
       : groupSchedOn ? (groupSchedComplete ? `Each person\u2019s ${occasions[0]} is saved as their own scheduled Greet-Me in their Occasion Scheduler.` : 'Set a date and a gift choice for everyone to continue.')
         : sendNowGroup ? 'Next: review each person\u2019s gift and cost. Nothing is charged or sent until you confirm.'
@@ -566,7 +613,7 @@ export default function DashboardHome() {
             </div>
           </div>
           <div style={{ position: 'relative' }}>
-            <h1>{firstName ? `${firstName}, who would you like to celebrate today?` : 'Who would you like to celebrate today?'}<button type="button" className="quick" data-testid="gx-quick-hero" onClick={quickGift}><Gift size={15} /> Quick Gift <ChevronRight size={14} /></button></h1>
+            <h1>{firstName ? `${firstName}, who would you like to celebrate today?` : 'Who would you like to celebrate today?'}</h1>
             <p className="lede">Send a personalized Greet-Me now, or set one to arrive on their occasion. Tap a face to begin.</p>
             {contacts.length > 0 ? (
               <>
@@ -624,21 +671,31 @@ export default function DashboardHome() {
           <div className="step" data-testid="gx-step-1" style={{ marginTop: 6 }}>
             <StepHead n={1} label="Choose your moment: what are we celebrating?" isDone={step1Done} />
             <div className="chips" data-testid="gx-occasion">
-              {OCCASIONS.map((o) => <button key={o} type="button" className={`chip-btn occ ${occLocked && !occasions.includes(o) ? 'locked' : ''}`} aria-pressed={occasions.includes(o)} aria-disabled={occLocked && !occasions.includes(o)} onClick={() => toggleOcc(o)}>{o}</button>)}
-              <span className="relpop">
-                <button type="button" className="chip-btn occ" data-testid="gx-season" aria-pressed={seasonSel.length > 0} aria-haspopup="menu" aria-expanded={seasonOpen} onClick={() => setSeasonOpen((v) => !v)}>
-                  Season&rsquo;s Greetings<ChevronDown size={15} />
-                </button>
-                {seasonOpen ? (
-                  <span className="menu" role="menu">
-                    {SEASON.map((o) => (
-                      <button key={o} type="button" role="menuitemcheckbox" aria-checked={occasions.includes(o)} aria-disabled={occLocked && !occasions.includes(o)} className={occLocked && !occasions.includes(o) ? 'locked' : ''} onClick={() => toggleOcc(o)}>
-                        <span className={`box ${occasions.includes(o) ? 'on' : ''}`}><Check size={12} /></span>{o}
-                      </button>
-                    ))}
+              {OCCASION_CHIPS.map((o) => <button key={o} type="button" className={`chip-btn occ ${occLocked && !occasions.includes(o) ? 'locked' : ''}`} aria-pressed={occasions.includes(o)} aria-disabled={occLocked && !occasions.includes(o)} onClick={() => toggleOcc(o)}>{o}</button>)}
+              {OCCASION_MENUS.map((m) => {
+                const sel = occasions.filter((o) => m.groups.some((g) => g.items.includes(o)));
+                return (
+                  <span className="relpop" key={m.key}>
+                    <button type="button" className="chip-btn occ" data-testid={`gx-menu-${m.key}`} aria-pressed={sel.length > 0} aria-haspopup="menu" aria-expanded={menuOpen === m.key} onClick={() => setMenuOpen((v) => (v === m.key ? null : m.key))}>
+                      {sel.length === 1 ? sel[0] : sel.length > 1 ? `${m.label} · ${sel.length}` : m.label}<ChevronDown size={15} />
+                    </button>
+                    {menuOpen === m.key ? (
+                      <span className={`menu menu-${m.key}`} role="menu" aria-label={m.label}>
+                        {m.groups.map((g) => (
+                          <span key={g.title} role="group" aria-label={g.title} style={{ display: 'block' }}>
+                            <span className="mgroup" aria-hidden="true">{g.title}</span>
+                            {g.items.map((o) => (
+                              <button key={o} type="button" role="menuitemcheckbox" aria-checked={occasions.includes(o)} aria-disabled={occLocked && !occasions.includes(o)} className={occLocked && !occasions.includes(o) ? 'locked' : ''} onClick={() => { toggleOcc(o); setMenuOpen(null); }}>
+                                <span className={`box ${occasions.includes(o) ? 'on' : ''}`}><Check size={12} /></span>{o}
+                              </button>
+                            ))}
+                          </span>
+                        ))}
+                      </span>
+                    ) : null}
                   </span>
-                ) : null}
-              </span>
+                );
+              })}
             </div>
             <p className={`rule ${ruleNote || notSchedulable || overCap ? 'warn2' : ''}`} data-testid="gx-rule" role="status" aria-live="polite">{ruleText}</p>
           </div>
@@ -703,8 +760,8 @@ export default function DashboardHome() {
                                 ))}
                             </div>
                             <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                              <button type="button" className="btn btn-sm btn-line" style={{ flex: 1, borderStyle: 'dashed' }} onClick={goAddRecipient}><Plus size={15} /> Add a new recipient</button>
-                              <button type="button" className="btn btn-sm btn-primary" style={{ height: 38 }} onClick={() => setPickerOpen(false)}>Done</button>
+                              <button type="button" className="btn btn-sm btn-line" style={{ flex: 1, borderStyle: 'dashed' }} onClick={goAddFromFlow}><Plus size={15} /> Add a new recipient</button>
+                              <button type="button" className="btn btn-sm btn-primary" style={{ height: 38 }} data-testid="gx-picker-done" onClick={() => (chosen.length ? completeWho() : setPickerOpen(false))}>Done</button>
                             </div>
                           </div>
                         ) : null}
@@ -732,67 +789,10 @@ export default function DashboardHome() {
               )}
             </div>
 
-            {/* Inline date-and-gift resolver: fixed height, scrolls inside; nothing collapses and no series of modals. */}
-            <div className="resolver" data-testid="gx-resolver">
-              <div className="rhead"><span className="mini">Dates &amp; gifts</span>{resolverOn ? <span className="sub" style={{ marginTop: 0 }}>{occasions.length} occasion{occasions.length === 1 ? '' : 's'} for {first(resolvePerson.name)} · each is its own scheduled Greet-Me</span>
-                : groupSchedOn ? <span className="sub" style={{ marginTop: 0 }}>{occasions[0]} for {chosen.length} people · each is their own scheduled Greet-Me</span> : null}</div>
-              {resolverOn && mode === 'now' ? <p className="rnote" data-testid="gx-resolver-sendnow">You chose Send Now. Several occasions can&rsquo;t go in one card, so each one is scheduled separately for its own date. Nothing is sent now; your Send Now choice is unchanged.</p> : null}
-              {resolverOn ? (
-                <div className="rrows">
-                  {occasions.map((o) => {
-                    const r = rowOf(o) || { date: '', gift: null };
-                    const ok = rowComplete(r);
-                    return (
-                      <div className="rrow" key={o} data-testid="gx-resolver-row">
-                        <span className={`num ${ok ? 'done' : ''}`} style={{ width: 22, height: 22 }}>{ok ? <Check size={12} /> : ''}</span>
-                        <span className="rname">{o}{r.prefilled ? <span className="rpre">saved</span> : null}</span>
-                        <input type="date" aria-label={`${o} date`} value={r.date || ''} onChange={(e) => setRow(o, { date: e.target.value })} className="rdate" />
-                        <select aria-label={`${o} gift`} value={r.gift ? r.gift.type : ''} onChange={(e) => setRow(o, { gift: chooseGift(r, e.target.value) })} className="rgift">
-                          {RESOLVER_GIFT_OPTIONS.map(([v, t]) => <option key={v} value={v} disabled={v === ''}>{t}</option>)}
-                        </select>
-                        <span className="rline"><ScheduledGiftLine gift={r.gift} />{r.gift && r.gift.type !== 'none' ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(resolvePerson.id, r.type)}>Gift details in their Occasion Scheduler</button></> : null}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                groupSchedOn ? (
-                  <>
-                    <label className="rgroupdefault">
-                      <span className="fieldlabel">Gift for everyone</span>
-                      <select data-testid="gx-group-default-gift" aria-label="Gift for everyone" value={groupDefaultGift ? groupDefaultGift.type : ''} onChange={(e) => { setSaveMsg(null); setGroupResults({}); setGroupDefaultGift(e.target.value ? chooseGift({ gift: null }, e.target.value) : null); }} className="rgift">
-                        {RESOLVER_GIFT_OPTIONS.map(([v, t]) => <option key={v} value={v} disabled={v === ''}>{t}</option>)}
-                      </select>
-                    </label>
-                    <div className="rrows">
-                      {chosen.map((p) => {
-                        const r = groupRowOf(p);
-                        const raw = rows[`${p.id}:${occasions[0]}`] || {};
-                        const ok = rowComplete(r);
-                        const res = groupResults[p.id];
-                        return (
-                          <div className="rrow" key={p.id} data-testid="gx-group-row">
-                            <span className={`num ${ok ? 'done' : ''}`} style={{ width: 22, height: 22 }}>{ok ? <Check size={12} /> : ''}</span>
-                            <span className="rname">{p.name}{raw.prefilled ? <span className="rpre">saved</span> : null}{res ? <span className={`tag ${res.status === 'saved' ? 'ok' : res.status === 'failed' ? 'muted' : 'amber'}`} data-testid="gx-group-row-status">{res.status === 'saved' ? 'Saved' : res.status === 'failed' ? 'Not saved' : 'Needs their scheduler'}</span> : null}</span>
-                            <input type="date" aria-label={`${p.name} ${occasions[0]} date`} value={r.date || ''} onChange={(e) => setGroupRow(p, { date: e.target.value })} className="rdate" />
-                            <select aria-label={`${p.name} gift`} value={raw.chosen ? raw.chosen.type : 'default'} onChange={(e) => setGroupRow(p, { chosen: e.target.value === 'default' ? null : chooseGift({ gift: raw.gift }, e.target.value) })} className="rgift">
-                              <option value="default">{raw.gift ? `Keep their saved gift (${(RESOLVER_GIFT_OPTIONS.find(([v]) => v === raw.gift.type) || [null, raw.gift.type])[1]})` : groupDefaultGift ? 'Same as everyone' : 'Choose a gift…'}</option>
-                              {RESOLVER_GIFT_OPTIONS.filter(([v]) => v !== '').map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-                            </select>
-                            <span className="rline">{res && res.status === 'failed' ? res.message : null}{res && res.status === 'needs_scheduler' ? 'This save needs their card, consent or address step. ' : null}{!res || res.status === 'saved' ? <ScheduledGiftLine gift={r.gift} /> : null}{r.gift && r.gift.type !== 'none' || (res && res.status === 'needs_scheduler') ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(p.id, SCHEDULER_TYPE_OF(occasions[0]))}>Gift details in their Occasion Scheduler</button></> : null}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                ) : (
-                  <p className="rempty">When one person has several occasions, set each occasion&rsquo;s date and gift here. Each becomes its own scheduled Greet-Me; nothing is combined.</p>
-                )
-              )}
-            </div>
-            <div className="donerow">
+            <div className="donerow" data-testid="gx-who-donerow">
               <span className="hint">{chosen.length ? `${chosen.length} selected` : 'Select at least one person'}</span>
-              <button type="button" className="btn btn-sm btn-primary" style={{ height: 40 }} data-testid="gx-who-done" disabled={!chosen.length} onClick={() => { setWhoDone(true); setPickerOpen(false); }}><Check size={15} /> Done</button>
+              {resolverOn || groupSchedOn ? <button type="button" className="btn btn-sm btn-line" style={{ height: 40 }} data-testid="gx-dates-open" onClick={() => setDatesOpen(true)}><CalendarDays size={15} /> Dates &amp; gifts</button> : null}
+              <button type="button" className="btn btn-sm btn-primary" style={{ height: 40 }} data-testid="gx-who-done" disabled={!chosen.length} onClick={completeWho}><Check size={15} /> Done</button>
             </div>
           </div>
 
@@ -866,14 +866,17 @@ export default function DashboardHome() {
           <div className="giftband" id="gx-gifts" data-testid="gx-step-4">
             <StepHead n={4} label="Add a gift (optional)" isDone={Boolean(gift) && !resolverOn} />
             <GiftCarousel
-              chosen={resolverOn ? null : gift}
+              chosen={resolverOn || groupSchedOn ? null : gift}
               smartCardAvailable={smartCardAvailable}
               onAdd={(g) => {
-                // Scheduled Greet-Mes take each occasion's gift from Dates & gifts (the Occasion Scheduler's own choice).
-                if (resolverOn) { setGiftNote('For scheduled Greet-Mes, choose each occasion’s gift under Dates & gifts above.'); return; }
-                setGiftNote(''); setGift((cur) => (cur === g ? null : g));
+                // Scheduled Greet-Mes take each occasion's gift from Dates & gifts (the Occasion Scheduler's own gift choice).
+                if (resolverOn || groupSchedOn) { setGiftNote('For scheduled Greet-Mes, each gift is chosen in Dates & gifts.'); setDatesOpen(true); return; }
+                setGift(g);
+                setGiftNote(isGroup && g === 'gift' ? 'For a group, choose a gift box (or QR Cash) for each person at review, before anything is charged.'
+                  : g === 'qrcash' ? 'QR Cash added. You set the amount on the next screen, before anything is charged.'
+                    : 'Gift added. You choose it on the next screen, before anything is charged.');
               }}
-              onQuickGift={quickGift}
+              onRemove={() => { setGift(null); setGiftNote(''); }}
               onLearnQr={() => setShowHowItWorksModal(true)}
             />
           </div>
@@ -961,7 +964,7 @@ export default function DashboardHome() {
                             : occasion.autoSend ? <span className="tag plum" data-testid="gx-up-auto" title="The scheduler prepares it 14 days before the date">Auto-send on</span>
                               : occasion.contactId ? <button type="button" className="btn btn-sm btn-primary sched" data-testid="gx-up-schedule" onClick={() => goScheduler(occasion.contactId, occasion.occasionType)}><CalendarDays size={14} /> Schedule the Love</button> : null}
                           {occasion.contactId && (
-                            <button type="button" className="iconbtn" aria-label={`Edit ${occasion.contactName}`} title="Edit" onClick={() => navigate('/dashboard/contacts', { state: { openEditRecipientId: occasion.contactId } })}><Pencil size={16} /></button>
+                            <button type="button" className="iconbtn" aria-label={`Edit ${occasion.contactName}`} title="Edit" onClick={() => goEdit(occasion.contactId)}><Pencil size={16} /></button>
                           )}
                         </div>
                       );
@@ -993,6 +996,86 @@ export default function DashboardHome() {
             )}
           </div>
         </section>
+
+        {/* Dates & gifts: one scheduled Greet-Me per occasion (or per person), saved through each recipient's own Occasion
+            Scheduler. Close keeps every choice; Save schedules saves. It steps aside while the scheduler's own
+            authorisation step (consent, card, address) is open. */}
+        {datesOpen && (resolverOn || groupSchedOn) && !authModal ? (
+          <div className="grv-backdrop" role="dialog" aria-modal="true" aria-labelledby="gx-dates-title" data-testid="gx-dates-modal" onKeyDown={(e) => { if (e.key === 'Escape') setDatesOpen(false); }}>
+            <div className="grv">
+              <div className="grv-head">
+                <div>
+                  <span className="eyebrow">Dates &amp; gifts</span>
+                  <h2 id="gx-dates-title" tabIndex={-1} ref={(el) => { if (el && !el.dataset.f) { el.dataset.f = 1; el.focus({ preventScroll: true }); } }}>
+                    {resolverOn ? `${occasions.length} scheduled Greet-Me${occasions.length === 1 ? '' : 's'} for ${first(resolvePerson.name)}` : `${occasions[0]} for ${chosen.length} people`}
+                  </h2>
+                  <span className="sub" style={{ marginTop: 2 }}>{resolverOn ? 'Each occasion is its own scheduled Greet-Me, in their Occasion Scheduler.' : 'Each person gets their own scheduled Greet-Me, in their Occasion Scheduler.'}</span>
+                </div>
+                <button type="button" className="iconbtn" aria-label="Close" data-testid="gx-dates-x" onClick={() => setDatesOpen(false)}><X size={16} /></button>
+              </div>
+            <div className="resolver inmodal" data-testid="gx-resolver">
+              {resolverOn && mode === 'now' ? <p className="rnote" data-testid="gx-resolver-sendnow">You chose Send Now. Several occasions can&rsquo;t go in one card, so each one is scheduled separately for its own date. Nothing is sent now; your Send Now choice is unchanged.</p> : null}
+              {resolverOn ? (
+                <div className="rrows">
+                  {occasions.map((o) => {
+                    const r = rowOf(o) || { date: '', gift: null };
+                    const ok = rowComplete(r);
+                    return (
+                      <div className="rrow" key={o} data-testid="gx-resolver-row">
+                        <span className={`num ${ok ? 'done' : ''}`} style={{ width: 22, height: 22 }}>{ok ? <Check size={12} /> : ''}</span>
+                        <span className="rname">{o}{r.prefilled ? <span className="rpre">saved</span> : null}</span>
+                        <input type="date" aria-label={`${o} date`} value={r.date || ''} onChange={(e) => setRow(o, { date: e.target.value })} className="rdate" />
+                        <select aria-label={`${o} gift`} value={r.gift ? r.gift.type : ''} onChange={(e) => setRow(o, { gift: chooseGift(r, e.target.value) })} className="rgift">
+                          {RESOLVER_GIFT_OPTIONS.map(([v, t]) => <option key={v} value={v} disabled={v === ''}>{t}</option>)}
+                        </select>
+                        <span className="rline"><ScheduledGiftLine gift={r.gift} />{r.gift && r.gift.type !== 'none' ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(resolvePerson.id, r.type)}>Gift details in their Occasion Scheduler</button></> : null}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                groupSchedOn ? (
+                  <>
+                    <label className="rgroupdefault">
+                      <span className="fieldlabel">Gift for everyone</span>
+                      <select data-testid="gx-group-default-gift" aria-label="Gift for everyone" value={groupDefaultGift ? groupDefaultGift.type : ''} onChange={(e) => { setSaveMsg(null); setGroupResults({}); setGroupDefaultGift(e.target.value ? chooseGift({ gift: null }, e.target.value) : null); }} className="rgift">
+                        {RESOLVER_GIFT_OPTIONS.map(([v, t]) => <option key={v} value={v} disabled={v === ''}>{t}</option>)}
+                      </select>
+                    </label>
+                    <div className="rrows">
+                      {chosen.map((p) => {
+                        const r = groupRowOf(p);
+                        const raw = rows[`${p.id}:${occasions[0]}`] || {};
+                        const ok = rowComplete(r);
+                        const res = groupResults[p.id];
+                        return (
+                          <div className="rrow" key={p.id} data-testid="gx-group-row">
+                            <span className={`num ${ok ? 'done' : ''}`} style={{ width: 22, height: 22 }}>{ok ? <Check size={12} /> : ''}</span>
+                            <span className="rname">{p.name}{raw.prefilled ? <span className="rpre">saved</span> : null}{res ? <span className={`tag ${res.status === 'saved' ? 'ok' : res.status === 'failed' ? 'muted' : 'amber'}`} data-testid="gx-group-row-status">{res.status === 'saved' ? 'Saved' : res.status === 'failed' ? 'Not saved' : 'Needs their scheduler'}</span> : null}</span>
+                            <input type="date" aria-label={`${p.name} ${occasions[0]} date`} value={r.date || ''} onChange={(e) => setGroupRow(p, { date: e.target.value })} className="rdate" />
+                            <select aria-label={`${p.name} gift`} value={raw.chosen ? raw.chosen.type : 'default'} onChange={(e) => setGroupRow(p, { chosen: e.target.value === 'default' ? null : chooseGift({ gift: raw.gift }, e.target.value) })} className="rgift">
+                              <option value="default">{raw.gift ? `Keep their saved gift (${(RESOLVER_GIFT_OPTIONS.find(([v]) => v === raw.gift.type) || [null, raw.gift.type])[1]})` : groupDefaultGift ? 'Same as everyone' : 'Choose a gift…'}</option>
+                              {RESOLVER_GIFT_OPTIONS.filter(([v]) => v !== '').map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                            </select>
+                            <span className="rline">{res && res.status === 'failed' ? res.message : null}{res && res.status === 'needs_scheduler' ? (res.need && res.need.relationship ? 'Their relationship details need finishing in their Occasion Scheduler. ' : 'This save needs their card, consent or address step. ') : null}{!res || res.status === 'saved' ? <ScheduledGiftLine gift={r.gift} /> : null}{r.gift && r.gift.type !== 'none' || (res && res.status === 'needs_scheduler') ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(p.id, SCHEDULER_TYPE_OF(occasions[0]))}>Gift details in their Occasion Scheduler</button></> : null}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : null
+              )}
+            </div>
+              <div className={`fine ${saveMsg && !saveMsg.ok ? 'saveerr' : ''}`} data-testid="gx-dates-fine" role="status" aria-live="polite">{fineText}</div>
+              <div className="grv-actions">
+                <button type="button" className="btn btn-sm btn-line" style={{ height: 40 }} data-testid="gx-dates-close" onClick={() => setDatesOpen(false)}>Close</button>
+                <button type="button" className="btn btn-sm btn-primary" style={{ height: 40 }} data-testid="gx-dates-save" disabled={!canSaveDates} onClick={saveDates}>
+                  <CalendarDays size={16} /> {saving ? 'Saving…' : resolverOn ? `Save schedule${occasions.length === 1 ? '' : 's'}` : `Save ${chosen.length} schedules`}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {groupReviewOpen ? (
           <GroupReview
