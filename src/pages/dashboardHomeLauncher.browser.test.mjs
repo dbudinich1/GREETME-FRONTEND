@@ -395,7 +395,7 @@ test("S3: a person whose save needs the scheduler's card/consent step is listed,
   assert.ok($("[data-testid=gx-dates-modal]"), "stays open: one person still needs their scheduler");
   assert.equal(globalThis.__saves.length, 2, "Theresa (existing QR Cash Auto-Gift, no usable card) is not saved");
   assert.equal(globalThis.__saves.some((x) => x.id === "c1"), false);
-  assert.match($("[data-testid=gx-fine]").textContent, /Saved 2 of 3.*1 needs their Occasion Scheduler/);
+  assert.match($("[data-testid=gx-fine]").textContent, /Saved 2 of 3.*1 still needs details: see the row/);
   assert.ok($$("[data-testid=gx-group-row-status]").some((e) => /Needs their scheduler/.test(e.textContent)));
 });
 
@@ -910,4 +910,34 @@ test("relationship started but incomplete: the dashboard refuses the save (as th
   await click(datesSave());
   assert.equal(globalThis.__saves.length, 0, "nothing saved: the stored closeness and profile are not cleared");
   assert.match($("[data-testid=gx-dates-fine]").textContent, /relationship details are incomplete/);
+});
+
+test("scheduled group, physical gift with a missing address: the others save; 'Add missing details' opens the scheduler's own step for that person, asks only for the address (no payment consent), then saves them", async () => {
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday"));
+  await pickPerson("Theresa"); await pickPerson("Margaret");
+  await click($("[data-testid=gx-who-done]"));
+  const rowOf = (n) => $$("[data-testid=gx-group-row]").find((r) => r.textContent.includes(n));
+  await setValue(rowOf("Margaret").querySelector("input"), "1960-02-11");
+  await setValue(rowOf("Margaret").querySelector("select"), "curated");
+  await click(datesSave());
+  assert.deepEqual(globalThis.__saves.map((x) => x.id), ["c1"], "Theresa (nothing missing) is saved; Margaret is not saved without an address");
+  assert.match(rowOf("Margaret").textContent, /Their delivery address is needed/);
+  assert.match(rowOf("Margaret").textContent, /Reminder only/, "a physical gift is reminder-only, never ordered automatically");
+  await click(rowOf("Margaret").querySelector("[data-testid=gx-group-finish]"));
+  const need = JSON.parse($("[data-testid=auth-modal]").dataset.need);
+  assert.equal(need.address, true, "the missing address is requested");
+  assert.equal(need.consent, false, "no payment consent: nothing is charged automatically");
+  assert.equal(need.card, false);
+  assert.equal($("[data-testid=gx-dates-modal]"), null, "Dates & gifts steps aside while the step is open");
+  await click($("[data-testid=auth-save]"));
+  assert.deepEqual(globalThis.__saves.map((x) => x.id), ["c1", "c2"], "Margaret is saved once the step completes");
+  const m = globalThis.__saves[1].body;
+  assert.deepEqual(m.occasions.map((o) => [o.type, o.date]), [["birthday", "1960-02-11"]]);
+  assert.deepEqual(m.occasionGiftSettings.birthday, { type: "curated", autoGift: false });
+  assert.match($("[data-testid=gx-fine]").textContent, /Saved 2 of 2 scheduled Greet-Mes for Birthday/);
+  assert.equal($("[data-testid=gx-dates-modal]"), null, "everyone saved: Dates & gifts closes, as after any complete save");
+  await click($("[data-testid=gx-dates-open]"));
+  assert.match(rowOf("Margaret").querySelector("[data-testid=gx-group-row-status]").textContent, /Saved/);
 });

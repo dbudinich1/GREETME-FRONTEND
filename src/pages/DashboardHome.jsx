@@ -426,14 +426,46 @@ export default function DashboardHome() {
         validate: (built) => !relationshipWouldBeCleared(built),
         onProgress: (rs) => setGroupResults(Object.fromEntries(rs.map((x) => [x.id, x]))),
       });
-      const saved = results.filter((x) => x.status === 'saved').length;
-      const needs = results.filter((x) => x.status === 'needs_scheduler').length;
-      const failed = results.filter((x) => x.status === 'failed').length;
-      setSaveMsg({ ok: failed === 0 && needs === 0, text: `Saved ${saved} of ${results.length} scheduled Greet-Mes for ${occasions[0]}.${needs ? ` ${needs} need${needs === 1 ? 's' : ''} their Occasion Scheduler (card, consent, address or relationship details): open it from the row.` : ''}${failed ? ` ${failed} couldn\u2019t be saved; see the row.` : ''}` });
-      if (saved) { showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE); fetchDashboardData(); }
+      setSaveMsg(groupSaveMsg(results));
+      if (results.some((x) => x.status === 'saved')) { showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE); fetchDashboardData(); }
     } finally {
       setSaving(false);
     }
+  };
+
+  const groupSaveMsg = (results) => {
+    const saved = results.filter((x) => x.status === 'saved').length;
+    const needs = results.filter((x) => x.status === 'needs_scheduler').length;
+    const failed = results.filter((x) => x.status === 'failed').length;
+    return { ok: failed === 0 && needs === 0, text: `Saved ${saved} of ${results.length} scheduled Greet-Mes for ${occasions[0]}.${needs ? ` ${needs} still need${needs === 1 ? 's' : ''} details: see the row.` : ''}${failed ? ` ${failed} couldn\u2019t be saved; see the row.` : ''}` };
+  };
+
+  // A scheduled group member whose save needs the scheduler's own step (a missing delivery address, or consent / a card
+  // for a QR Cash Auto-Gift): that step opens for this one person — the scheduler's SaveAuthorizationModal, prefilled
+  // from their saved record so only what is missing is asked — and on completion their record is saved like any other.
+  const finishGroupPerson = async (person) => {
+    const built = buildResolverContact(person, [groupRowOf(person)]);
+    if (relationshipWouldBeCleared(built)) { goScheduler(person.id, SCHEDULER_TYPE_OF(occasions[0])); return; }
+    const toSave = sanitizeRelationshipForSave(built);
+    const settings = normalizeGiftSettingsForSave(toSave.occasionGiftSettings);
+    let card = null;
+    if (Object.values(settings || {}).some((g) => g && g.type === 'qrcash' && g.autoGift === true)) {
+      try { const r = await api.getQrCashCardStatus(); card = (r && r.card) || null; }
+      catch { setSaveMsg({ ok: false, text: 'We couldn’t check the card on file just now. Please try again.' }); return; }
+    }
+    const plan = planAuthorization({ settings, initialSettings: person.occasionGiftSettings, occasions: toSave.occasions, card, formData: toSave, labelFor: labelForType, requiresDelivery: requiresDeliveryAddress });
+    setAuthForm(toSave); setAuthModal({ plan, card, person, group: true });
+  };
+  const commitGroupPerson = async (person, toSave, consents = []) => {
+    const res = await api.updateContact(person.id, finalizeResolverSave(toSave, consents));
+    if (res && res.ok === false) {
+      throw new Error(res.networkError ? 'We couldn’t save — check your connection and try again.' : (res.error || res.message || 'We couldn’t save this schedule.'));
+    }
+    const next = { ...groupResults, [person.id]: { id: person.id, status: 'saved' } };
+    setGroupResults(next);
+    setSaveMsg(groupSaveMsg(chosen.map((p) => next[p.id] || { id: p.id, status: 'failed' })));
+    showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
+    fetchDashboardData();
   };
 
   const commitSchedules = async (person, toSave, consents = []) => {
@@ -1057,7 +1089,8 @@ export default function DashboardHome() {
                               <option value="default">{raw.gift ? `Keep their saved gift (${(RESOLVER_GIFT_OPTIONS.find(([v]) => v === raw.gift.type) || [null, raw.gift.type])[1]})` : groupDefaultGift ? 'Same as everyone' : 'Choose a gift…'}</option>
                               {RESOLVER_GIFT_OPTIONS.filter(([v]) => v !== '').map(([v, t]) => <option key={v} value={v}>{t}</option>)}
                             </select>
-                            <span className="rline">{res && res.status === 'failed' ? res.message : null}{res && res.status === 'needs_scheduler' ? (res.need && res.need.relationship ? 'Their relationship details need finishing in their Occasion Scheduler. ' : 'This save needs their card, consent or address step. ') : null}{!res || res.status === 'saved' ? <ScheduledGiftLine gift={r.gift} /> : null}{r.gift && r.gift.type !== 'none' || (res && res.status === 'needs_scheduler') ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(p.id, SCHEDULER_TYPE_OF(occasions[0]))}>Gift details in their Occasion Scheduler</button></> : null}</span>
+                            <span className="rline">{res && res.status === 'failed' ? res.message : null}{res && res.status === 'needs_scheduler' ? (res.need && res.need.relationship ? 'Their relationship details need finishing in their Occasion Scheduler. '
+                              : <>{res.need && res.need.address && !res.need.consent && !res.need.card ? 'Their delivery address is needed. ' : res.need && (res.need.consent || res.need.card) && !res.need.address ? 'Your Auto-Gift authorization is needed. ' : 'Their delivery address and your Auto-Gift authorization are needed. '}<button type="button" className="btn btn-xs btn-primary" style={{ height: 30 }} data-testid="gx-group-finish" onClick={() => finishGroupPerson(p)}>Add missing details</button> </>) : null}{!res || res.status !== 'failed' ? <ScheduledGiftLine gift={r.gift} /> : null}{r.gift && r.gift.type !== 'none' || (res && res.status === 'needs_scheduler') ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(p.id, SCHEDULER_TYPE_OF(occasions[0]))}>Gift details in their Occasion Scheduler</button></> : null}</span>
                           </div>
                         );
                       })}
@@ -1118,7 +1151,8 @@ export default function DashboardHome() {
           formData={authForm} setFormData={setAuthForm}
           onCancel={() => { setAuthModal(null); setAuthForm(null); }}
           onSave={async (consents) => {
-            await commitSchedules(authModal.person, sanitizeRelationshipForSave(authForm), consents);
+            if (authModal.group) await commitGroupPerson(authModal.person, sanitizeRelationshipForSave(authForm), consents);
+            else await commitSchedules(authModal.person, sanitizeRelationshipForSave(authForm), consents);
             setAuthModal(null); setAuthForm(null);
           }}
         />
