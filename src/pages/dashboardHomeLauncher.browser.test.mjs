@@ -236,11 +236,13 @@ test("group Send Now: one review with each person's gift and cost and the total;
   assert.ok($("[data-testid=gx-group-review]"), "the review opens");
   assert.equal($$("[data-testid=grv-row]").length, 3);
   await setValue($("[data-testid=grv-default-gift]"), "qrcash:25");
-  assert.match($("[data-testid=grv-total]").textContent, /Gifts \$75\.00 \+ QR Cash fees \$8\.22 = \$83\.22/, "3 x ($25 + $1.99 + 3%)");
+  assert.match($("[data-testid=grv-total]").textContent, /Total \$83\.22/, "3 x ($25 + $1.99 + 3%)");
+  assert.match($("[data-testid=grv-total-details]").textContent, /QR Cash \$75\.00 \+ fees \$8\.22/, "the breakdown is expandable");
+  assert.match($$("[data-testid=grv-cost]")[0].textContent, /\$25\.00 \+ \$2\.74 fee = \$27\.74/, "amount, fee and total, compactly");
   assert.match($("[data-testid=grv-total]").textContent, /saved/);
   // individual override: Margaret gets no gift
   await setValue(document.querySelector('[aria-label="Gift for Margaret Rivera"]'), "none");
-  assert.match($("[data-testid=grv-total]").textContent, /= \$55\.48/);
+  assert.match($("[data-testid=grv-total]").textContent, /Total \$55\.48/);
   assert.equal(globalThis.__sends.length, 0, "nothing sent at review");
   assert.equal(globalThis.__charges.length, 0, "nothing charged at review");
   assert.match($("[data-testid=grv-rules]").textContent, /20 left; this group uses 3/);
@@ -265,7 +267,7 @@ test("group Send Now: Send charges only the QR Cash people (saved card) and send
   assert.equal(m.includeGift, false, "Margaret's override: no gift");
   assert.equal(globalThis.__sends.find((p) => p.contactId === "c1").gift.claimToken, "ct-t@example.com", "each charged gift goes to its own person");
   assert.ok(globalThis.__sends.every((p) => p.occasionType === "Birthday" && p.photos.length >= 0));
-  assert.equal($$("[data-testid=grv-status]").filter((e) => e.textContent === "Accepted").length, 3);
+  assert.equal($$("[data-testid=grv-status]").filter((e) => e.textContent === "Accepted for sending").length, 3);
   assert.match($("#grv-title").textContent, /3 of 3 accepted for sending/, "header, tags and footer say the same thing");
 });
 
@@ -305,7 +307,7 @@ test("group: a run-wide refusal stops the run, keeps the unsent people and offer
   await click($("[data-testid=grv-send]"));
   await settle();
   assert.ok($("[data-testid=grv-stopped]"));
-  assert.deepEqual($$("[data-testid=grv-status]").map((e) => e.textContent), ["Accepted", "Not sent", "Waiting"]);
+  assert.deepEqual($$("[data-testid=grv-status]").map((e) => e.textContent), ["Accepted for sending", "Not sent", "Waiting"]);
   assert.ok($("[data-testid=grv-retry]"));
   assert.ok(JSON.parse(window.localStorage.getItem("gm_group_run_v1")), "the run is kept so it can be resumed");
 });
@@ -589,7 +591,8 @@ test("G7: a gift box for everyone — address per person (prefilled only from sa
   await settle();
   assert.equal(globalThis.__quotes.length, 3, "every gift box quoted, together");
   assert.equal($$("[data-testid=grv-quote-lines]").length, 3);
-  assert.match($$("[data-testid=grv-quote-lines]")[0].textContent, /Product \$36\.99 · S\/H \$6\.00 · Tax \$3\.00 · Total \$45\.99/, "the four lines");
+  assert.match($$("[data-testid=grv-quote-lines]")[0].textContent, /Item \$36\.99 · Shipping \$6\.00 · Tax \$3\.00 · Total \$45\.99/, "the four lines, expandable");
+  assert.equal($$("[data-testid=grv-quote-lines]")[0].tagName, "DETAILS");
   assert.match($("[data-testid=grv-total]").textContent, /Total \$137\.97/);
   assert.equal(globalThis.__boxCharges.length, 0, "nothing charged at review");
   assert.equal($("[data-testid=grv-send]").disabled, false);
@@ -600,7 +603,7 @@ test("G7: a gift box for everyone — address per person (prefilled only from sa
   assert.deepEqual(globalThis.__boxCharges.map((b) => b.contactId), ["c1", "c2", "c3"], "bound per recipient");
   assert.equal(new Set(globalThis.__boxCharges.map((b) => b.giftRequestId)).size, 3);
   assert.deepEqual(globalThis.__sends.find((p) => p.contactId === "c2").gift, { type: "gift_boxes", claimToken: "box-c2" });
-  assert.equal($$("[data-testid=grv-status]").filter((e) => e.textContent === "Accepted").length, 3);
+  assert.equal($$("[data-testid=grv-status]").filter((e) => e.textContent === "Accepted for sending").length, 3);
 });
 
 test("G7: gift box for one person as an override, QR Cash for everyone else; an address that is incomplete is reported for that person", async () => {
@@ -668,4 +671,63 @@ test("group: a sender without a recorded voice is stopped at review, before any 
   await settle();
   assert.equal($("[data-testid=grv-send]").disabled, true);
   assert.match($("[data-testid=grv-blockers]").textContent, /recorded voice/);
+});
+
+test("pricing wording: 'From $X + shipping & tax' with the actual starting price; 'Total pending' and 'Get total' before quoting", async () => {
+  await mount();
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await click(byText(".track button", "Everyone"));
+  await click($("[data-testid=gx-who-done]"));
+  await click(state().cont);
+  await settle();
+  const opt = [...$("[data-testid=grv-default-gift]").options].find((o) => o.value === "box:goody-1");
+  assert.equal(opt.textContent, "Gift box: Cookie Box \u00b7 From $36.99 + shipping & tax");
+  await setValue($("[data-testid=grv-default-gift]"), "box:goody-1");
+  assert.equal($("[data-testid=grv-total]").textContent.startsWith("Total pending"), true);
+  assert.equal(document.body.textContent.includes("$0.00"), false, "never 'Total $0.00'");
+  assert.equal($("[data-testid=grv-get-prices]").textContent, "Get total");
+  assert.match($$("[data-testid=grv-cost]")[0].textContent, /Total pending/);
+});
+
+test("info icon: opens on hover, keyboard focus and tap; closes on Escape and leaving; text is the shipping-and-tax note", async () => {
+  await mount();
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await click(byText(".track button", "Everyone"));
+  await click($("[data-testid=gx-who-done]"));
+  await click(state().cont);
+  await settle();
+  const btn = $("[data-testid=grv-box-info]");
+  const text = () => $("[data-testid=grv-box-info-text]");
+  assert.equal(text(), null);
+  await act(async () => { btn.parentElement.dispatchEvent(new window.MouseEvent("mouseover", { bubbles: true })); }); await settle();
+  assert.equal(text().textContent, "Shipping and tax depend on the delivery address. Your total is shown before you pay.", "hover");
+  await act(async () => { btn.parentElement.dispatchEvent(new window.MouseEvent("mouseout", { bubbles: true })); }); await settle();
+  assert.equal(text(), null, "leaving closes it");
+  await act(async () => { btn.focus(); }); await settle();
+  assert.ok(text(), "keyboard focus");
+  assert.equal(btn.getAttribute("aria-describedby"), text().id);
+  await act(async () => { btn.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); }); await settle();
+  assert.equal(text(), null, "Escape closes it");
+  await click(btn);
+  assert.ok(text(), "tap");
+  // QR Cash: the fee formula sits behind the icon
+  await setValue($("[data-testid=grv-default-gift]"), "qrcash:25");
+  await click($("[data-testid=grv-fee-info]"));
+  assert.match($("[data-testid=grv-fee-info-text]").textContent, /\$1\.99 \+ 3% of the gift amount/);
+});
+
+test("scheduled gifts: one short status — 'Auto-Gift on' or 'Reminder only — confirmation required' — with the detail behind the icon", async () => {
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday")); await click(occ("Anniversary"));
+  await pickPerson("Theresa");
+  await click($("[data-testid=gx-who-done]"));
+  await setValue($$("[data-testid=gx-resolver-row]")[1].querySelector("select"), "qrcash");
+  const st = $$("[data-testid=gx-sched-status]").map((e) => e.textContent);
+  assert.deepEqual(st, ["Auto-Gift on", "Reminder only \u2014 confirmation required"], "saved QR Cash Auto-Gift vs a gift chosen here");
+  assert.match($$("[data-testid=gx-resolver-row]")[0].textContent, /QR Cash \$50\.00 \+ \$3\.49 fee = \$53\.49/);
+  await click($$("[data-testid=gx-sched-info]")[1]);
+  assert.match($("[data-testid=gx-sched-info-text]").textContent, /remind you 10 days before.*nothing is charged automatically.*\$1\.99 \+ 3%/);
 });

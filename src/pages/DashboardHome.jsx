@@ -40,13 +40,15 @@ import { SCHEDULED_QRCASH_AVAILABLE } from '../config/scheduledQrCash';
 import { normalizeGiftSettingsForSave } from '../utils/occasionGiftSave';
 import {
   SCHEDULER_OCCASION_TYPES, isSchedulerOccasion, prefillRow, chooseGift, rowComplete, buildResolverContact, finalizeResolverSave,
-  RESOLVER_GIFT_OPTIONS, resolverGiftLine, resolverGiftAmount,
+  RESOLVER_GIFT_OPTIONS, resolverGiftStatus, resolverGiftAmount,
 } from '../utils/occasionResolver';
 import { writeDashboardHandoff, HANDOFF_MAX_WORDS, HANDOFF_MAX_PHOTOS } from '../utils/dashboardSendHandoff';
 import { buildGreetingPayload } from '../utils/sendGreetingPayload';
 import { GROUP_MAX, loadRun, clearRun, runSummary } from '../utils/groupSend';
 import { saveGroupSchedules } from '../utils/occasionResolver';
 import GroupReview from '../components/dashboard/GroupReview';
+import InfoTip from '../components/dashboard/InfoTip';
+import { qrCashQuote, centsToDollarString } from '../utils/qrCashAmount';
 import { DASHBOARD_HOME_CSS } from './dashboardHomeStyles';
 import giftLuxuryBox from '../assets/gifts/gift-luxury-box.png';
 import giftBouquet from '../assets/gifts/gift-bouquet.png';
@@ -109,6 +111,22 @@ function initials(name) { return (name || '?').split(/\s+/).filter(Boolean).map(
 const AVATAR = ['#5A3E8A', '#7C63AE', '#4A3273', '#8A5A2B', '#3E5A7C', '#6B3E6B'];
 function avatarBg(name) { let h = 0; for (const c of name || '') h = (h * 31 + c.charCodeAt(0)) >>> 0; return AVATAR[h % AVATAR.length]; }
 const first = (n) => (n || '').split(' ')[0];
+// A scheduled row's gift, compactly: QR Cash amount + fee = total, one short status, and the explanation (and the
+// fee formula) behind the info icon.
+function ScheduledGiftLine({ gift }) {
+  if (!gift) return null;
+  const st = resolverGiftStatus(gift);
+  const amount = resolverGiftAmount(gift);
+  const q = gift.type === 'qrcash' && amount !== null ? qrCashQuote(amount) : null;
+  return (
+    <>
+      {gift.type === 'qrcash' ? <b>{q ? `QR Cash ${centsToDollarString(q.amountCents)} + ${centsToDollarString(q.feeCents)} fee = ${centsToDollarString(q.totalCents)} \u00b7 ` : 'QR Cash \u00b7 '}</b> : null}
+      <span data-testid="gx-sched-status">{st.label}</span>
+      <InfoTip label={`About: ${st.label}`} testid="gx-sched-info">{st.detail}{gift.type === 'qrcash' ? ' The QR Cash fee is $1.99 + 3% of the gift amount.' : ''}</InfoTip>
+    </>
+  );
+}
+
 const SCHEDULER_TYPE_OF = (label) => SCHEDULER_OCCASION_TYPES[label] || label;
 const labelForType = (type) => (occasionTypes.find((o) => o.value === type) || {}).label;
 const readAsDataUrl = (file) => new Promise((resolve, reject) => {
@@ -731,7 +749,7 @@ export default function DashboardHome() {
                         <select aria-label={`${o} gift`} value={r.gift ? r.gift.type : ''} onChange={(e) => setRow(o, { gift: chooseGift(r, e.target.value) })} className="rgift">
                           {RESOLVER_GIFT_OPTIONS.map(([v, t]) => <option key={v} value={v} disabled={v === ''}>{t}</option>)}
                         </select>
-                        <span className="rline">{r.gift && r.gift.type === 'qrcash' ? <b>{resolverGiftAmount(r.gift) !== null ? `QR Cash $${resolverGiftAmount(r.gift)} · ` : 'QR Cash · '}</b> : null}{resolverGiftLine(r.gift)}{r.gift && r.gift.type !== 'none' ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(resolvePerson.id, r.type)}>Gift details in their Occasion Scheduler</button></> : null}</span>
+                        <span className="rline"><ScheduledGiftLine gift={r.gift} />{r.gift && r.gift.type !== 'none' ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(resolvePerson.id, r.type)}>Gift details in their Occasion Scheduler</button></> : null}</span>
                       </div>
                     );
                   })}
@@ -760,7 +778,7 @@ export default function DashboardHome() {
                               <option value="default">{raw.gift ? `Keep their saved gift (${(RESOLVER_GIFT_OPTIONS.find(([v]) => v === raw.gift.type) || [null, raw.gift.type])[1]})` : groupDefaultGift ? 'Same as everyone' : 'Choose a gift…'}</option>
                               {RESOLVER_GIFT_OPTIONS.filter(([v]) => v !== '').map(([v, t]) => <option key={v} value={v}>{t}</option>)}
                             </select>
-                            <span className="rline">{res && res.status === 'failed' ? res.message : null}{res && res.status === 'needs_scheduler' ? 'This save needs their card, consent or address step. ' : null}{r.gift && r.gift.type === 'qrcash' ? <b>{resolverGiftAmount(r.gift) !== null ? `QR Cash $${resolverGiftAmount(r.gift)} · ` : 'QR Cash · '}</b> : null}{!res || res.status === 'saved' ? resolverGiftLine(r.gift) : null}{r.gift && r.gift.type !== 'none' || (res && res.status === 'needs_scheduler') ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(p.id, SCHEDULER_TYPE_OF(occasions[0]))}>Gift details in their Occasion Scheduler</button></> : null}</span>
+                            <span className="rline">{res && res.status === 'failed' ? res.message : null}{res && res.status === 'needs_scheduler' ? 'This save needs their card, consent or address step. ' : null}{!res || res.status === 'saved' ? <ScheduledGiftLine gift={r.gift} /> : null}{r.gift && r.gift.type !== 'none' || (res && res.status === 'needs_scheduler') ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(p.id, SCHEDULER_TYPE_OF(occasions[0]))}>Gift details in their Occasion Scheduler</button></> : null}</span>
                           </div>
                         );
                       })}

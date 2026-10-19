@@ -228,8 +228,8 @@ async function refreshExpiredQuote(item, api, now) {
   }
   item.quote = null;
   const message = fresh.quote
-    ? `The price for ${item.name}\u2019s gift box changed from $${(item.confirmedTotalCents / 100).toFixed(2)} to $${(fresh.quote.quotedTotalCents / 100).toFixed(2)}. Review the new price to continue.`
-    : (fresh.quoteError || 'Gift box prices are valid for 2 minutes. Get fresh prices to continue.');
+    ? `The total for ${item.name}\u2019s gift box changed from $${(item.confirmedTotalCents / 100).toFixed(2)} to $${(fresh.quote.quotedTotalCents / 100).toFixed(2)}. Review the new total to continue.`
+    : (fresh.quoteError || 'Gift box totals are valid for 2 minutes. Get the total again to continue.');
   throw tagged(new Error(message), { code: 'GIFT_BOX_QUOTE_EXPIRED', needsQuote: true });
 }
 
@@ -259,7 +259,7 @@ async function placeGiftBox(item, { api, confirmCardPayment, now = () => Date.no
     }
     if (code === 'gift_box_quote_changed' || code === 'gift_box_quote_expired') {
       item.quote = null; // nothing was charged; the sender must see the new price first
-      throw tagged(err, { code: 'GIFT_BOX_QUOTE_EXPIRED', needsQuote: true, message: code === 'gift_box_quote_changed' ? 'A gift box price changed. Get fresh prices to continue.' : 'Gift box prices are valid for 2 minutes. Get fresh prices to continue.' });
+      throw tagged(err, { code: 'GIFT_BOX_QUOTE_EXPIRED', needsQuote: true, message: code === 'gift_box_quote_changed' ? 'A gift box total changed. Get the total again to continue.' : 'Gift box totals are valid for 2 minutes. Get the total again to continue.' });
     }
     // A decline of the group's ONE saved card would decline the next person too: not charged (fresh key), and the run
     // stops so the sender can update the card.

@@ -13,6 +13,7 @@ import api from '../../api/api';
 import { stripePromise } from '../../stripe/stripeProvider';
 import { centsToDollarString } from '../../utils/qrCashAmount';
 import { useProviderCatalogue } from '../giftPlace/useProviderCatalogue';
+import InfoTip from './InfoTip';
 import { isGiftBoxQuoteExpired, EMPTY_GIFT_BOX_FORM } from '../providerCheckout/giftBoxRules';
 import {
   GROUP_MAX, GROUP_QRCASH_AMOUNTS, groupGift, effectiveGift, groupCosts, groupAllowance,
@@ -20,9 +21,11 @@ import {
 } from '../../utils/groupSend';
 
 const STATUS_LABEL = {
-  pending: 'Waiting', charging: 'Paying for gift…', ready: 'Gift ready', sending: 'Sending…', sent: 'Accepted', failed: 'Not sent',
+  pending: 'Waiting', charging: 'Paying for gift…', ready: 'Gift ready', sending: 'Sending…', sent: 'Accepted for sending', failed: 'Not sent',
   held: 'Greeting held', unknown: 'Payment unconfirmed', needs_quote: 'Needs a fresh price',
 };
+const SHIPPING_TAX_NOTE = 'Shipping and tax depend on the delivery address. Your total is shown before you pay.';
+const QR_FEE_NOTE = 'The QR Cash fee is $1.99 + 3% of the gift amount, charged with the gift.';
 const STATUS_TONE = { sent: 'ok', failed: 'muted', held: 'amber', unknown: 'amber', needs_quote: 'amber' };
 
 // The address a gift box ships to: the checkout's own form shape. Prefilled only from CONFIRMED saved data — the
@@ -77,7 +80,8 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
   const giftOptions = [
     ['none', 'No gift'],
     ...GROUP_QRCASH_AMOUNTS.map((a) => [`qrcash:${a}`, `QR Cash™ $${a}`]),
-    ...(giftBoxes || []).map((p) => [`box:${p.providerProductId}`, `Gift box: ${p.name}${Number.isFinite(p.priceMinor) ? ` (from ${centsToDollarString(p.priceMinor)})` : ''}`]),
+    // The catalogue's actual starting price; shipping and tax depend on the address and come with the total.
+    ...(giftBoxes || []).map((p) => [`box:${p.providerProductId}`, `Gift box: ${p.name}${Number.isFinite(p.priceMinor) ? ` \u00b7 From ${centsToDollarString(p.priceMinor)} + shipping & tax` : ''}`]),
   ];
 
   const included = recipients.filter((r) => !left.includes(r.id));
@@ -100,8 +104,8 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
     ...(needsCard && card === null ? [cardExpired
       ? 'Your saved card has expired, so this group can’t include a paid gift. Update the card (it is the one your QR Cash Auto-Gift uses, in a recipient’s Occasion Scheduler), or choose “No gift”.'
       : 'No saved card on file, so this group can’t include a paid gift. Choose “No gift”, or send gifts one person at a time.'] : []),
-    ...(boxItems.length && costs.unpriced ? ['Get prices for the gift boxes before sending.'] : []),
-    ...(expiredNote ? ['Gift box prices are valid for 2 minutes and these have expired. Get fresh prices to continue.'] : []),
+    ...(boxItems.length && costs.unpriced ? ['Get the total for the gift boxes before sending.'] : []),
+    ...(expiredNote ? ['Gift box totals are valid for 2 minutes and these have expired. Get the total again to continue.'] : []),
   ];
   const canSend = !loading && !run && !quoting && blockers.length === 0;
 
@@ -152,7 +156,15 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
   };
 
   const summary = run ? runSummary(run) : null;
-  const fourLines = (d) => `Product ${centsToDollarString(d.productCents)} · S/H ${centsToDollarString(d.shippingHandlingCents)} · Tax ${centsToDollarString(d.taxCents)} · Total ${centsToDollarString(d.totalCents)}`;
+  // The server's own four lines (the gift-box checkout shows exactly these; they add up to the total).
+  const fourLines = (d) => `Item ${centsToDollarString(d.productCents)} · Shipping ${centsToDollarString(d.shippingHandlingCents)} · Tax ${centsToDollarString(d.taxCents)} · Total ${centsToDollarString(d.totalCents)}`;
+  const qrRows = costs.rows.filter((x) => x.kind === 'qrcash');
+  const boxRows = costs.rows.filter((x) => x.kind === 'gift_box' && x.display);
+  const sumOf = (rows, k) => rows.reduce((n, x) => n + x[k], 0);
+  const totalBreakdown = [
+    qrRows.length ? `QR Cash ${centsToDollarString(sumOf(qrRows, 'giftCents'))} + fees ${centsToDollarString(sumOf(qrRows, 'feeCents'))}` : null,
+    boxRows.length ? `Gift boxes ${centsToDollarString(sumOf(boxRows, 'totalCents'))} (item, shipping and tax)` : null,
+  ].filter(Boolean).join(' · ');
   const freshlyPriced = run ? run.items.filter((i) => i.quote && i.status === 'pending' && groupGift(i.gift).type === 'gift_box') : [];
 
   return (
@@ -177,7 +189,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
             </div>
 
             <label className="grv-default">
-              <span className="fieldlabel">Gift for everyone</span>
+              <span className="fieldlabel">Gift for everyone{(giftBoxes || []).length ? <> <InfoTip label="About gift box prices" testid="grv-box-info">{SHIPPING_TAX_NOTE}</InfoTip></> : null}</span>
               <select data-testid="grv-default-gift" value={giftValue(defaultGift)} onChange={(e) => { setExpiredNote(false); setQuotes({}); setQuoteErrors({}); setDefaultGift(giftFromValue(e.target.value)); }}>
                 {giftOptions.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
               </select>
@@ -200,9 +212,9 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
                       <option value="default">Same as everyone</option>
                       {giftOptions.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
                     </select>
-                    <span className="grv-cost">{out ? 'Left out'
-                      : row && row.kind === 'qrcash' ? `${centsToDollarString(row.giftCents)} + ${centsToDollarString(row.feeCents)} fee`
-                        : row && row.kind === 'gift_box' ? (row.display ? centsToDollarString(row.display.totalCents) : 'Price needed')
+                    <span className="grv-cost" data-testid="grv-cost">{out ? 'Left out'
+                      : row && row.kind === 'qrcash' ? <>{`${centsToDollarString(row.giftCents)} + ${centsToDollarString(row.feeCents)} fee = ${centsToDollarString(row.totalCents)}`} <InfoTip label="About the QR Cash fee" testid="grv-fee-info">{QR_FEE_NOTE}</InfoTip></>
+                        : row && row.kind === 'gift_box' ? (row.display ? centsToDollarString(row.display.totalCents) : <>Total pending <InfoTip label="About gift box prices" testid="grv-pending-info">{SHIPPING_TAX_NOTE}</InfoTip></>)
                           : 'No gift'}</span>
                     {!out && g.type === 'gift_box' ? (
                       <div className="grv-addr" data-testid="grv-address">
@@ -217,7 +229,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
                           <input aria-label={`${r.name} ZIP`} placeholder="ZIP" value={a.postalCode || ''} onChange={(e) => setAddress(r.id, 'postalCode', e.target.value)} />
                         </div>
                         {quoteErrors[r.id] ? <span className="saveerr" data-testid="grv-quote-error">{quoteErrors[r.id]}</span> : null}
-                        {quotes[r.id] ? <span className="sub" data-testid="grv-quote-lines">{fourLines(quotes[r.id].display)}</span> : null}
+                        {quotes[r.id] ? <details className="grv-breakdown" data-testid="grv-quote-lines"><summary>Price details</summary>{fourLines(quotes[r.id].display)}</details> : null}
                       </div>
                     ) : null}
                   </div>
@@ -226,19 +238,20 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
             </div>
 
             <div className="grv-total" data-testid="grv-total">
-              <span>{costs.unpriced
-                ? `The total is shown once the ${costs.unpriced === 1 ? 'gift box is' : `${costs.unpriced} gift boxes are`} priced.`
-                : costs.totalCents
-                  ? `${costs.feeCents ? `Gifts ${centsToDollarString(costs.giftCents)} + QR Cash fees ${centsToDollarString(costs.feeCents)} = ` : 'Total '}${centsToDollarString(costs.totalCents)}`
+              <span>{costs.unpriced ? 'Total pending'
+                : costs.totalCents ? `Total ${centsToDollarString(costs.totalCents)}`
                   : 'No gifts: nothing is charged.'}</span>
+              {!costs.unpriced && costs.totalCents ? (
+                <details className="grv-breakdown" data-testid="grv-total-details"><summary>Breakdown</summary>{totalBreakdown}</details>
+              ) : null}
               {needsCard ? <span className="sub">{card === undefined ? 'Checking your saved card…' : card ? `Charged to your saved ${card.brand ? card.brand.charAt(0).toUpperCase() + card.brand.slice(1) : 'card'} •••• ${card.last4 || ''}, one charge per person.` : ''}</span> : null}
             </div>
             {paidCount ? <div className="sub" data-testid="grv-rate-note">Payments are limited to 20 requests an hour, shared by QR Cash and gift boxes and counting any payments you made in the last hour. This group makes {paidCount} (up to {paidCount * 2} if your bank asks to confirm). Greetings are limited to 20 an hour. If a limit is reached, sending stops before anyone else is charged and nobody is lost; you can continue later.</div> : null}
             {blockers.length ? <div className="warn" data-testid="grv-blockers"><AlertCircle size={16} style={{ flex: 'none', marginTop: 2 }} /><span>{blockers.join(' ')}</span></div> : null}
             <div className="grv-actions">
-              <span className="sub">{boxItems.length ? 'Prices are the gift-box checkout’s own and valid for 2 minutes. ' : ''}Nothing is charged or sent until you press Send.</span>
+              <span className="sub">{boxItems.length ? 'Gift-box totals are valid for 2 minutes. ' : ''}Nothing is charged or sent until you press Send.</span>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {boxItems.length ? <button type="button" className="btn btn-line" data-testid="grv-get-prices" disabled={quoting || running} onClick={getPrices}>{quoting ? 'Getting prices…' : costs.unpriced || expiredNote ? 'Get prices' : 'Refresh prices'}</button> : null}
+                {boxItems.length ? <button type="button" className="btn btn-line" data-testid="grv-get-prices" disabled={quoting || running} onClick={getPrices}>{quoting ? 'Getting total…' : costs.unpriced || expiredNote ? 'Get total' : 'Refresh total'}</button> : null}
                 <button type="button" className="btn btn-primary" data-testid="grv-send" disabled={!canSend} onClick={start}>
                   <Send size={17} /> Send {included.length} Greet-Mes{costs.totalCents ? ` · ${centsToDollarString(costs.totalCents)}` : ''}
                 </button>
@@ -274,14 +287,14 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
               })}
             </div>
             {freshlyPriced.length ? (
-              <div className="sub" data-testid="grv-run-fresh-prices">New prices — {freshlyPriced.map((i) => `${i.name}: ${fourLines(i.quote.display)}`).join(' · ')}</div>
+              <div className="sub" data-testid="grv-run-fresh-prices">New totals — {freshlyPriced.map((i) => `${i.name}: ${fourLines(i.quote.display)}`).join(' · ')}</div>
             ) : null}
             <div className="grv-actions">
               <span className="sub">{summary.done ? 'All accepted for sending. You\u2019ll see each one under Past Occasions as it goes out.'
                 : summary.held || summary.unknown ? 'A held or unconfirmed gift order is never placed again; check your orders, or send that greeting without the gift.'
                   : summary.failed ? 'A gift that was paid for stays with its person and is not charged again on retry.' : ''}</span>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {summary.needsQuote ? <button type="button" className="btn btn-line" data-testid="grv-refresh-run-prices" disabled={quoting || running} onClick={refreshRunPrices}>{quoting ? 'Getting prices…' : 'Get fresh prices'}</button> : null}
+                {summary.needsQuote ? <button type="button" className="btn btn-line" data-testid="grv-refresh-run-prices" disabled={quoting || running} onClick={refreshRunPrices}>{quoting ? 'Getting total…' : 'Get new total'}</button> : null}
                 {!summary.done ? <button type="button" className="btn btn-primary" data-testid="grv-retry" disabled={running || quoting || summary.needsQuote > 0} onClick={() => execute(run)}><RotateCcw size={16} /> {run.stopped || summary.failed ? 'Try the rest again' : 'Continue'}</button>
                   : <button type="button" className="btn btn-primary" onClick={onClose}><Check size={16} /> Done</button>}
               </div>

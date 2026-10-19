@@ -108,11 +108,15 @@ test("finalize: gift settings normalised exactly like ContactForm's commitSave; 
 });
 
 test("gift wording is the scheduler's own", () => {
-  assert.equal(R.resolverGiftLine(null), "");
-  assert.equal(R.resolverGiftLine({ type: "none" }), "The greeting is scheduled with no gift.");
-  assert.equal(R.resolverGiftLine({ type: "merch", autoGift: false }), "You’ll receive a reminder 10 days before to confirm.");
-  assert.equal(R.resolverGiftLine({ type: "qrcash", autoGift: true }), "Gift will be sent automatically on the occasion date.");
-  assert.equal(R.resolverGiftLine({ type: "curated", autoGift: true }), "We’ll remind you 10 days before so you can confirm your gift.");
-  assert.equal(R.resolverGiftLine({ type: "qrcash", autoGift: true }, false), "QR Cash is sent when you send the Greet-Me. Scheduled QR Cash is not available yet.",
-    "follows the scheduler's switch exactly like ContactForm");
+  const S = (g, a) => R.resolverGiftStatus(g, a).label;
+  assert.equal(S(null), "");
+  assert.equal(S({ type: "none" }), "No gift");
+  assert.equal(S({ type: "qrcash", autoGift: true }), "Auto-Gift on", "only QR Cash on Auto-Gift is automatic");
+  assert.equal(S({ type: "qrcash", autoGift: false }), "Reminder only \u2014 confirmation required");
+  assert.equal(S({ type: "curated", autoGift: true }), "Reminder only \u2014 confirmation required", "other types on Auto-Gift still get the reminder");
+  assert.equal(S({ type: "merch", autoGift: false }), "Reminder only \u2014 confirmation required");
+  assert.match(R.resolverGiftStatus({ type: "merch" }).detail, /remind you 10 days before.*nothing is charged automatically/);
+  assert.match(R.resolverGiftStatus({ type: "qrcash", autoGift: true }).detail, /charged to your saved card/);
+  assert.equal(S({ type: "qrcash", autoGift: true }, false), "Reminder only \u2014 confirmation required", "follows the scheduler's switch exactly like ContactForm");
+  assert.equal(R.resolverGiftStatus({ type: "qrcash", autoGift: true }, false).detail, "QR Cash is sent when you send the Greet-Me. Scheduled QR Cash is not available yet.");
 });

@@ -31,15 +31,20 @@ export const RESOLVER_GIFT_OPTIONS = Object.freeze([
   ['marketplace', 'Browse Marketplace'],
 ]);
 
-// The scheduler's own wording (ContactForm.jsx, Gift & Delivery copy), including its scheduled-QR-Cash switch.
-export function resolverGiftLine(gift, scheduledQrCashAvailable = SCHEDULED_QRCASH_AVAILABLE) {
-  if (!gift) return '';
-  if (gift.type === 'none') return 'The greeting is scheduled with no gift.';
-  if (gift.type === 'qrcash' && !scheduledQrCashAvailable) return SCHEDULED_QRCASH_UNAVAILABLE_COPY;
-  if (gift.autoGift === true) {
-    return gift.type === 'qrcash' ? 'Gift will be sent automatically on the occasion date.' : 'We’ll remind you 10 days before so you can confirm your gift.';
+/**
+ * One short, accurate status for a scheduled gift, plus the explanation shown behind the info icon. Only a QR Cash
+ * gift on Auto-Gift is charged and sent automatically on the date (and only while scheduled QR Cash is live); every
+ * other gift — including other types on Auto-Gift — gets the scheduler's 10-day reminder and is not charged
+ * automatically.
+ */
+export function resolverGiftStatus(gift, scheduledQrCashAvailable = SCHEDULED_QRCASH_AVAILABLE) {
+  if (!gift) return { label: '', detail: '' };
+  if (gift.type === 'none') return { label: 'No gift', detail: 'The greeting is scheduled with no gift.' };
+  if (gift.type === 'qrcash' && !scheduledQrCashAvailable) return { label: 'Reminder only \u2014 confirmation required', detail: SCHEDULED_QRCASH_UNAVAILABLE_COPY };
+  if (gift.type === 'qrcash' && gift.autoGift === true) {
+    return { label: 'Auto-Gift on', detail: 'Sent automatically on the occasion date and charged to your saved card. You can turn Auto-Gift off in their Occasion Scheduler.' };
   }
-  return 'You’ll receive a reminder 10 days before to confirm.';
+  return { label: 'Reminder only \u2014 confirmation required', detail: 'We\u2019ll remind you 10 days before so you can confirm the gift. If you don\u2019t, the greeting goes without it, and nothing is charged automatically.' };
 }
 
 function fixedDateFor(type, year) {

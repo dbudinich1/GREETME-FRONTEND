@@ -261,6 +261,12 @@ export const DASHBOARD_HOME_CSS = `
 .gx .grv-addr-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px; }
 .gx .grv-addr-grid .wide { grid-column:span 3; }
 .gx .grv-addr input { height:36px; border:1px solid var(--p200); border-radius:10px; padding:0 8px; font:14px var(--sans); color:var(--ink); background:#fff; min-width:0; width:100%; }
+.gx .itip { position:relative; display:inline-flex; vertical-align:middle; }
+.gx .itip-btn { min-height:0 !important; width:20px; height:20px; padding:0; border:none; border-radius:50%; background:none; color:var(--p600); display:inline-grid; place-items:center; cursor:pointer; }
+.gx .itip-btn:focus-visible { outline:2px solid #c9b8f2; outline-offset:1px; }
+.gx .itip-pop { position:absolute; z-index:60; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); width:max-content; max-width:260px; white-space:normal; text-align:left; background:var(--p900); color:#fff; font:500 12.5px/1.45 var(--sans); padding:8px 10px; border-radius:10px; box-shadow:0 12px 28px -12px rgba(0,0,0,.5); }
+.gx .grv-breakdown { font-size:12.5px; color:var(--muted); }
+.gx .grv-breakdown summary { cursor:pointer; color:var(--p700); font-weight:600; }
 @keyframes gxIn { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:none; } }
 @media (prefers-reduced-motion: reduce) { .gx *, .gx *::after { transition:none !important; animation:none !important; } }
 @media (max-width: 900px) {
