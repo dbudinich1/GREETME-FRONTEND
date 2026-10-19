@@ -199,3 +199,14 @@ test("opened from the dashboard (returnTo): a successful save returns to the das
   assert.ok(M.__calls.includes("updateContact:c1"), "saved through the Recipients page's own save");
   assert.ok(tid("dashboard-home"), "then back on the dashboard");
 });
+
+test("F-C1: opened from the dashboard for a recipient that isn't found, the page stays, and a later unrelated close does not jump to the dashboard", async () => {
+  await open("/dashboard/contacts", { state: { openEditRecipientId: "does-not-exist", returnTo: "dashboard" } });
+  assert.equal(editFormOpen(), false);
+  const add = [...document.querySelectorAll("button")].find((b) => /Add Recipient/i.test(b.textContent));
+  assert.ok(add, "the page's own Add Recipient button");
+  await act(async () => { add.click(); }); await wait(100);
+  const cancel = [...document.querySelectorAll('[data-testid="contact-form-footer"] button')].find((b) => /Cancel/.test(b.textContent));
+  await act(async () => { cancel.click(); }); await wait(50);
+  assert.equal(tid("dashboard-home"), null, "stays on the Recipients page");
+});

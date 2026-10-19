@@ -941,3 +941,12 @@ test("scheduled group, physical gift with a missing address: the others save; 'A
   await click($("[data-testid=gx-dates-open]"));
   assert.match(rowOf("Margaret").querySelector("[data-testid=gx-group-row-status]").textContent, /Saved/);
 });
+
+test("F-C2: restored choices are kept only when this page offers them (a hand-edited tab can't inject an occasion, mode, audience or gift)", async () => {
+  const snap = JSON.stringify({ v: 1, userId: "u1", savedAt: Date.now(), mode: "bogus", occasions: ["Wedding", "Birthday", "Baby"], audience: "strangers", picks: [], gift: "evil", whoDone: false });
+  await mountKeeping(snap);
+  assert.equal($(".mode[aria-pressed=true]"), null, "an unknown mode is dropped");
+  assert.deepEqual(state().occ, ["Birthday"], "only offered occasions are restored");
+  assert.equal($(".track button[aria-pressed=true]").textContent.trim(), "Individuals", "an unknown audience falls back");
+  assert.doesNotMatch($("[data-testid=gx-summary]").textContent, /gift/, "an unknown gift is dropped");
+});

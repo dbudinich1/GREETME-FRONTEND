@@ -101,6 +101,8 @@ const AUDIENCES = [
   { key: 'professional', segment: 'Professional', label: 'All professional contacts', people: 'professional contacts' },
   { key: 'all', segment: 'Everyone', label: 'Everyone in your circle', people: 'people' },
 ];
+// Every occasion the dashboard offers: restored choices are kept only when they are one of these (Team 5 F-C2).
+const OFFERED_OCCASIONS = new Set([...OCCASION_CHIPS, ...OCCASION_MENUS.flatMap((m) => m.groups.flatMap((g) => g.items))]);
 const SENDER_PHOTO_REQUIRED_MESSAGE = 'Every Greet-Me includes your photo so the recipient knows it is from you. Add a profile photo to send — your greeting stays saved while you do.';
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 
@@ -267,10 +269,11 @@ export default function DashboardHome() {
   // Occasion Scheduler) and restored here on return (utils/dashboardLauncherState.js).
   const [kept] = useState(() => readLauncherState(window.sessionStorage, user?.id));
   const K = (f, d) => (kept && kept[f] !== undefined ? kept[f] : d);
-  const [mode, setMode] = useState(K('mode', null));
-  const [occasions, setOccasions] = useState(K('occasions', []));
+  // Restored values are kept only when they are values this page itself offers (a hand-edited tab can't inject others).
+  const [mode, setMode] = useState(['now', 'occasion'].includes(K('mode', null)) ? K('mode', null) : null);
+  const [occasions, setOccasions] = useState((Array.isArray(K('occasions', [])) ? K('occasions', []) : []).filter((o) => OFFERED_OCCASIONS.has(o)));
   const [menuOpen, setMenuOpen] = useState(null);
-  const [audience, setAudience] = useState(K('audience', 'one'));
+  const [audience, setAudience] = useState(AUDIENCES.some((a) => a.key === K('audience', 'one')) ? K('audience', 'one') : 'one');
   const [picks, setPicks] = useState(K('picks', []));
   const [excluded, setExcluded] = useState(K('excluded', []));
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -278,7 +281,7 @@ export default function DashboardHome() {
   const [words, setWords] = useState(K('words', ''));
   const [memoryPhotos, setMemoryPhotos] = useState(K('memoryPhotos', []));
   const [photoNote, setPhotoNote] = useState('');
-  const [gift, setGift] = useState(K('gift', null));
+  const [gift, setGift] = useState(['qrcash', 'gift'].includes(K('gift', null)) ? K('gift', null) : null);
   const [whoDone, setWhoDone] = useState(K('whoDone', false));
   const [persDone, setPersDone] = useState(K('persDone', false));
   const [ruleNote, setRuleNote] = useState('');
@@ -356,7 +359,7 @@ export default function DashboardHome() {
     setRuleNote(''); setSaveMsg(null); setAudience(k); setExcluded([]); setPickerOpen(false);
   };
   const aud = AUDIENCES.find((x) => x.key === audience);
-    const occLocked = chosen.length > 1 && occasions.length >= 1;   // several people: no further occasions
+  const occLocked = chosen.length > 1 && occasions.length >= 1;   // several people: no further occasions
   const whoLocked = occasions.length > 1;                          // several occasions: one person only
   const notSchedulable = mode === 'occasion' && occasions.find((o) => !isSchedulerOccasion(o));
   const overCap = chosen.length > GROUP_MAX;

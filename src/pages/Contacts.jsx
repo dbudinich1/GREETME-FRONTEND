@@ -122,6 +122,9 @@ export default function Recipients() {
     navigate('/dashboard');
     return true;
   };
+  // A path that stays on this page (the recipient wasn't found, the plan's recipient limit, a local-only save):
+  // nothing from the dashboard is pending any more, so a later, unrelated close must not jump there (Team 5 F-C1).
+  const stayOnRecipients = () => { returnToDashboardRef.current = false; };
   // Recipients PRACTICE VIEW (fail-closed): render session-scoped Test Drive contacts in the normal
   // layout ONLY when the explicit marker is present AND a valid current-session workspace exists.
   const practiceMarker = new URLSearchParams(location.search || '').get('practice') === '1';
@@ -264,9 +267,13 @@ export default function Recipients() {
         setShowEditModal(true);
         // Clear the state so refresh doesn't re-open
         navigate(location.pathname, { replace: true, state: {} });
+      } else {
+        stayOnRecipients();
       }
+    } else if (editId && !loading && recipients.length === 0) {
+      stayOnRecipients();
     }
-  }, [recipients, location.state, navigate, location.pathname]);
+  }, [recipients, location.state, navigate, location.pathname, loading]);
 
   // Deep link from the emails: ?contactId=<id>&occasion=<type> (read from the HashRouter search params) opens that recipient's edit form
   // at that occasion, once. The params are consumed (replace) so a refresh or Back does not reopen it. An unknown or missing id, or a
@@ -284,6 +291,8 @@ export default function Recipients() {
       setEditingContact(target);
       setFocusOccasion(/^[a-z0-9_]{1,40}$/.test(occasion) ? occasion : null);
       setShowEditModal(true);
+    } else {
+      stayOnRecipients();
     }
     navigate(location.pathname, { replace: true, state: {} });   // consume the params either way
   }, [loading, recipients, location.search, location.pathname, navigate, practiceActive, isBusiness]);
@@ -454,12 +463,14 @@ export default function Recipients() {
         // on this plan; its draft stays in sessionStorage).
         setRecipientCapLimit(resolveRecipientLimit({ errorData: error?.data, user }) || 0);
         setShowAddModal(false);
+        stayOnRecipients();
         showAlertMessage('error', getErrorMessage(error));
         return;
       }
 
       // W07 — a save that carries Auto-Gift consents is never "stored locally": a refused or failed consent must be seen, not hidden.
       if (Array.isArray(contactData?.occasionGiftConsents) && contactData.occasionGiftConsents.length > 0) {
+        stayOnRecipients();
         showAlertMessage('error', getErrorMessage(error));
         return;
       }
@@ -480,6 +491,7 @@ export default function Recipients() {
       autoAddRecipientPhotosToLibrary(contactData);
 
       showAlertMessage('success', 'Recipient added (stored locally - backend unavailable)');
+      stayOnRecipients();
       setShowAddModal(false);
     }
   };
