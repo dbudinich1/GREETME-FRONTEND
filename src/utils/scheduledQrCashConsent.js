@@ -117,7 +117,7 @@ export function planAuthorization({ settings, initialSettings, occasions, card, 
   const dated = [...all, ...sgAll];
   const state = dated.length ? cardStateFor(card, dated.map((i) => i.date)) : 'ok';
   const items = all.filter((i) => state !== 'ok' || i.changed).map(({ changed, ...rest }) => rest);
-  const scheduledGiftItems = sgAll.filter((i) => i.changed).map(({ changed: _changed, ...rest }) => rest);
+  const scheduledGiftItems = sgAll.filter((i) => i.changed).map((i) => ({ key: i.key, label: i.label, date: i.date, dateLabel: i.dateLabel, name: i.name, maxTotalCents: i.maxTotalCents }));
   return {
     items, scheduledGiftItems, cardState: state,
     need: { card: dated.length > 0 && state !== 'ok', consent: items.length > 0, scheduledGiftConsent: scheduledGiftItems.length > 0, address: addressMissing(formData, settings, requiresDelivery) },
