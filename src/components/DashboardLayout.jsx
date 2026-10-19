@@ -11,6 +11,7 @@ import cartService from '../services/cartService';
 import imageCreditsService from '../services/imageCreditsService';
 import api from '../api/api';
 import GuidedSetupFlow, { shouldShowGuidedSetupForUser } from './GuidedSetupFlow';
+import { SETUP_REVISIT_EVENT } from './setupRevisit';
 import { isGuidedSetupExcludedRoute } from './guidedSetupRouteExclusion.js';
 import { useAccountState } from '../hooks/useAccountState';
 import { useFundraiserPartnerAccess } from '../hooks/useFundraiserPartnerAccess'; // TEAM B B3 — server-derived partner-nav visibility
@@ -58,6 +59,15 @@ export default function DashboardLayout({ children }) {
       setShowOnboarding(false);
     }
   }, [accountState.isAuthenticated, accountState.isSubscribed, accountState.isOnboardingComplete, showOnboarding]);
+
+  // Dashboard "Re-record" / "Revisit setup · voice & photo": opens GuidedSetupFlow in REVISIT mode (Voice, then
+  // Photo, then closes). Opened only on request; it never changes the first-run gate above.
+  const [showSetupRevisit, setShowSetupRevisit] = useState(false);
+  useEffect(() => {
+    const open = () => setShowSetupRevisit(true);
+    window.addEventListener(SETUP_REVISIT_EVENT, open);
+    return () => window.removeEventListener(SETUP_REVISIT_EVENT, open);
+  }, []);
 
   // Handle resize for mobile detection
   useEffect(() => {
@@ -1112,6 +1122,13 @@ export default function DashboardLayout({ children }) {
         <GuidedSetupFlow
           onComplete={() => setShowOnboarding(false)}
           onDismiss={() => setShowOnboarding(false)}
+        />
+      )}
+      {showSetupRevisit && !showOnboarding && (
+        <GuidedSetupFlow
+          revisit
+          onComplete={() => setShowSetupRevisit(false)}
+          onDismiss={() => setShowSetupRevisit(false)}
         />
       )}
 

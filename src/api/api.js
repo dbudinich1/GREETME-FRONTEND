@@ -275,8 +275,9 @@ class ApiService {
     return this.request("/api/dashboard/stats");
   }
 
-  getUpcomingOccasions() {
-    return this.request("/api/dashboard/upcoming");
+  // days: optional look-ahead window (the endpoint defaults to 7). The dashboard asks for 60.
+  getUpcomingOccasions(days) {
+    return this.request(days ? `/api/dashboard/upcoming?days=${encodeURIComponent(days)}` : "/api/dashboard/upcoming");
   }
 
   getRecentGreetings() {

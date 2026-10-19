@@ -27,6 +27,8 @@ const FINALE = read("src/components/GreetingCardProto/FinaleSpread.jsx");
 const CLAIM = read("src/pages/GiftClaim.jsx");
 const SELECTOR = read("src/components/GiftSelectorModal.jsx");
 const SEND = read("src/pages/SendGreeting.jsx");
+// G5 (Report 103): the send payload is built by utils/sendGreetingPayload.js (moved out of SendGreeting unchanged).
+const PAYLOAD = read("src/utils/sendGreetingPayload.js");
 
 const codeOnly = (src) =>
   src.split("\n").filter((l) => {
@@ -200,7 +202,8 @@ test("the paid-checkout resume attaches by draft token, not by self-report", () 
 });
 
 test("the send payload carries the recipient pointer", () => {
-  assert.match(SEND, /contactId: selectedContact\.id,/);
+  assert.match(PAYLOAD, /contactId: contact\.id,/);
+  assert.match(SEND, /const payload = buildGreetingPayload\(\{/, "the send page builds its payload through the shared builder");
 });
 
 test("physical merchandise routes into the same paid-order path, through one destination", () => {
@@ -213,8 +216,9 @@ test("physical merchandise routes into the same paid-order path, through one des
 });
 
 test("curated attaches the selected tier and nothing it invented", () => {
-  const start = SEND.indexOf("...(giftSettings?.type === 'curated' && {");
-  const block = SEND.slice(start, SEND.indexOf("}),", start));
+  const start = PAYLOAD.indexOf("...(giftSettings?.type === 'curated' && {");
+  assert.ok(start > -1, "the curated branch lives in the shared payload builder");
+  const block = PAYLOAD.slice(start, PAYLOAD.indexOf("}),", start));
   assert.match(block, /type: 'curated'/);
   assert.match(block, /maxSpendCents/);
   // The client no longer asserts a status the server has not established.

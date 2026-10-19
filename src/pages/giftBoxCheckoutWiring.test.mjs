@@ -113,7 +113,9 @@ test("SendGreeting: an accepted gift box attaches like flowers, with only the di
 });
 
 test("SendGreeting: includeGift is false for a gift box until its paid record exists", () => {
-  const match = SEND.match(/includeGift:\s*Boolean\(([\s\S]*?)\),\s*\r?\n/);
+  // G5 (Report 103): the payload, and this rule, are built by utils/sendGreetingPayload.js; the send page uses it.
+  assert.match(SEND, /buildGreetingPayload\(\{/, "the send page builds its payload through the shared builder");
+  const match = read("../utils/sendGreetingPayload.js").match(/includeGift:\s*Boolean\(([\s\S]*?)\),\s*\r?\n/);
   assert.ok(match, "the includeGift expression must be findable");
   const decide = new Function("giftSettings", `return Boolean(${match[1]});`);
   assert.equal(decide({ type: "gift_boxes" }), false);

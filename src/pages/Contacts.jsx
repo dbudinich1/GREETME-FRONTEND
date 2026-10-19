@@ -32,10 +32,6 @@ import { getErrorMessage } from '../utils/errorMessages';
 import { useAuth } from '../context/AuthContext';
 import { resolveRecipientLimit, recipientLimitMessage, isAtRecipientCap } from '../utils/sendGating';
 import { getHoverHandlers } from '../utils/hoverable';
-import giftLuxuryBox from '../assets/gifts/gift-luxury-box.png';
-import giftBouquet from '../assets/gifts/gift-bouquet.png';
-import giftCard from '../assets/gifts/gift-card.png';
-import giftBoxStack from '../assets/gifts/gift-box-stack.png';
 import { RELATIONS_BY_CATEGORY, RELATIONSHIP_CATEGORIES } from '../import/completionModel.js';
 
 // Human relationship labels the wizard already uses (value → label), so display shows "Family Member"
@@ -51,13 +47,7 @@ function relationshipLabel(v) { return (v && RELATIONSHIP_LABELS[v]) || v || '';
 // Session storage key (must match ContactForm.jsx)
 const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
 
-// Hero gift carousel — founder-approved imagery, fixed rotation order.
-const GIFT_IMAGES = [
-  { src: giftLuxuryBox, alt: 'Luxury gift box' },
-  { src: giftBouquet, alt: 'Flower bouquet' },
-  { src: giftCard, alt: 'Greet-Me gift card' },
-  { src: giftBoxStack, alt: 'Stack of wrapped gifts' },
-];
+// The gift carousel moved to the dashboard's gift step (founder 2026-10-18, Report 103).
 
 // Deterministic premium fallback-avatar gradients. Curated jewel tones —
 // every lighter stop is dark enough for the white monogram to hold AA on
@@ -212,8 +202,6 @@ export default function Recipients() {
   const [reduceMotion, setReduceMotion] = useState(() => {
     try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
   });
-  const [giftIndex, setGiftIndex] = useState(0);
-  const giftPausedRef = useRef(false);
 
   // Respect the OS reduced-motion preference (gates hover transforms only).
   useEffect(() => {
@@ -225,14 +213,6 @@ export default function Recipients() {
   }, []);
   const hasAutoOpenedRef = useRef(false);
   const hasAutoOpenedAddRef = useRef(false);
-
-  // Hero gift carousel — cross-fade auto-rotation; pauses while hovered.
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (!giftPausedRef.current) setGiftIndex((i) => (i + 1) % GIFT_IMAGES.length);
-    }, 4500);
-    return () => clearInterval(id);
-  }, []);
 
   // Handle resize for responsive layout
   useEffect(() => {
@@ -863,109 +843,6 @@ export default function Recipients() {
             Import Contacts
           </button>
         </div>
-      </div>
-
-      {/* Gift Presentation Panel — premium cream/gold "Complete the Moment".
-          Pure CSS + inline SVG (no assets). Decorative only: no CTA, no click. */}
-      {/* Cinematic gift moment — premium product-photograph treatment.
-          Ivory box · crimson satin bow · gold foil · lifted lid · paper texture ·
-          soft vignette. Inline SVG only; decorative, no CTA, no interaction. */}
-      <div style={{
-        position: 'relative',
-        overflow: 'hidden',
-        marginTop: isMobile ? '2rem' : '2.5rem',
-        marginBottom: isMobile ? '2rem' : '2.5rem',
-        padding: isMobile ? '2.5rem 1.75rem' : '3.25rem 3rem',
-        background: 'radial-gradient(75% 55% at 32% 18%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0) 55%), linear-gradient(165deg, #fdfbf5 0%, #f7f1e6 55%, #efe7d6 100%)',
-        borderRadius: 'var(--radius-xl)',
-        border: '1px solid rgba(150, 120, 70, 0.22)',
-        boxShadow: '0 22px 50px rgba(74, 51, 20, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 0 90px rgba(74, 51, 20, 0.12)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        textAlign: 'center'
-      }}>
-        {/* Luxurious paper grain — inline SVG turbulence, desaturated, very restrained */}
-        <svg aria-hidden="true" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.06, mixBlendMode: 'multiply', pointerEvents: 'none', zIndex: 0 }}>
-          <filter id="paperGrain">
-            <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" result="n" />
-            <feColorMatrix in="n" type="saturate" values="0" />
-          </filter>
-          <rect width="100%" height="100%" filter="url(#paperGrain)" />
-        </svg>
-
-        {/* Hero gift carousel — founder-approved imagery, cross-fade only,
-            auto-rotate (4.5s), pause on hover. No arrows/dots/controls. */}
-        <div
-          onMouseEnter={() => { giftPausedRef.current = true; }}
-          onMouseLeave={() => { giftPausedRef.current = false; }}
-          style={{
-            position: 'relative',
-            zIndex: 1,
-            width: '100%',
-            maxWidth: isMobile ? '260px' : '360px',
-            height: isMobile ? '180px' : '240px',
-          }}
-        >
-          {GIFT_IMAGES.map((img, i) => (
-            <img
-              key={i}
-              src={img.src}
-              alt={i === giftIndex ? img.alt : ''}
-              aria-hidden={i === giftIndex ? undefined : 'true'}
-              loading="lazy"
-              decoding="async"
-              draggable="false"
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                opacity: i === giftIndex ? 1 : 0,
-                transition: 'opacity 600ms ease-in-out',
-                pointerEvents: 'none'
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Title */}
-        <p style={{
-          position: 'relative',
-          zIndex: 1,
-          fontSize: isMobile ? '1.375rem' : '1.75rem',
-          fontWeight: 700,
-          letterSpacing: '-0.01em',
-          color: '#4e3b28',
-          margin: isMobile ? '1.75rem 0 0 0' : '2rem 0 0 0'
-        }}>
-          Complete the Moment
-        </p>
-
-        {/* Body — two sentences; line break between them aids readability */}
-        <p style={{
-          position: 'relative',
-          zIndex: 1,
-          fontSize: isMobile ? '0.9375rem' : '1rem',
-          lineHeight: 1.7,
-          color: '#8a7a63',
-          maxWidth: '30rem',
-          margin: isMobile ? '0.75rem 0 0 0' : '1rem 0 0 0'
-        }}>
-          Remember to add a thoughtful Greet-Me gift.
-        </p>
-        <p style={{
-          position: 'relative',
-          zIndex: 1,
-          fontSize: isMobile ? '0.9375rem' : '1rem',
-          lineHeight: 1.7,
-          color: '#8a7a63',
-          maxWidth: '30rem',
-          margin: isMobile ? '0.5rem 0 0 0' : '0.6rem 0 0 0'
-        }}>
-          Choose from QR Cash, Greet-Me Gift Cards, flowers, gift boxes, Americana, or branded corporate gifts to make every Greet-Me truly unforgettable.
-        </p>
       </div>
 
       {/* LANE E2 — recipient cap, with the number and an Upgrade link, before any form is filled. */}

@@ -1,41 +1,189 @@
 // src/pages/DashboardHome.jsx
-import React, { useState, useEffect, useRef } from 'react';
+//
+// Personal dashboard on the Base44 direction (founder-approved rendering and revisions, Report 103, 2026-10-18).
+// The page PREPARES; it never sends, schedules, charges or grants anything on its own:
+//   * Send Now hands one recipient + one occasion (with optional words and memory photos) to the existing send
+//     flow (/dashboard/send), which keeps its own review, consent, payment and sending rules;
+//   * one recipient with several occasions (or Schedule the Love) is saved through that recipient's EXISTING
+//     Occasion Scheduler record — one scheduled Greet-Me per occasion, never a combined card — with the scheduler's
+//     own normalisation and authorisation step (utils/occasionResolver.js);
+//   * several recipients (2-10) share one occasion. Send Now: one review (each person's gift and cost, the total,
+//     the current rules), then one EXISTING per-recipient send each (utils/groupSend.js). Schedule the Love: the
+//     occasion is saved to each person's own Occasion Scheduler (S3, utils/occasionResolver.js).
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mic, Camera, Users, Plus, Search, Upload, Settings, Play, Pause, Square, CheckCircle, Copy, Image as ImageIcon, Smartphone, QrCode, DollarSign, X, Send, Gift, CreditCard, Heart } from 'lucide-react';
-import api from "../api/api";
-import { getOccasionIcon } from '../utils/helpers';
-import { pushInApp } from '../utils/notify';
-import { COMMS_EVENTS } from '../utils/commsCatalog';
+import QRCode from 'qrcode';
+import {
+  Send, UserPlus, QrCode, ChevronRight, ChevronLeft, Search, Smartphone, Check, CalendarDays, Gift, Zap, Upload,
+  AlertCircle, Plus, ChevronDown, X, Mic, Camera, Play, Pause, ImagePlus, Users, Award, RotateCcw, Pencil, DollarSign,
+  CreditCard,
+} from 'lucide-react';
+import api from '../api/api';
+import { getOccasionIcon, occasionTypes } from '../utils/helpers';
 import BusinessGiftCreditsPanel from '../components/BusinessGiftCreditsPanel';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errorMessages';
-import { safeGet, safeSet, safeSessionGet, safeSessionSet } from '../utils/safeStorage';
+import { safeGet } from '../utils/safeStorage';
 import OnboardingCoach from '../components/OnboardingCoach';
 import WarmReentryWelcome from '../components/WarmReentryWelcome';
 import { useAccountState } from '../hooks/useAccountState';
 import { shouldShowOnboarding, shouldShowWarmReentry } from '../utils/accountState';
 import { getHoverHandlers } from '../utils/hoverable';
-import QRCode from 'qrcode';
+import { showManualToast } from '../utils/notify';
+import { COMMS_CATEGORIES } from '../utils/commsCatalog';
+import { openSetupRevisit } from '../components/setupRevisit';
+import { requiresDeliveryAddress } from '../components/ContactForm';
+import { sanitizeRelationshipForSave } from '../components/contactFormValidation.js';
+import SaveAuthorizationModal from '../components/w07Auth/SaveAuthorizationModal';
+import { planAuthorization } from '../utils/scheduledQrCashConsent';
+import { SCHEDULED_QRCASH_AVAILABLE } from '../config/scheduledQrCash';
+import { normalizeGiftSettingsForSave } from '../utils/occasionGiftSave';
+import {
+  SCHEDULER_OCCASION_TYPES, isSchedulerOccasion, prefillRow, chooseGift, rowComplete, buildResolverContact, finalizeResolverSave,
+  RESOLVER_GIFT_OPTIONS, resolverGiftStatus, resolverGiftAmount,
+} from '../utils/occasionResolver';
+import { writeDashboardHandoff, HANDOFF_MAX_WORDS, HANDOFF_MAX_PHOTOS } from '../utils/dashboardSendHandoff';
+import { buildGreetingPayload } from '../utils/sendGreetingPayload';
+import { GROUP_MAX, loadRun, clearRun, runSummary } from '../utils/groupSend';
+import { saveGroupSchedules } from '../utils/occasionResolver';
+import GroupReview from '../components/dashboard/GroupReview';
+import InfoTip from '../components/dashboard/InfoTip';
+import { qrCashQuote, centsToDollarString } from '../utils/qrCashAmount';
+import { DASHBOARD_HOME_CSS } from './dashboardHomeStyles';
+import giftLuxuryBox from '../assets/gifts/gift-luxury-box.png';
+import giftBouquet from '../assets/gifts/gift-bouquet.png';
+import giftCard from '../assets/gifts/gift-card.png';
+import giftBoxStack from '../assets/gifts/gift-box-stack.png';
+import smartEGiftCardArt from '../assets/gifts/smart-egift-card.png';
 
-// Status badge styling for the "Upcoming Occasions" card — mirrors the
-// scheduleStatus values returned by GET /api/dashboard/upcoming (see the
-// already-wired UpcomingGreetings.jsx reference for the same shape).
+// Status labels for the Upcoming Occasions tab — mirrors the scheduleStatus values returned by
+// GET /api/dashboard/upcoming. A row with NO schedule yet shows "Auto-send on" or the "Schedule the Love" action
+// instead of a status; the null entry remains the fallback for a status this client has never seen.
 const OCCASION_STATUS_LABELS = {
-  null: { text: 'Preparing', color: '#7F8C8D', bg: '#F4F6F7' },
-  scheduled: { text: 'Ready to send', color: '#2E86C1', bg: '#D6EAF8' },
-  queued: { text: 'Creating', color: '#E67E22', bg: '#FDEBD0' },
-  delivered: { text: 'Sent', color: '#27AE60', bg: '#D5F5E3' },
-  skipped: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9' },
-  failed: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9' },
+  null: { text: 'Preparing', color: '#7F8C8D', bg: '#F4F6F7', tone: 'muted' },
+  scheduled: { text: 'Ready to send', color: '#2E86C1', bg: '#D6EAF8', tone: 'plum' },
+  queued: { text: 'Creating', color: '#E67E22', bg: '#FDEBD0', tone: 'amber' },
+  delivered: { text: 'Sent', color: '#27AE60', bg: '#D5F5E3', tone: 'ok' },
+  skipped: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
+  failed: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
+  cancelled: { text: 'Cancelled', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
+  paused: { text: 'Paused', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
+  skipped_transient: { text: 'Preparing', color: '#7F8C8D', bg: '#F4F6F7', tone: 'muted' }, // the scheduler retries it
+  skipped_permanent: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
+  skipped_terminal: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
 };
+// Past Occasions: the backend's greeting statuses. "completed" is set once the recipient email is sent, so it reads
+// "Sent" — not "Delivered", which nothing in the system confirms.
+const PAST_STATUS = { completed: ['Sent', 'ok'], pending: ['Creating', 'amber'], processing: ['Creating', 'amber'], failed: ['Not sent', 'muted'], cancelled: ['Cancelled', 'muted'] };
+const UPCOMING_DAYS = 60;
+
+// Gift carousel (moved here from the Recipients page): its four images in the same order, then the Gift Place's
+// Smart Card art, then QR Cash (no artwork exists; drawn typographically).
+const SLIDES = [
+  { key: 'box', src: giftLuxuryBox, title: 'Luxury gift box', line: 'Something to unwrap, delivered to their door.' },
+  { key: 'flowers', src: giftBouquet, title: 'Flower bouquet', line: 'Fresh flowers for the day itself.' },
+  { key: 'card', src: giftCard, title: 'Greet-Me gift card', line: 'A gift card tucked inside the greeting.' },
+  { key: 'stack', src: giftBoxStack, title: 'Stack of wrapped gifts', line: 'Browse every gift in the Gift Place.' },
+  { key: 'smartcard', src: smartEGiftCardArt, title: 'Greet-Me Smart eGift Card', line: 'One card, spent at the brands they love (Prezzee).' },
+  { key: 'qrcash', src: null, title: 'QR Cash™', line: 'Send • Claim • Spend' },
+];
+const SMARTCARD_UNAVAILABLE_LINE = 'Coming later — not yet available';
+
+// Occasions (founder 2026-10-18): the send flow's five, and a Season's Greetings menu.
+// Engagement, Sympathy and Hanukkah are held until their protected content is ruled on; Christmas, Wedding and Baby are
+// held until their known generation and cover defects are corrected (Report 109). GREETING_RULES untouched.
+const OCCASIONS = ['Birthday', 'Anniversary', 'Thank You', 'Congratulations', 'Just Because'];
+const SEASON = ["Season's Greetings"];
+// Base44 "Send to" segments mapped onto the recipient's existing relationshipCategory (family | friend | professional).
+const AUDIENCES = [
+  { key: 'one', segment: 'Individuals', label: 'People you choose' },
+  { key: 'friend', segment: 'Friends', label: 'All friends', people: 'friends' },
+  { key: 'family', segment: 'Family', label: 'All family', people: 'family members' },
+  { key: 'professional', segment: 'Professional', label: 'All professional contacts', people: 'professional contacts' },
+  { key: 'all', segment: 'Everyone', label: 'Everyone in your circle', people: 'people' },
+];
+const SENDER_PHOTO_REQUIRED_MESSAGE = 'Every Greet-Me includes your photo so the recipient knows it is from you. Add a profile photo to send — your greeting stays saved while you do.';
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+
+// Occasion keys the backend stores for sends (occasionKey) shown with the send flow's own labels.
+const OCC_KEY_LABELS = { thankyou: 'Thank You', thank_you: 'Thank You', congrats: 'Congratulations', just_because: 'Just Because', holiday: "Season's Greetings", baby: 'Baby', general: 'Thinking of You' };
+const OCC_LABEL = (t) => OCC_KEY_LABELS[t] || (t || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).replace('Mothers Day', "Mother's Day").replace('Fathers Day', "Father's Day").replace('Getwell', 'Get Well');
+function initials(name) { return (name || '?').split(/\s+/).filter(Boolean).map((s) => s[0]).slice(0, 2).join('').toUpperCase() || '?'; }
+const AVATAR = ['#5A3E8A', '#7C63AE', '#4A3273', '#8A5A2B', '#3E5A7C', '#6B3E6B'];
+function avatarBg(name) { let h = 0; for (const c of name || '') h = (h * 31 + c.charCodeAt(0)) >>> 0; return AVATAR[h % AVATAR.length]; }
+const first = (n) => (n || '').split(' ')[0];
+// A scheduled row's gift, compactly: QR Cash amount + fee = total, one short status, and the explanation (and the
+// fee formula) behind the info icon.
+function ScheduledGiftLine({ gift }) {
+  if (!gift) return null;
+  const st = resolverGiftStatus(gift);
+  const amount = resolverGiftAmount(gift);
+  const q = gift.type === 'qrcash' && amount !== null ? qrCashQuote(amount) : null;
+  return (
+    <>
+      {gift.type === 'qrcash' ? <b>{q ? `QR Cash ${centsToDollarString(q.amountCents)} + ${centsToDollarString(q.feeCents)} fee = ${centsToDollarString(q.totalCents)} \u00b7 ` : 'QR Cash \u00b7 '}</b> : null}
+      <span data-testid="gx-sched-status">{st.label}</span>
+      <InfoTip label={`About: ${st.label}`} testid="gx-sched-info">{st.detail}{gift.type === 'qrcash' ? ' The QR Cash fee is $1.99 + 3% of the gift amount.' : ''}</InfoTip>
+    </>
+  );
+}
+
+const SCHEDULER_TYPE_OF = (label) => SCHEDULER_OCCASION_TYPES[label] || label;
+const labelForType = (type) => (occasionTypes.find((o) => o.value === type) || {}).label;
+const readAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const r = new FileReader(); r.onloadend = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(file);
+});
+
+function GiftCarousel({ chosen, onAdd, onQuickGift, onLearnQr, smartCardAvailable }) {
+  const [i, setI] = useState(0);
+  const paused = useRef(false);
+  useEffect(() => {
+    const id = setInterval(() => { if (!paused.current) setI((x) => (x + 1) % SLIDES.length); }, 4500);
+    return () => clearInterval(id);
+  }, []);
+  const s = SLIDES[i];
+  const smartCardOff = s.key === 'smartcard' && !smartCardAvailable;
+  const step = (d) => setI((x) => (x + d + SLIDES.length) % SLIDES.length);
+  return (
+    <div className="carousel" data-testid="gx-carousel" onMouseEnter={() => { paused.current = true; }} onMouseLeave={() => { paused.current = false; }} onFocus={() => { paused.current = true; }} onBlur={() => { paused.current = false; }}>
+      <div className="art" aria-hidden="true">
+        {SLIDES.map((x, k) => (x.src
+          ? <img key={x.key} src={x.src} alt="" loading="lazy" decoding="async" draggable="false" style={{ opacity: k === i ? 1 : 0 }} />
+          : <div key={x.key} className="qr" style={{ opacity: k === i ? 1 : 0 }}><QrCode size={46} strokeWidth={1.6} /><span>QR Cash™</span></div>))}
+      </div>
+      <div style={{ minWidth: 0 }} aria-live="polite">
+        <div className="slide-t">{s.title}</div>
+        <p className="slide-l">{smartCardOff ? SMARTCARD_UNAVAILABLE_LINE : s.line}</p>
+        <div className="dots" role="group" aria-label="Gift slides">
+          <button type="button" className="arrow" aria-label="Previous gift" onClick={() => step(-1)}><ChevronLeft size={16} /></button>
+          {SLIDES.map((x, k) => <button key={x.key} type="button" className="dot" aria-label={x.title} aria-current={k === i} onClick={() => setI(k)} />)}
+          <button type="button" className="arrow" aria-label="Next gift" onClick={() => step(1)}><ChevronRight size={16} /></button>
+        </div>
+      </div>
+      <div className="cta-col">
+        {s.key === 'qrcash' ? (
+          <button type="button" className="btn btn-sm btn-primary" style={{ height: 40 }} data-testid="gx-add-qr" aria-pressed={chosen === 'qrcash'} onClick={() => onAdd('qrcash')}>
+            {chosen === 'qrcash' ? <><Check size={16} /> QR Cash added</> : <><Gift size={16} /> Add QR Cash</>}
+          </button>
+        ) : (
+          <button type="button" className="btn btn-sm btn-primary" style={{ height: 40, visibility: smartCardOff ? 'hidden' : 'visible' }} tabIndex={smartCardOff ? -1 : 0} data-testid="gx-add-gift" aria-pressed={chosen === 'gift'} onClick={() => onAdd('gift')}>
+            {chosen === 'gift' ? <><Check size={16} /> Gift added</> : <><Gift size={16} /> Add a gift</>}
+          </button>
+        )}
+        <button type="button" className="btn btn-sm btn-gold" style={{ height: 40 }} data-testid="gx-quick-banner" onClick={onQuickGift}>Quick Gift <ChevronRight size={15} /></button>
+        <button type="button" className="link" style={{ visibility: s.key === 'qrcash' ? 'visible' : 'hidden' }} onClick={onLearnQr} tabIndex={s.key === 'qrcash' ? 0 : -1}>How it works</button>
+      </div>
+    </div>
+  );
+}
 
 export default function DashboardHome() {
   const navigate = useNavigate();
-  const { user, getToken, refreshProfile } = useAuth();
+  const { user } = useAuth();
   // Phase 3D Batch D Slice 5 — account-state gate for the dashboard onboarding nudge.
   const accountState = useAccountState();
 
-  // F5: real install QR for the "Download Mobile App" panel
+  // F5: real install QR for the home-screen install panel
   const [appQrUrl, setAppQrUrl] = useState(null);
   useEffect(() => {
     QRCode.toDataURL('https://greet-me.com/#/app', {
@@ -44,148 +192,28 @@ export default function DashboardHome() {
     }).then(setAppQrUrl).catch(() => {});
   }, []);
 
-  // Refs
-  const voiceInputRef = useRef(null);
-  const photoInputRef = useRef(null);
-  const audioRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const recordingTimerRef = useRef(null);
-  const streamRef = useRef(null);
-
-  // State
   const [contacts, setContacts] = useState([]);
-  // Warm re-entry race mitigation: dashboard's contacts fetch is async, so the
-  // initial [] is ambiguous with a settled-empty result. The warm-reentry gate
-  // is gated on contactsLoaded so it does not flash before fetch resolves.
+  // Warm re-entry race mitigation: the contacts fetch is async, so the initial [] is ambiguous with a
+  // settled-empty result. The warm-reentry gate is gated on contactsLoaded so it does not flash before it resolves.
   const [contactsLoaded, setContactsLoaded] = useState(false);
   const [upcomingOccasions, setUpcomingOccasions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [voiceRecorded, setVoiceRecorded] = useState(false);
-  const [photoUploaded, setPhotoUploaded] = useState(false);
-  const [uploadingVoice, setUploadingVoice] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [voiceFileUrl, setVoiceFileUrl] = useState(null);
-  const [isPlayingVoice, setIsPlayingVoice] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [showHowItWorksModal, setShowHowItWorksModal] = useState(false);
-  const [showG1G1Modal, setShowG1G1Modal] = useState(false);
   const [sentGreetings, setSentGreetings] = useState([]);
-  const [rewardsBalance, setRewardsBalance] = useState(0);
-  const [viewMode, setViewMode] = useState('recipients'); // 'recipients' or 'occasions'
+  const [loading, setLoading] = useState(true);
+  const [showHowItWorksModal, setShowHowItWorksModal] = useState(false);
+  const [smartCardAvailable, setSmartCardAvailable] = useState(false);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth <= 768);
-  const [isPortrait, setIsPortrait] = useState(
-    typeof window !== 'undefined' && window.innerHeight > window.innerWidth
-  );
+  const [term, setTerm] = useState('');
+  const [tab, setTab] = useState('recipients');
 
-  // Handle resize + orientation change for mobile/portrait detection
   useEffect(() => {
-    const handleResize = () => {
-      setIsNarrow(window.innerWidth <= 768);
-      setIsPortrait(window.innerHeight > window.innerWidth);
-    };
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
-    };
+    const onResize = () => setIsNarrow(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => { window.removeEventListener('resize', onResize); window.removeEventListener('orientationchange', onResize); };
   }, []);
-
-  // --- Presence persistence (navigation-safe) ---
-  const PRESENCE_KEY = 'gm_presence_v1';
-
-  useEffect(() => {
-    try {
-      const raw = safeSessionGet(PRESENCE_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw);
-
-      if (typeof saved.voiceRecorded === 'boolean') setVoiceRecorded(saved.voiceRecorded);
-      if (typeof saved.photoUploaded === 'boolean') setPhotoUploaded(saved.photoUploaded);
-      if (typeof saved.voiceFileUrl === 'string') setVoiceFileUrl(saved.voiceFileUrl);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    try {
-      safeSessionSet(
-        PRESENCE_KEY,
-        JSON.stringify({ voiceRecorded, photoUploaded, voiceFileUrl })
-      );
-    } catch {}
-  }, [voiceRecorded, photoUploaded, voiceFileUrl]);
-
-
-
-  useEffect(() => {
-    fetchDashboardData();
-    loadPersistedMedia();
-    // Load rewards balance (server-authoritative)
-    (async () => {
-      try { const r = await api.getHeartsBalance(); setRewardsBalance(r?.balance ?? 0); } catch { setRewardsBalance(0); }
-    })();
-  }, []);
-
-  // Refresh rewards balance when tab regains focus (e.g. after a send)
-  useEffect(() => {
-    const handleFocus = async () => {
-      try { const r = await api.getHeartsBalance(); setRewardsBalance(r?.balance ?? 0); } catch { setRewardsBalance(0); }
-    };
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, []);
-
-  // Sync photoUploaded state when user.photoUrl changes (e.g., after hydration)
-  useEffect(() => {
-    if (user?.photoUrl) {
-      setPhotoUploaded(true);
-    }
-  }, [user?.photoUrl]);
-
-  // Load persisted media from localStorage (voice only; photo comes from user.photoUrl)
-  const loadPersistedMedia = () => {
-    try {
-      const savedVoice = safeGet('greetme_voice_file');
-
-      if (savedVoice) {
-        setVoiceFileUrl(savedVoice);
-        setVoiceRecorded(true);
-      } else if (user?.voiceId || user?.voiceUrl) {
-        setVoiceRecorded(true);
-      }
-
-      // Photo status from backend via AuthContext (user.photoUrl)
-      if (user?.photoUrl) {
-        setPhotoUploaded(true);
-      }
-
-      // Sent greetings now loaded from API in fetchDashboardData()
-
-      // QR Cash gifts: the legacy browser-local list was removed. Its only writers were the retired
-      // QRCashGiftModal simulation and the localStorage redeem page (W44), so it can only hold
-      // simulated gifts. The history below is the server's sent-greetings list.
-    } catch (error) {
-      console.error('Error loading persisted media:', error);
-    }
-  };
-
-  // Convert file to base64 data URL for persistence
-  const fileToDataUrl = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
 
   const fetchDashboardData = async () => {
     try {
-      setLoading(true);
-
       try {
         const contactsRes = await api.getContacts();
         if (contactsRes?.ok !== false) {
@@ -193,284 +221,306 @@ export default function DashboardHome() {
         } else {
           // If API fails, try localStorage (same as Recipients page)
           const stored = safeGet('greetme_recipients');
-          if (stored) {
-            setContacts(JSON.parse(stored));
-          }
+          if (stored) setContacts(JSON.parse(stored));
         }
-      } catch (err) {
-        console.log('Contacts endpoint not available yet, checking localStorage');
+      } catch {
         const stored = safeGet('greetme_recipients');
-        if (stored) {
-          setContacts(JSON.parse(stored));
-        }
+        if (stored) { try { setContacts(JSON.parse(stored)); } catch { /* unreadable local copy */ } }
       } finally {
-        // Warm re-entry race mitigation: fetch settled (success or fall-through);
-        // gate may now read contacts.length authoritatively.
         setContactsLoaded(true);
       }
 
       try {
-        const upcomingRes = await api.getUpcomingOccasions();
-        if (upcomingRes?.ok !== false) {
-          setUpcomingOccasions(upcomingRes.data || []);
-        }
-      } catch (err) {
-        console.log('Upcoming endpoint not available yet');
-      }
+        const upcomingRes = await api.getUpcomingOccasions(UPCOMING_DAYS);
+        if (upcomingRes?.ok !== false) setUpcomingOccasions(upcomingRes.data || []);
+      } catch { /* card shows its empty state */ }
 
-      // Fetch sent greetings from API
+      // History comes from the server's sent-greetings list (createdAt / completedAt; the API sends no sentAt).
       try {
         const sentRes = await api.getSentGreetings();
-        if (sentRes?.greetings) {
-          // Map Cosmos fields to the shape the dashboard table expects
-          setSentGreetings(sentRes.greetings.map(g => ({
-            id: g.id,
-            recipient: g.recipientName || 'Unknown',
-            recipientEmail: g.recipientEmail,
-            relationship: g.occasionType || '',
-            icons: [getOccasionIcon(g.occasionType)],
-            occasions: [g.occasionType || 'General'],
-            date: g.sentAt ? new Date(g.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
-            sent: g.status === 'completed',
-            status: g.status,
-            videoUrl: g.videoUrl,
-          })));
-        }
-      } catch (err) {
-        console.log('Sent greetings endpoint not available yet');
-      }
-    } catch (error) {
-      console.error('Dashboard load error:', error);
+        if (Array.isArray(sentRes?.greetings)) setSentGreetings(sentRes.greetings);
+      } catch { /* card shows its empty state */ }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVoiceUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('audio/')) {
-      alert('Please select an audio file (MP3, WAV, WebM)');
-      return;
-    }
-
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      alert('Audio file must be less than 10MB');
-      return;
-    }
-
-    setUploadingVoice(true);
-    try {
-      // Convert file to base64 data URL for persistence
-      const dataUrl = await fileToDataUrl(file);
-
-      // Save to localStorage for persistence
-      safeSet('greetme_voice_file', dataUrl);
-
-      setVoiceFileUrl(dataUrl);
-      setVoiceRecorded(true);
-      pushInApp(COMMS_EVENTS.VOICE_UPLOADED);
-    } catch (error) {
-      console.error('Voice upload error:', error);
-      alert(getErrorMessage(error));
-    } finally {
-      setUploadingVoice(false);
-    }
-  };
-
-  const handlePlayVoice = () => {
-    if (audioRef.current && voiceFileUrl) {
-      if (isPlayingVoice) {
-        audioRef.current.pause();
-        setIsPlayingVoice(false);
-      } else {
-        audioRef.current.play();
-        setIsPlayingVoice(true);
-      }
-    }
-  };
-
-  // Cleanup voice URL on unmount
-  // Cleanup timers on unmount (do NOT revoke voiceFileUrl here)
-    useEffect(() => {
-      return () => {
-        if (recordingTimerRef.current) {
-          clearInterval(recordingTimerRef.current);
-          recordingTimerRef.current = null;
-    }
-  };
-}, []);
-
-
-  const startMicRecording = async () => {
-  try {
-    // Request mic
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    streamRef.current = stream;
-
-    // Choose a sane mimeType. Canonical fallback chain mirrors VoiceRecorder.jsx:
-    // Chrome/Edge → webm/opus or webm; Safari/iOS → mp4 (or mpeg as last resort).
-    let options = {};
-    if (window.MediaRecorder?.isTypeSupported?.("audio/webm;codecs=opus")) {
-      options = { mimeType: "audio/webm;codecs=opus" };
-    } else if (window.MediaRecorder?.isTypeSupported?.("audio/webm")) {
-      options = { mimeType: "audio/webm" };
-    } else if (window.MediaRecorder?.isTypeSupported?.("audio/mp4")) {
-      options = { mimeType: "audio/mp4" };
-    } else if (window.MediaRecorder?.isTypeSupported?.("audio/mpeg")) {
-      options = { mimeType: "audio/mpeg" };
-    }
-
-    mediaRecorderRef.current = new MediaRecorder(stream, options);
-    audioChunksRef.current = [];
-
-    mediaRecorderRef.current.ondataavailable = (event) => {
-      if (event.data && event.data.size > 0) {
-        audioChunksRef.current.push(event.data);
-      }
-    };
-
-    mediaRecorderRef.current.onstop = async () => {
+  useEffect(() => {
+    fetchDashboardData();
+    // The Smart Card slide offers its action only when the server reports published cards — the same read the
+    // Gift Place makes (fail-closed: any error or a dormant answer keeps "Coming later").
+    (async () => {
       try {
-        // Build audio blob from chunks. Prefer the recorder's actual mimeType
-        // (Safari populates it as audio/mp4 when we requested mp4). Fall back to
-        // the explicitly chosen options.mimeType, then to webm as a final guard.
-        const mime = mediaRecorderRef.current?.mimeType || options.mimeType || "audio/webm";
-        const blob = new Blob(audioChunksRef.current, { type: mime });
+        const res = await api.getSmartCardTiles();
+        setSmartCardAvailable(res?.ok === true && Array.isArray(res.tiles) && res.tiles.length > 0);
+      } catch { setSmartCardAvailable(false); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-        // Convert blob to data URL for persistence
-        const dataUrl = await fileToDataUrl(blob);
+  // ── Launcher state: local to this page, never saved. The send flow and the Occasion Scheduler own the real data.
+  const [mode, setMode] = useState(null);
+  const [occasions, setOccasions] = useState([]);
+  const [seasonOpen, setSeasonOpen] = useState(false);
+  const [audience, setAudience] = useState('one');
+  const [picks, setPicks] = useState([]);
+  const [excluded, setExcluded] = useState([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [find, setFind] = useState('');
+  const [words, setWords] = useState('');
+  const [memoryPhotos, setMemoryPhotos] = useState([]);
+  const [photoNote, setPhotoNote] = useState('');
+  const [gift, setGift] = useState(null);
+  const [whoDone, setWhoDone] = useState(false);
+  const [persDone, setPersDone] = useState(false);
+  const [ruleNote, setRuleNote] = useState('');
+  const [giftNote, setGiftNote] = useState('');
+  const [rows, setRows] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState(null);
+  const [authModal, setAuthModal] = useState(null);
+  const [authForm, setAuthForm] = useState(null);
+  // Group sending (2-10 people, one shared occasion).
+  const [groupReviewOpen, setGroupReviewOpen] = useState(false);
+  const [pendingRun, setPendingRun] = useState(() => { const r = loadRun(window.localStorage, user?.id); return r && !runSummary(r).done ? r : null; });
+  const [resumeRun, setResumeRun] = useState(null);
+  const [groupDefaultGift, setGroupDefaultGift] = useState(null); // scheduled groups: the gift for everyone
+  const [groupResults, setGroupResults] = useState({}); // scheduled groups: per-person save outcome
+  const memoryInputRef = useRef(null);
 
-        // Save to localStorage
-        safeSet('greetme_voice_file', dataUrl);
-
-        setVoiceFileUrl(dataUrl);
-        setVoiceRecorded(true);
-        pushInApp(COMMS_EVENTS.VOICE_UPLOADED);
-      } catch (error) {
-        console.error('Error saving recording:', error);
-      } finally {
-        // Stop mic hardware
-        streamRef.current?.getTracks?.().forEach((t) => t.stop());
-        streamRef.current = null;
-
-        // Reset chunks
-        audioChunksRef.current = [];
-
-        // Reset UI state
-        setIsRecording(false);
-        setRecordingTime(0);
-
-        if (recordingTimerRef.current) {
-          clearInterval(recordingTimerRef.current);
-          recordingTimerRef.current = null;
-        }
-      }
-    };
-
-    // Start recording + start timer
-    mediaRecorderRef.current.start();
-    setIsRecording(true);
-    setRecordingTime(0);
-
-    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-    recordingTimerRef.current = setInterval(() => {
-      setRecordingTime((t) => t + 1);
-    }, 1000);
-  } catch (err) {
-    console.error("Mic recording failed:", err);
-
-    // Ensure we clean up if permission denied / error
-    streamRef.current?.getTracks?.().forEach((t) => t.stop());
-    streamRef.current = null;
-
-    setIsRecording(false);
-    if (recordingTimerRef.current) {
-      clearInterval(recordingTimerRef.current);
-      recordingTimerRef.current = null;
+  // Saved voice playback (same sources the Media Library uses: the local copy, else the profile's voiceUrl).
+  const voiceSrc = safeGet('greetme_voice_file') || user?.voiceUrl || null;
+  const audioRef = useRef(null);
+  const [playingVoice, setPlayingVoice] = useState(false);
+  const togglePlay = () => {
+    if (!voiceSrc) return;
+    if (!audioRef.current) {
+      audioRef.current = new Audio(voiceSrc);
+      audioRef.current.onended = () => setPlayingVoice(false);
     }
-  }
-};
-
-  const stopMicRecording = () => {
-  try {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-    } else {
-      // Fallback cleanup if recorder isn't running but stream exists
-      streamRef.current?.getTracks?.().forEach((t) => t.stop());
-      streamRef.current = null;
-
-      setIsRecording(false);
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
-      }
-    }
-  } catch (err) {
-    console.error("stopMicRecording error:", err);
-  }
-};
-
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    if (playingVoice) { audioRef.current.pause(); setPlayingVoice(false); }
+    else { audioRef.current.play().then(() => setPlayingVoice(true)).catch(() => setPlayingVoice(false)); }
   };
+  useEffect(() => () => { if (audioRef.current) audioRef.current.pause(); }, []);
 
-  const handlePhotoUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const voiceDone = Boolean(user?.voiceId || user?.voiceUrl);
+  const photoDone = Boolean(user?.photoUrl);
+  const firstName = first(user?.name);
+  const goAddRecipient = () => navigate('/dashboard/contacts', { state: { openAddRecipient: true } });
+  const goEdit = (id) => navigate('/dashboard/contacts', { state: { openEditRecipientId: id } });
+  const goScheduler = (contactId, occasionType) => navigate(`/dashboard/contacts?contactId=${encodeURIComponent(contactId)}&occasion=${encodeURIComponent(occasionType)}`);
+  const quickGift = () => navigate('/dashboard/gifts');
+  const filtered = useMemo(() => contacts.filter((c) => (c.name || '').toLowerCase().includes(term.toLowerCase()) || (c.relationship || '').toLowerCase().includes(term.toLowerCase())), [contacts, term]);
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file (JPG, PNG)');
-      return;
+  // Selection only changes styling and completion marks: nothing collapses, scrolls, navigates or resizes.
+  // Settled rules: one person may get several occasions; several people share ONE occasion; several occasions for
+  // one person are scheduled through their Occasion Scheduler, so they must all be scheduler occasions. A pick that
+  // would break a rule is refused with a visible reason; nothing already chosen is dropped.
+  const groupMembers = audience === 'one' ? [] : contacts.filter((c) => audience === 'all' || c.relationshipCategory === audience);
+  const chosen = audience === 'one' ? contacts.filter((c) => picks.includes(c.id)) : groupMembers.filter((c) => !excluded.includes(c.id));
+  const toggleOcc = (o) => {
+    if (!occasions.includes(o) && occasions.length >= 1) {
+      if (chosen.length > 1) { setRuleNote('occ'); return; }
+      if (!isSchedulerOccasion(o) || occasions.some((x) => !isSchedulerOccasion(x))) { setRuleNote(`sched:${isSchedulerOccasion(o) ? occasions.find((x) => !isSchedulerOccasion(x)) : o}`); return; }
     }
+    setRuleNote(''); setSaveMsg(null); setOccasions((cur) => (cur.includes(o) ? cur.filter((x) => x !== o) : [...cur, o]));
+  };
+  const togglePick = (id) => {
+    if (!picks.includes(id) && occasions.length > 1 && chosen.length >= 1) { setRuleNote('who'); return; }
+    if (!picks.includes(id) && picks.length >= GROUP_MAX) { setRuleNote('cap'); return; }
+    setRuleNote(''); setSaveMsg(null); setPicks((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  };
+  const pickFromHero = (c) => {
+    if (audience !== 'one') { if (occasions.length > 1) { setRuleNote('who'); return; } }
+    else if (!picks.includes(c.id) && occasions.length > 1 && picks.length >= 1) { setRuleNote('who'); return; }
+    else if (!picks.includes(c.id) && picks.length >= GROUP_MAX) { setRuleNote('cap'); return; }
+    setRuleNote(''); setSaveMsg(null); setAudience('one'); setPicks((cur) => (cur.includes(c.id) ? cur : [...cur, c.id]));
+  };
+  const chooseAudience = (k) => {
+    if (k !== 'one' && occasions.length > 1) { setRuleNote('group'); return; }
+    setRuleNote(''); setSaveMsg(null); setAudience(k); setExcluded([]); setPickerOpen(false);
+  };
+  const aud = AUDIENCES.find((x) => x.key === audience);
+  const seasonSel = occasions.filter((o) => SEASON.includes(o));
+  const occLocked = chosen.length > 1 && occasions.length >= 1;   // several people: no further occasions
+  const whoLocked = occasions.length > 1;                          // several occasions: one person only
+  const notSchedulable = mode === 'occasion' && occasions.find((o) => !isSchedulerOccasion(o));
+  const overCap = chosen.length > GROUP_MAX;
+  const ruleText = ruleNote === 'cap' ? `A group is up to ${GROUP_MAX} people.`
+    : overCap ? `A group is up to ${GROUP_MAX} people. Leave out ${chosen.length - GROUP_MAX} more to continue.`
+    : ruleNote === 'occ' ? 'You’re sending to several people, so they share one occasion. Remove people to add more occasions.'
+    : ruleNote === 'who' || ruleNote === 'group' ? 'Several occasions go to one person. To send to several people, keep just one occasion.'
+      : ruleNote.startsWith('sched:') ? `${ruleNote.slice(6)} is sent on its own with Send Now. Several occasions for one person are scheduled in their Occasion Scheduler: Birthday and Anniversary.`
+        : notSchedulable ? `${notSchedulable} can’t be scheduled in the Occasion Scheduler. Choose Send Now, or Birthday or Anniversary.`
+          : occLocked ? 'Several people share one occasion.'
+            : whoLocked ? 'Several occasions go to one person.'
+              : 'One person: choose one or more occasions. Several people: one shared occasion.';
+  const step1Done = Boolean(mode) && occasions.length > 0;
+  const step2Done = chosen.length > 0 && whoDone;
 
-    // Validate file size (max 10MB, matches backend multer limit)
-    if (file.size > 10 * 1024 * 1024) {
-      alert('Image file must be less than 10MB');
-      return;
-    }
+  // ── Inline date-and-gift resolver (one recipient): several occasions, or Schedule the Love for one scheduler occasion.
+  const resolverOn = chosen.length === 1 && occasions.length >= 1 && occasions.every(isSchedulerOccasion)
+    && (occasions.length > 1 || mode === 'occasion');
+  const resolvePerson = resolverOn ? chosen[0] : null;
+  useEffect(() => {
+    if (!resolvePerson) return;
+    setRows((cur) => {
+      const next = { ...cur };
+      occasions.forEach((o) => { const k = `${resolvePerson.id}:${o}`; if (!next[k]) next[k] = prefillRow(resolvePerson, o); });
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvePerson && resolvePerson.id, occasions.join('|')]);
+  const rowOf = (o) => (resolvePerson && rows[`${resolvePerson.id}:${o}`]) || null;
+  const setRow = (o, patch) => { setSaveMsg(null); setRows((cur) => ({ ...cur, [`${resolvePerson.id}:${o}`]: { ...cur[`${resolvePerson.id}:${o}`], ...patch } })); };
+  const resolverComplete = !resolverOn || occasions.every((o) => rowComplete(rowOf(o)));
 
-    setUploadingPhoto(true);
+  // S3: Schedule the Love for a group - one shared scheduler occasion, one row per person. Each person's own saved
+  // gift is kept (an individual setting); otherwise the gift for everyone; any row can be changed.
+  const groupSchedOn = chosen.length >= 2 && !overCap && mode === 'occasion' && occasions.length === 1 && isSchedulerOccasion(occasions[0]);
+  useEffect(() => {
+    if (!groupSchedOn) return;
+    setRows((cur) => {
+      const next = { ...cur };
+      chosen.forEach((p) => { const k = `${p.id}:${occasions[0]}`; if (!next[k]) next[k] = prefillRow(p, occasions[0]); });
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupSchedOn, chosen.map((p) => p.id).join('|'), occasions.join('|')]);
+  const groupRowOf = (p) => {
+    const r = rows[`${p.id}:${occasions[0]}`] || { type: undefined, date: '', gift: null };
+    return { ...r, gift: r.chosen || r.gift || groupDefaultGift || null };
+  };
+  const setGroupRow = (p, patch) => { setSaveMsg(null); setGroupResults({}); setRows((cur) => ({ ...cur, [`${p.id}:${occasions[0]}`]: { ...cur[`${p.id}:${occasions[0]}`], ...patch } })); };
+  const groupSchedComplete = !groupSchedOn || chosen.every((p) => rowComplete(groupRowOf(p)));
+
+  const saveGroupSchedulesNow = async () => {
+    if (!groupSchedOn || !groupSchedComplete || saving) return;
+    setSaving(true); setSaveMsg(null); setGroupResults({});
     try {
-      // Upload to backend /api/profile/photo
-      const form = new FormData();
-      form.append('photo', file);
-
-      const token = getToken();
-      const API_URL = import.meta.env.VITE_API_BASE;
-      if (!API_URL) throw new Error("VITE_API_BASE is required");
-
-      const res = await fetch(`${API_URL}/api/profile/photo`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
+      const people = chosen.slice();
+      let card; // fetched once, only if a QR Cash Auto-Gift is involved
+      const plan = SCHEDULED_QRCASH_AVAILABLE ? async (person, toSave) => {
+        const settings = normalizeGiftSettingsForSave(toSave.occasionGiftSettings);
+        if (card === undefined && Object.values(settings || {}).some((g) => g && g.type === 'qrcash' && g.autoGift === true)) {
+          try { const r = await api.getQrCashCardStatus(); card = (r && r.card) || null; } catch { card = null; }
+        }
+        return planAuthorization({ settings, initialSettings: person.occasionGiftSettings, occasions: toSave.occasions, card: card || null, formData: toSave, labelFor: labelForType, requiresDelivery: requiresDeliveryAddress }).need;
+      } : null;
+      const results = await saveGroupSchedules({
+        people, rowFor: (p) => groupRowOf(p), api, sanitize: sanitizeRelationshipForSave, plan,
+        onProgress: (rs) => setGroupResults(Object.fromEntries(rs.map((x) => [x.id, x]))),
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || 'Upload failed');
-      }
-
-      // Force re-hydrate profile from backend to ensure photoUrl is current
-      await refreshProfile();
-
-      setPhotoUploaded(true);
-      pushInApp(COMMS_EVENTS.PHOTO_UPLOADED);
-    } catch (error) {
-      console.error('Photo upload error:', error);
-      alert(getErrorMessage(error));
+      const saved = results.filter((x) => x.status === 'saved').length;
+      const needs = results.filter((x) => x.status === 'needs_scheduler').length;
+      const failed = results.filter((x) => x.status === 'failed').length;
+      setSaveMsg({ ok: failed === 0 && needs === 0, text: `Saved ${saved} of ${results.length} scheduled Greet-Mes for ${occasions[0]}.${needs ? ` ${needs} need${needs === 1 ? 's' : ''} their Occasion Scheduler (card, consent or address): open it from the row.` : ''}${failed ? ` ${failed} couldn\u2019t be saved; see the row.` : ''}` });
+      if (saved) { showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE); fetchDashboardData(); }
     } finally {
-      setUploadingPhoto(false);
+      setSaving(false);
     }
   };
+
+  const commitSchedules = async (person, toSave, consents = []) => {
+    const res = await api.updateContact(person.id, finalizeResolverSave(toSave, consents));
+    if (res && res.ok === false) {
+      throw new Error(res.networkError ? 'We couldn’t save — check your connection and try again.' : (res.error || res.message || 'We couldn’t save those schedules. Please try again.'));
+    }
+    const n = occasions.length;
+    setSaveMsg({ ok: true, text: `Saved: ${n} scheduled Greet-Me${n === 1 ? '' : 's'} for ${first(person.name)}, each on its own date. You’ll find ${n === 1 ? 'it' : 'them'} in their Occasion Scheduler and under Upcoming Occasions.` });
+    showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
+    fetchDashboardData();
+  };
+
+  const saveSchedules = async () => {
+    if (!resolvePerson || !resolverComplete || saving) return;
+    setSaving(true); setSaveMsg(null);
+    try {
+      const person = resolvePerson;
+      const toSave = sanitizeRelationshipForSave(buildResolverContact(person, occasions.map((o) => rowOf(o))));
+      const settings = normalizeGiftSettingsForSave(toSave.occasionGiftSettings);
+      if (SCHEDULED_QRCASH_AVAILABLE) {
+        // The scheduler's own SAVE-time authorisation: consent for a new or changed QR Cash Auto-Gift, a card when
+        // none usable is on file, the mailing address of a shipped gift. Nothing is requested when none applies.
+        let card = null;
+        if (Object.values(settings || {}).some((g) => g && g.type === 'qrcash' && g.autoGift === true)) {
+          try { const res = await api.getQrCashCardStatus(); card = (res && res.card) || null; }
+          catch { setSaveMsg({ ok: false, text: 'We couldn’t check the card on file just now. Please try again.' }); return; }
+        }
+        const plan = planAuthorization({
+          settings, initialSettings: person.occasionGiftSettings, occasions: toSave.occasions, card, formData: toSave,
+          labelFor: labelForType, requiresDelivery: requiresDeliveryAddress,
+        });
+        if (plan.need.consent || plan.need.address) { setAuthForm(toSave); setAuthModal({ plan, card, person }); return; }
+      }
+      await commitSchedules(person, toSave);
+    } catch (error) {
+      setSaveMsg({ ok: false, text: getErrorMessage(error) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!pickerOpen && !seasonOpen) return undefined;
+    const close = (e) => { if (!e.target.closest('.picker, .addsome, .menu, .relpop')) { setPickerOpen(false); setSeasonOpen(false); } };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [pickerOpen, seasonOpen]);
+
+  const addMemoryPhotos = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    const room = HANDOFF_MAX_PHOTOS - memoryPhotos.length;
+    const usable = files.filter((f) => /^image\//.test(f.type) && f.size <= MAX_PHOTO_BYTES).slice(0, Math.max(0, room));
+    const skipped = files.length - usable.length;
+    const urls = [];
+    for (const f of usable) { try { urls.push(await readAsDataUrl(f)); } catch { /* unreadable file skipped */ } }
+    setMemoryPhotos((cur) => [...cur, ...urls].slice(0, HANDOFF_MAX_PHOTOS));
+    setPhotoNote(skipped > 0 ? `Up to ${HANDOFF_MAX_PHOTOS} images, 10MB each — ${skipped} not added.` : '');
+  };
+
+  const isGroup = chosen.length > 1;
+  const sendNowSingle = mode === 'now' && chosen.length === 1 && occasions.length === 1;
+  const sendNowGroup = mode === 'now' && isGroup && !overCap && occasions.length === 1;
+  const canContinue = step1Done && step2Done && !overCap && !notSchedulable && !saving && (
+    resolverOn ? resolverComplete
+      : groupSchedOn ? groupSchedComplete
+        : sendNowGroup ? true
+          : sendNowSingle);
+
+  const handoff = () => {
+    if (!canContinue) return;
+    if (resolverOn) { saveSchedules(); return; }
+    if (groupSchedOn) { saveGroupSchedulesNow(); return; }
+    if (sendNowGroup) { setResumeRun(null); setGroupReviewOpen(true); return; }
+    const person = chosen[0];
+    const occasion = occasions[0];
+    const carried = writeDashboardHandoff(window.sessionStorage, { contactId: person.id, occasion, words, memoryPhotos });
+    if (carried === 'words') showManualToast('Photos not carried over', 'Your memory photos were too large to carry to the next step on this device. You can add them there.', COMMS_CATEGORIES.SYSTEM);
+    else if (carried === 'none' && (words.trim() || memoryPhotos.length)) showManualToast('Not carried over', 'Your words and photos couldn’t be carried to the next step on this device. You can add them there.', COMMS_CATEGORIES.SYSTEM);
+    const p = new URLSearchParams({ contactId: person.id, occasion, from: 'dashboard' });
+    if (gift === 'qrcash') p.set('giftType', 'qrcash');
+    else if (gift === 'gift') p.set('gift', 'choose');
+    navigate(`/dashboard/send?${p.toString()}`);
+  };
+
+  const occLabel = occasions.length === 0 ? 'no occasion yet' : occasions.length <= 2 ? occasions.join(' + ') : `${occasions.length} occasions`;
+  const whoLabel = chosen.length === 0 ? 'no one yet' : chosen.length === 1 ? first(chosen[0].name) : `${chosen.length} people`;
+  const summary = !mode ? 'Choose Send Now or Schedule the Love'
+    : [mode === 'now' ? 'Send Now' : 'Schedule the Love', occLabel, whoLabel, gift && !resolverOn ? `${gift === 'qrcash' ? 'QR Cash' : 'gift'}${chosen.length > 1 ? ' for everyone · change per person at review' : ''}` : null].filter(Boolean).join(' · ');
+  const fineText = saveMsg ? saveMsg.text
+    : giftNote && resolverOn ? giftNote
+    : overCap ? `A group is up to ${GROUP_MAX} people.`
+      : groupSchedOn ? (groupSchedComplete ? `Each person\u2019s ${occasions[0]} is saved as their own scheduled Greet-Me in their Occasion Scheduler.` : 'Set a date and a gift choice for everyone to continue.')
+        : sendNowGroup ? 'Next: review each person\u2019s gift and cost. Nothing is charged or sent until you confirm.'
+      : resolverOn ? (resolverComplete ? 'Each occasion is saved as its own scheduled Greet-Me in their Occasion Scheduler.' : 'Set a date and a gift choice for every occasion to continue.')
+        : mode === 'occasion' ? 'Nothing is scheduled until you save it.'
+          : 'Next: the send flow, where you review it. Nothing is sent, and no gift is charged, until you confirm there.';
+
+  const StepHead = ({ n, label, isDone }) => (
+    <div className="step-label"><span className={`num ${isDone ? 'done' : ''}`}>{isDone ? <Check size={13} /> : n}</span>{label}</div>
+  );
 
   if (loading) {
     return (
@@ -483,12 +533,6 @@ export default function DashboardHome() {
     );
   }
 
-  // Filter contacts based on search term
-  const filteredContacts = contacts.filter(contact =>
-    contact.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.relationship?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   // Subscription lifecycle banner — calm neutral style, text-only differentiation
   const SUB_BANNER_TEXT = {
     past_due: 'Your payment method needs updating. Please update your billing details in Settings to avoid service interruption.',
@@ -496,1889 +540,506 @@ export default function DashboardHome() {
     refunded: 'Your recent payment was refunded. If you have questions, please contact support.',
   };
   const bannerText = SUB_BANNER_TEXT[user?.subscriptionStatus];
+  const pastItems = sentGreetings.map(g => ({ ...g, type: 'greeting' }));
 
   return (
-    <div style={{ maxWidth: '100%', overflow: 'hidden', overflowX: 'hidden' }}>
-      {/* Subscription lifecycle banner */}
+    <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
       {bannerText && (
-        <div style={{
-          background: '#f8fafc',
-          border: '1px solid #e2e8f0',
-          borderRadius: '8px',
-          padding: '0.875rem 1.25rem',
-          marginBottom: '1rem',
-          color: '#475569',
-          fontSize: '0.9rem',
-          lineHeight: 1.5,
-        }}>
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.875rem 1.25rem', marginBottom: '1rem', color: '#475569', fontSize: '0.9rem', lineHeight: 1.5 }}>
           {bannerText}
         </div>
       )}
-      {/* Background Frame for Page Body */}
-      <div style={{
-        background: '#f8fafc',
-        borderRadius: 'var(--radius-xl)',
-        border: '1px solid #e2e8f0',
-        padding: isNarrow ? '1rem' : '1.5rem',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
-      }}>
-      {/* Combined Navigation Header */}
-      <div style={{
-        display: 'flex',
-        gap: isNarrow ? '0.5rem' : '1rem',
-        marginBottom: isNarrow ? '1rem' : '2rem',
-        justifyContent: isPortrait ? 'center' : 'space-between',
-        alignItems: 'center',
-        flexWrap: isNarrow ? 'wrap' : 'nowrap'
-      }}>
-        {/* Hero Program Button - Left Side - Hidden on Mobile */}
-        {!isPortrait && (
-          <button
-            onClick={() => navigate('/dashboard/hero')}
-            style={{
-              padding: '0.625rem 1.25rem',
-              borderRadius: 'var(--radius-lg)',
-              border: 'none',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              fontSize: '0.9375rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              transition: 'all 0.2s',
-              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
-              fontFamily: 'inherit'
-            }}
-            {...getHoverHandlers({
-              onEnter: (e) => {
-                e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
-              },
-              onLeave: (e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
-              },
-            })}
-            title="Access the Greet-Me Hero™ Program"
-          >
-            🥇 Greet-Me Hero™
-          </button>
+      <div className="gx" data-testid="gx-root">
+        <style>{DASHBOARD_HOME_CSS}</style>
+
+        {/* 1. Welcome panel */}
+        <section className="hero" data-testid="gx-hero">
+          <div className="glow1" /><div className="glow2" />
+          <div className="hero-top">
+            <div className="scriptrow">
+              <p className="script">Forget Them Not!™</p>
+              <button type="button" className="heroicon" data-testid="gx-hero-icon" aria-label="Greet-Me Hero" onClick={() => navigate('/dashboard/hero')}><Award size={17} /><span className="tip" aria-hidden="true">Greet-Me Hero</span></button>
+            </div>
+            <div className="acts" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button type="button" className="btn btn-sm btn-ghost-w" data-testid="gx-add-recipient" onClick={goAddRecipient}><UserPlus size={16} /> Add Recipient</button>
+              <button type="button" className="btn btn-sm btn-ghost-w" onClick={() => navigate('/dashboard/import-wizard')}><Upload size={16} /> Import Wizard</button>
+            </div>
+          </div>
+          <div style={{ position: 'relative' }}>
+            <h1>{firstName ? `${firstName}, who would you like to celebrate today?` : 'Who would you like to celebrate today?'}<button type="button" className="quick" data-testid="gx-quick-hero" onClick={quickGift}><Gift size={15} /> Quick Gift <ChevronRight size={14} /></button></h1>
+            <p className="lede">Send a personalized Greet-Me now, or set one to arrive on their occasion. Tap a face to begin.</p>
+            {contacts.length > 0 ? (
+              <>
+                <p className="people-label">Your people</p>
+                <div className="people">
+                  {contacts.slice(0, 6).map((c) => (
+                    <button key={c.id} type="button" className="pick" aria-pressed={audience === 'one' && picks.includes(c.id)} onClick={() => pickFromHero(c)}>
+                      <span className="av">{initials(c.name)}</span>
+                      <span><b>{c.name}</b><small>{c.relationship || 'Someone you love'}</small></span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </div>
+        </section>
+
+        {/* Onboarding Coach (dashboard nudge for incomplete setup) — mount only when account state allows. */}
+        {shouldShowOnboarding(accountState) && (
+          <OnboardingCoach voiceDone={voiceDone} photoDone={photoDone} recipientDone={contacts.length > 0} />
         )}
+        {/* Warm "already personalized" re-entry — mutually exclusive with OnboardingCoach by gate construction. */}
+        {shouldShowWarmReentry(accountState, contactsLoaded ? contacts.length : null) && (
+          <WarmReentryWelcome isNarrow={isNarrow} />
+        )}
+        {/* Business-only: annual G1G1 gift-credit panel (renders nothing for personal tiers) */}
+        <BusinessGiftCreditsPanel isNarrow={isNarrow} />
 
-        {/* Action Buttons - Visible on all screens */}
-        <div style={{
-          display: 'flex',
-          flexDirection: isPortrait ? 'column-reverse' : 'row',
-          gap: isNarrow ? '0.5rem' : '1rem',
-          width: isPortrait ? '100%' : 'auto',
-          justifyContent: isPortrait ? 'center' : 'flex-end'
-        }}>
-        <button
-          onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
-          style={{
-            padding: isNarrow ? '0.625rem 1rem' : '0.75rem 1.5rem',
-            background: isPortrait ? 'transparent' : '#667eea',
-            color: isPortrait ? '#667eea' : 'white',
-            border: isPortrait ? '1.5px solid #667eea' : 'none',
-            borderRadius: 'var(--radius-lg)',
-            fontSize: isNarrow ? '0.8125rem' : '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            transition: 'all 0.2s',
-            boxShadow: isPortrait ? 'none' : '0 2px 4px rgba(102, 126, 234, 0.2)',
-            fontFamily: 'inherit',
-            flex: isPortrait ? 1 : 'none',
-            whiteSpace: 'nowrap'
-          }}
-          {...(isPortrait ? {} : getHoverHandlers({
-            onEnter: (e) => {
-              e.currentTarget.style.background = '#5568d3';
-              e.currentTarget.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.3)';
-            },
-            onLeave: (e) => {
-              e.currentTarget.style.background = '#667eea';
-              e.currentTarget.style.boxShadow = '0 2px 4px rgba(102, 126, 234, 0.2)';
-            },
-          }))}
-        >
-          <Plus size={isNarrow ? 16 : 18} style={{ flexShrink: 0 }} />
-          Add Recipient
-        </button>
-        <button
-          onClick={() => navigate('/dashboard/send')}
-          style={{
-            padding: isNarrow ? '0.625rem 1rem' : '0.75rem 1.5rem',
-            background: '#22c55e',
-            color: 'white',
-            border: 'none',
-            borderRadius: 'var(--radius-lg)',
-            fontSize: isNarrow ? '0.8125rem' : '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            whiteSpace: 'nowrap',
-            transition: 'all 0.2s',
-            boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)',
-            fontFamily: 'inherit',
-            flex: isPortrait ? 1 : 'none'
-          }}
-          {...getHoverHandlers({
-            onEnter: (e) => {
-              e.currentTarget.style.background = '#16a34a';
-              e.currentTarget.style.boxShadow = '0 4px 8px rgba(34, 197, 94, 0.3)';
-            },
-            onLeave: (e) => {
-              e.currentTarget.style.background = '#22c55e';
-              e.currentTarget.style.boxShadow = '0 2px 4px rgba(34, 197, 94, 0.2)';
-            },
-          })}
-        >
-          <Send size={isNarrow ? 14 : 16} style={{ flexShrink: 0 }} />
-          Send Greet-Me
-        </button>
-        </div>
-      </div>
-
-      {/* Onboarding Coach (dashboard nudge for incomplete setup) */}
-      {/* Phase 3D Batch D Slice 5 — mount only when account state allows.
-          Subscription/payment state wins over localStorage flags. */}
-      {shouldShowOnboarding(accountState) && (
-        <OnboardingCoach
-          voiceDone={voiceRecorded || !!user?.voiceId || !!user?.voiceUrl}
-          photoDone={photoUploaded || !!user?.photoUrl}
-          recipientDone={contacts.length > 0}
-        />
-      )}
-
-      {/* Warm "already personalized" dashboard re-entry — Tier 2 follow-on to
-          the convergence repair. Mutually exclusive with OnboardingCoach by
-          gate construction. contactsLoaded sentinel prevents flash before the
-          contacts fetch resolves. */}
-      {shouldShowWarmReentry(accountState, contactsLoaded ? contacts.length : null) && (
-        <WarmReentryWelcome isNarrow={isNarrow} />
-      )}
-
-      {/* Business-only: annual G1G1 gift-credit panel (renders nothing for personal tiers) */}
-      <BusinessGiftCreditsPanel isNarrow={isNarrow} />
-
-      {/* Dashboard Cards - All same height */}
-      {/* Green G1G1 Card - Full Width */}
-      <div style={{
-        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-        borderRadius: 'var(--radius-lg)',
-        padding: isNarrow ? '1rem' : '1.25rem',
-        marginBottom: isNarrow ? '1rem' : '1.5rem',
-        color: 'white',
-        boxShadow: '0 2px 8px rgba(16, 185, 129, 0.2)',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: isNarrow ? 'auto' : '120px',
-        textAlign: 'center'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div>
-            <h3 style={{
-              fontSize: isNarrow ? '1.125rem' : '1.375rem',
-              fontWeight: 700,
-              marginBottom: '0.25rem'
-            }}>
-              Greet One, Give One™
-            </h3>
-            <p style={{
-              fontSize: isNarrow ? '0.8125rem' : '0.9375rem',
-              fontWeight: 600,
-              opacity: 0.95
-            }}>
-              Every subscription includes one for you — and one for a loved one.
-            </p>
+        {/* 2. Greeting flow — a persistent screen */}
+        <section className="card flow" id="gx-flow" data-testid="gx-flow" style={{ scrollMarginTop: 90 }}>
+          <div className="flow-head">
+            <div><span className="eyebrow">Send a Greet-Me</span><h2>Greet-Me, right now, or right on time?</h2></div>
+            <p>You review everything, and pay for any gift, before anything is sent.</p>
           </div>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', justifyContent: 'center' }}>
-          <button
-            onClick={() => setShowG1G1Modal(true)}
-            style={{
-              padding: '0.5rem 0.75rem',
-              background: 'white',
-              color: '#059669',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              fontSize: isNarrow ? '0.75rem' : '0.8125rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              fontFamily: 'inherit'
-            }}
-          >
-            Learn More
-          </button>
-        </div>
-      </div>
 
-      {/* QR Cash + Rewards - Two Equal Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: isPortrait ? '1fr' : '1fr 1fr',
-        gap: '1rem',
-        marginBottom: isNarrow ? '1rem' : '1.5rem'
-      }}>
-        {/* QR Cash Card - PHASE 8.1: Primary visual weight */}
-        <div style={{
-          background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-          borderRadius: 'var(--radius-lg)',
-          padding: isNarrow ? '1.125rem' : '1.375rem',
-          color: 'white',
-          boxShadow: '0 4px 12px rgba(251, 191, 36, 0.25)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          minHeight: isNarrow ? 'auto' : '120px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                <h3 style={{
-                  fontSize: isNarrow ? '0.9375rem' : '1.0625rem',
-                  fontWeight: 700,
-                  marginBottom: '0.125rem'
-                }}>
-                  QR Cash™
-                </h3>
-                <span
-                  title="QR Cash can be sent as a gift or used toward purchases."
-                  style={{
-                    cursor: 'help',
-                    opacity: 0.85,
-                    fontSize: '0.75rem',
-                    marginBottom: '0.125rem'
-                  }}
-                >ⓘ</span>
-              </div>
-              <p style={{
-                fontSize: isNarrow ? '0.6875rem' : '0.75rem',
-                opacity: 0.9,
-                letterSpacing: '0.025em'
-              }}>
-                Send • Claim • Spend
-              </p>
+          {pendingRun ? (
+            <div className="warn" data-testid="gx-group-resume" style={{ marginTop: 14 }}>
+              <AlertCircle size={16} style={{ flex: 'none', marginTop: 2 }} />
+              <span style={{ flex: 1 }}>An unfinished group send for {pendingRun.occasion}: {runSummary(pendingRun).sent} of {runSummary(pendingRun).total} sent. Nobody is sent twice if you continue.</span>
+              <button type="button" className="btn btn-sm btn-primary" style={{ height: 34 }} data-testid="gx-group-resume-btn" onClick={() => { setResumeRun(pendingRun); setGroupReviewOpen(true); }}>Resume</button>
+              <button type="button" className="link" onClick={() => { clearRun(window.localStorage); setPendingRun(null); }}>Dismiss</button>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{
-                fontSize: isNarrow ? '1.25rem' : '1.5rem',
-                fontWeight: 700,
-                marginBottom: '0.125rem'
-              }}>
-                $0.00
-              </p>
-              <p style={{
-                fontSize: isNarrow ? '0.625rem' : '0.6875rem',
-                opacity: 0.8
-              }}>
-                Available balance
-              </p>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-            <button
-              onClick={() => navigate('/dashboard/send?giftType=qrcash')}
-              style={{
-                flex: 1,
-                padding: '0.5rem 0.75rem',
-                background: 'white',
-                color: '#f59e0b',
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                fontSize: isNarrow ? '0.75rem' : '0.8125rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
-            >
-              Send
+          ) : null}
+          <div className="modes top" data-testid="gx-modes">
+            <button type="button" className="mode" aria-pressed={mode === 'now'} onClick={() => { setSaveMsg(null); setMode('now'); }}>
+              <span className="ico"><Zap size={20} /></span>
+              <span><span className="k">One-timer</span><span className="t">Send Now</span><span className="b">Create it now. You review it before it goes.</span></span>
             </button>
-            <button
-              onClick={() => setShowHowItWorksModal(true)}
-              style={{
-                flex: 1,
-                padding: '0.5rem 0.75rem',
-                background: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                fontSize: isNarrow ? '0.75rem' : '0.8125rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
-            >
-              Learn
+            <button type="button" className="mode" aria-pressed={mode === 'occasion'} onClick={() => { setSaveMsg(null); setMode('occasion'); }}>
+              <span className="ico"><CalendarDays size={20} /></span>
+              <span><span className="k">On their day</span><span className="t">Schedule the Love</span><span className="b">Set a date in their Occasion Scheduler; yearly occasions repeat.</span></span>
             </button>
           </div>
-        </div>
 
-        {/* Dashboard Hearts Gateway (H7) - PHASE 8.1: Secondary visual weight */}
-        <div style={{
-          background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
-          borderRadius: 'var(--radius-lg)',
-          padding: isNarrow ? '1rem' : '1.25rem',
-          color: 'white',
-          boxShadow: '0 2px 8px rgba(236, 72, 153, 0.15)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          minHeight: isNarrow ? 'auto' : '120px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                <Heart size={isNarrow ? 14 : 16} style={{ fill: 'white', color: 'white', opacity: 0.85 }} />
-                <h3 style={{
-                  fontSize: isNarrow ? '0.875rem' : '1rem',
-                  fontWeight: 600,
-                  marginBottom: 0
-                }}>
-                  Hearts Hub
-                </h3>
-              </div>
-              <p style={{
-                fontSize: isNarrow ? '0.6875rem' : '0.75rem',
-                opacity: 0.85,
-                marginTop: '0.125rem'
-              }}>
-                Everything Hearts, in one place.
-              </p>
+          <div className="step" data-testid="gx-step-1" style={{ marginTop: 6 }}>
+            <StepHead n={1} label="Choose your moment: what are we celebrating?" isDone={step1Done} />
+            <div className="chips" data-testid="gx-occasion">
+              {OCCASIONS.map((o) => <button key={o} type="button" className={`chip-btn occ ${occLocked && !occasions.includes(o) ? 'locked' : ''}`} aria-pressed={occasions.includes(o)} aria-disabled={occLocked && !occasions.includes(o)} onClick={() => toggleOcc(o)}>{o}</button>)}
+              <span className="relpop">
+                <button type="button" className="chip-btn occ" data-testid="gx-season" aria-pressed={seasonSel.length > 0} aria-haspopup="menu" aria-expanded={seasonOpen} onClick={() => setSeasonOpen((v) => !v)}>
+                  Season&rsquo;s Greetings<ChevronDown size={15} />
+                </button>
+                {seasonOpen ? (
+                  <span className="menu" role="menu">
+                    {SEASON.map((o) => (
+                      <button key={o} type="button" role="menuitemcheckbox" aria-checked={occasions.includes(o)} aria-disabled={occLocked && !occasions.includes(o)} className={occLocked && !occasions.includes(o) ? 'locked' : ''} onClick={() => toggleOcc(o)}>
+                        <span className={`box ${occasions.includes(o) ? 'on' : ''}`}><Check size={12} /></span>{o}
+                      </button>
+                    ))}
+                  </span>
+                ) : null}
+              </span>
             </div>
-            <p style={{
-              fontSize: isNarrow ? '1.25rem' : '1.5rem',
-              fontWeight: 700
-            }}>
-              {rewardsBalance} ❤️
-            </p>
+            <p className={`rule ${ruleNote || notSchedulable || overCap ? 'warn2' : ''}`} data-testid="gx-rule" role="status" aria-live="polite">{ruleText}</p>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-            <button
-              onClick={() => navigate('/dashboard/rewards')}
-              style={{
-                flex: 1,
-                padding: '0.5rem 0.75rem',
-                background: 'white',
-                color: '#be185d',
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                fontSize: isNarrow ? '0.75rem' : '0.8125rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
-            >
-              Open Hearts Hub
-            </button>
-            <button
-              onClick={() => navigate('/dashboard/rewards')}
-              style={{
-                flex: 1,
-                padding: '0.5rem 0.75rem',
-                background: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                fontSize: isNarrow ? '0.75rem' : '0.8125rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
-            >
-              Learn More
-            </button>
-          </div>
-        </div>
-      </div>
 
-      {/* Two Column Layout - PHASE 7: Locked heights, stretch alignment */}
-      <div
-        className="dashboard-grid"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: isPortrait ? '1fr' : '1fr 1fr',
-          gap: '1.5rem',
-          marginBottom: '2rem',
-          alignItems: 'stretch',
-          height: isNarrow ? 'auto' : '600px',
-          width: '100%',
-          maxWidth: '100%',
-          overflow: 'hidden'
-        }}>
-        {/* Left Column - Your Presence - PHASE 7: Height from parent, pinned footer */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            background: 'var(--bg-primary)',
-            borderRadius: 'var(--radius-xl)',
-            padding: '1.5rem',
-            border: '2px solid var(--border)',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            height: '100%',
-            minHeight: 0
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '0.5rem',
-              paddingBottom: '0.75rem',
-              borderBottom: '2px solid var(--border)'
-            }}>
-              <h2 style={{
-                fontSize: '1.25rem',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                margin: 0
-              }}>Personalize</h2>
-              {!isPortrait && (
-                <button
-                  onClick={() => navigate('/dashboard/media')}
-                  style={{
-                    padding: '0.375rem 0.75rem',
-                    background: 'transparent',
-                    color: '#667eea',
-                    border: '1px solid #667eea',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.375rem',
-                    transition: 'all 0.2s',
-                    fontFamily: 'inherit'
-                  }}
-                  {...getHoverHandlers({
-                    onEnter: (e) => {
-                      e.currentTarget.style.background = '#667eea';
-                      e.currentTarget.style.color = 'white';
-                    },
-                    onLeave: (e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = '#667eea';
-                    },
-                  })}
-                  title="Open Media Library"
-                >
-                  <ImageIcon size={14} />
-                  Media Library
-                </button>
-              )}
-            </div>
-
-            {/* Voice Section */}
-            <div style={{ marginBottom: '2rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                <div style={{
-                  width: '4rem',
-                  height: '4rem',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <Mic size={24} style={{ color: 'white' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{
-                    fontSize: '1rem',
-                    fontWeight: 600,
-                    color: 'var(--text-primary)',
-                    marginBottom: '0.25rem'
-                  }}>Voice</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <div style={{
-                      width: '0.5rem',
-                      height: '0.5rem',
-                      borderRadius: '50%',
-                      background: voiceRecorded ? '#22c55e' : '#dc2626'
-                    }}></div>
-                    <span style={{
-                      fontSize: '0.875rem',
-                      color: voiceRecorded ? '#22c55e' : '#dc2626',
-                      fontWeight: 500
-                    }}>{voiceRecorded ? 'Recorded' : 'Not Recorded'}</span>
-                  </div>
-                </div>
-              </div>
-              <input
-                ref={voiceInputRef}
-                type="file"
-                accept="audio/*"
-                onChange={handleVoiceUpload}
-                style={{ display: 'none' }}
-              />
-              {voiceFileUrl && (
-                <audio
-                  ref={audioRef}
-                  src={voiceFileUrl}
-                  onEnded={() => setIsPlayingVoice(false)}
-                  style={{ display: 'none' }}
-                />
-              )}
-
-
-              {isRecording && (
-                <div style={{
-                  padding: '1rem',
-                  background: '#fee2e2',
-                  borderRadius: 'var(--radius-lg)',
-                  marginBottom: '0.75rem',
-                  textAlign: 'center'
-                }}>
-                  <div style={{
-                    fontSize: '1.5rem',
-                    fontWeight: 700,
-                    color: '#dc2626',
-                    marginBottom: '0.25rem'
-                  }}>
-                    {formatTime(recordingTime)}
-                  </div>
-                  <div style={{
-                    fontSize: '0.875rem',
-                    color: '#991b1b'
-                  }}>
-                    Recording...
-                  </div>
-                </div>
-              )}
-              {/* Top row: Record and Play buttons side by side */}
-              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={isRecording ? stopMicRecording : startMicRecording}
-                  disabled={uploadingVoice}
-                  style={{
-                    flex: 1,
-                    padding: '0.625rem',
-                    background: uploadingVoice ? '#e5e7eb' : isRecording ? '#dc2626' : '#ef4444',
-                    color: uploadingVoice ? '#9ca3af' : 'white',
-                    border: 'none',
-                    borderRadius: 'var(--radius-lg)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: uploadingVoice ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s',
-                    fontFamily: 'inherit',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem'
-                  }}
-                  {...getHoverHandlers({
-                    onEnter: (e) => {
-                      if (!uploadingVoice) {
-                        e.currentTarget.style.background = isRecording ? '#b91c1c' : '#dc2626';
-                      }
-                    },
-                    onLeave: (e) => {
-                      if (!uploadingVoice) {
-                        e.currentTarget.style.background = isRecording ? '#dc2626' : '#ef4444';
-                      }
-                    },
-                  })}
-                >
-                  {isRecording ? <Square size={16} /> : <Mic size={16} />}
-                  {isRecording ? 'Stop' : 'Record'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handlePlayVoice}
-                  disabled={!voiceRecorded || !voiceFileUrl || isRecording}
-                  style={{
-                    flex: 1,
-                    padding: '0.625rem',
-                    background: '#3b82f6',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 'var(--radius-lg)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: (!voiceRecorded || isRecording) ? 'not-allowed' : 'pointer',
-                    opacity: (!voiceRecorded || isRecording) ? 0.6 : 1,
-                    transition: 'all 0.2s',
-                    fontFamily: 'inherit',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem'
-                  }}
-                  {...getHoverHandlers({
-                    onEnter: (e) => {
-                      if (voiceRecorded && !isRecording) {
-                        e.currentTarget.style.background = '#2563eb';
-                      }
-                    },
-                    onLeave: (e) => {
-                      e.currentTarget.style.background = '#3b82f6';
-                    },
-                  })}
-                >
-                  {isPlayingVoice ? <Pause size={16} /> : <Play size={16} />}
-                  Play
-                </button>
-              </div>
-              {/* Bottom row: Save & Done button spanning full width */}
-              <button
-                type="button"
-                onClick={() => alert('Voice saved successfully!')}
-                disabled={!voiceRecorded || uploadingVoice}
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  background: '#22c55e',
-                  color: 'white',
-                  opacity: (!voiceRecorded || uploadingVoice) ? 0.6 : 1,
-                  border: 'none',
-                  borderRadius: 'var(--radius-lg)',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  cursor: (!voiceRecorded || uploadingVoice) ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                  fontFamily: 'inherit',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem'
-                }}
-                {...getHoverHandlers({
-                  onEnter: (e) => {
-                    if (voiceRecorded && !uploadingVoice) {
-                      e.currentTarget.style.background = '#16a34a';
-                    }
-                  },
-                  onLeave: (e) => {
-                    if (voiceRecorded && !uploadingVoice) {
-                      e.currentTarget.style.background = '#22c55e';
-                    }
-                  },
-                })}
-              >
-                <CheckCircle size={16} />
-                Save & Done
-              </button>
-            </div>
-
-            {/* Photo Section - PHASE 7.4: Grows to fill, buttons pinned to bottom */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-              <input
-                ref={photoInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoUpload}
-                style={{ display: 'none' }}
-              />
-              {/* Photo header + buttons - PHASE 7.4: Pinned to bottom */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: 'auto', flexShrink: 0 }}>
-                {/* Photo icon and status */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
-                  <div style={{
-                    width: '4rem',
-                    height: '4rem',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden'
-                  }}>
-                    <Camera size={24} style={{ color: 'white' }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{
-                      fontSize: '1rem',
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      marginBottom: '0.25rem'
-                    }}>Photo</h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <div style={{
-                        width: '0.5rem',
-                        height: '0.5rem',
-                        borderRadius: '50%',
-                        background: photoUploaded ? '#22c55e' : '#dc2626'
-                      }}></div>
-                      <span style={{
-                        fontSize: '0.875rem',
-                        color: photoUploaded ? '#22c55e' : '#dc2626',
-                        fontWeight: 500
-                      }}>{photoUploaded ? 'Uploaded' : 'Not Uploaded'}</span>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => photoInputRef.current?.click()}
-                  disabled={uploadingPhoto}
-                  style={{
-                    width: '100%',
-                    padding: '0.625rem',
-                    background: uploadingPhoto ? '#e5e7eb' : '#667eea',
-                    color: uploadingPhoto ? '#9ca3af' : 'white',
-                    border: 'none',
-                    borderRadius: 'var(--radius-lg)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: uploadingPhoto ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s',
-                    fontFamily: 'inherit',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem'
-                  }}
-                  {...getHoverHandlers({
-                    onEnter: (e) => {
-                      if (!uploadingPhoto) e.currentTarget.style.background = '#5568d3';
-                    },
-                    onLeave: (e) => {
-                      if (!uploadingPhoto) e.currentTarget.style.background = '#667eea';
-                    },
-                  })}
-                >
-                  <Upload size={16} />
-                  {uploadingPhoto ? 'Uploading...' : 'Add Photo'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate('/dashboard/media')}
-                  style={{
-                    width: '100%',
-                    padding: '0.625rem',
-                    background: 'white',
-                    color: '#667eea',
-                    border: '1px solid #667eea',
-                    borderRadius: 'var(--radius-lg)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    fontFamily: 'inherit',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem'
-                  }}
-                  {...getHoverHandlers({
-                    onEnter: (e) => {
-                      e.currentTarget.style.background = '#667eea';
-                      e.currentTarget.style.color = 'white';
-                    },
-                    onLeave: (e) => {
-                      e.currentTarget.style.background = 'white';
-                      e.currentTarget.style.color = '#667eea';
-                    },
-                  })}
-                >
-                  <ImageIcon size={16} />
-                  Select from Media Library
-                </button>
-                <button
-                  type="button"
-                  onClick={() => alert('Photo saved successfully!')}
-                  disabled={!photoUploaded || uploadingPhoto}
-                  style={{
-                    width: '100%',
-                    padding: '0.625rem',
-                    background: '#22c55e',
-                    color: 'white',
-                    opacity: (!photoUploaded || uploadingPhoto) ? 0.6 : 1,
-                    border: 'none',
-                    borderRadius: 'var(--radius-lg)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: (!photoUploaded || uploadingPhoto) ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s',
-                    fontFamily: 'inherit',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem'
-                  }}
-                  {...getHoverHandlers({
-                    onEnter: (e) => {
-                      if (photoUploaded && !uploadingPhoto) {
-                        e.currentTarget.style.background = '#16a34a';
-                      }
-                    },
-                    onLeave: (e) => {
-                      if (photoUploaded && !uploadingPhoto) {
-                        e.currentTarget.style.background = '#22c55e';
-                      }
-                    },
-                  })}
-                >
-                  <CheckCircle size={16} />
-                  Save & Done
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column - Recipients & Occasions - PHASE 7: Height from parent, internal scroll */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          minHeight: 0  /* Allow flex shrinking */
-        }}>
-          <div style={{
-            background: 'var(--bg-primary)',
-            borderRadius: 'var(--radius-xl)',
-            padding: isNarrow ? '0.75rem' : '1.5rem',
-            border: '2px solid var(--border)',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            height: '100%',   /* Match parent height */
-            minHeight: 0      /* Allow flex shrinking below content */
-          }}>
-            <div style={{ display: 'flex', flexDirection: isPortrait ? 'column' : 'row', alignItems: isPortrait ? 'stretch' : 'center', justifyContent: 'space-between', gap: isPortrait ? '0.75rem' : '0', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '2px solid var(--border)' }}>
-              <h2 style={{
-                fontSize: '1.25rem',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                margin: 0
-              }}>Automate</h2>
-              {!isPortrait && (
-                <button
-                  onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: '#667eea',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 'var(--radius-lg)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.2s',
-                    fontFamily: 'inherit'
-                  }}
-                >
-                  <Plus size={16} />
-                  Add Recipient
-                </button>
-              )}
-            </div>
-
-            {/* View Toggle */}
-            <div style={{
-              display: 'flex',
-              gap: '0.5rem',
-              marginBottom: '1rem',
-              background: 'var(--gray-100)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '0.25rem',
-            }}>
-              <button
-                onClick={() => setViewMode('recipients')}
-                style={{
-                  flex: 1,
-                  padding: '0.5rem 1rem',
-                  background: viewMode === 'recipients' ? 'white' : 'transparent',
-                  color: viewMode === 'recipients' ? '#667eea' : 'var(--text-secondary)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  fontFamily: 'inherit',
-                  whiteSpace: 'nowrap',
-                  boxShadow: viewMode === 'recipients' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
-                }}
-              >
-                By Recipient
-              </button>
-              <button
-                onClick={() => setViewMode('occasions')}
-                style={{
-                  flex: 1,
-                  padding: '0.5rem 1rem',
-                  background: viewMode === 'occasions' ? 'white' : 'transparent',
-                  color: viewMode === 'occasions' ? '#667eea' : 'var(--text-secondary)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  fontFamily: 'inherit',
-                  whiteSpace: 'nowrap',
-                  boxShadow: viewMode === 'occasions' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
-                }}
-              >
-                By Occasion
-              </button>
-            </div>
-
-            {/* Search Bar */}
-            <div style={{ position: 'relative', marginBottom: '1rem' }}>
-              <Search
-                size={18}
-                style={{
-                  position: 'absolute',
-                  left: '1rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-tertiary)'
-                }}
-              />
-              <input
-                type="text"
-                placeholder={viewMode === 'recipients' ? 'Search recipients...' : 'Search occasions...'}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 1rem 0.75rem 2.75rem',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-lg)',
-                  fontSize: '0.875rem',
-                  outline: 'none',
-                  transition: 'all 0.2s',
-                  fontFamily: 'inherit'
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#667eea';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border)';
-                }}
-              />
-            </div>
-
-            {/* Contact List - By Recipient - PHASE 3: Internal scroll container */}
-            {viewMode === 'recipients' && (
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.75rem',
-              flex: 1,
-              minHeight: 0,
-              maxHeight: 'min(480px, 50dvh)',
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              WebkitOverflowScrolling: 'touch',
-              background: 'var(--gray-100)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: isNarrow ? '8px' : '12px'
-            }}>
+          <div className="step" data-testid="gx-step-2">
+            <StepHead n={2} label="Who is it for?" isDone={step2Done} />
+            <div className="whobox" data-testid="gx-whobox">
               {contacts.length === 0 ? (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '2rem',
-                  color: 'var(--text-secondary)',
-                }}>
-                  <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>👥</div>
-                  <p style={{ fontSize: '0.9rem', margin: '0 0 0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    No recipients yet
-                  </p>
-                  <p style={{ fontSize: '0.8125rem', margin: '0 0 1rem', lineHeight: 1.5 }}>
-                    Add your first recipient to schedule personalized Greet-Me greetings for each occasion where you turn on Enable Auto-Gift. You can also send a Greet-Me anytime.
-                  </p>
-                  <button
-                    onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
-                    style={{
-                      padding: '0.5rem 1.25rem',
-                      background: '#6366f1',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 'var(--radius-lg)',
-                      fontSize: '0.8125rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    Add Recipient
-                  </button>
-                </div>
-              ) : filteredContacts.length === 0 && searchTerm ? (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '2rem',
-                  color: 'var(--text-secondary)',
-                  fontSize: '0.875rem'
-                }}>
-                  No recipients match "{searchTerm}"
+                <div className="empty" data-testid="gx-recipients-empty" style={{ margin: 0, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <div className="ico"><UserPlus size={20} /></div>
+                  <div className="t">No recipients yet</div>
+                  <p>Add your first recipient to schedule personalized Greet-Me greetings for each occasion where you turn on Enable Auto-Gift. You can also send a Greet-Me anytime.</p>
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button type="button" className="btn btn-sm btn-primary" style={{ height: 40 }} onClick={goAddRecipient}><UserPlus size={15} /> Add Recipient</button>
+                    <button type="button" className="btn btn-sm btn-line" onClick={() => navigate('/dashboard/import-wizard')}><Upload size={15} /> Import Wizard</button>
+                  </div>
                 </div>
               ) : (
-                filteredContacts.map((contact) => (
-                <div
-                  key={contact.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: isNarrow ? '0.5rem' : '1rem',
-                    padding: isNarrow ? '0.5rem' : '0.75rem',
-                    borderRadius: 'var(--radius-lg)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  onClick={() => navigate('/dashboard/contacts', { state: { openEditRecipientId: contact.id } })}
-                  {...getHoverHandlers({
-                    onEnter: (e) => { e.currentTarget.style.background = 'var(--gray-50)'; },
-                    onLeave: (e) => { e.currentTarget.style.background = 'transparent'; },
-                  })}
-                >
-                  <div style={{ position: 'relative' }}>
-                    <div style={{
-                      width: '3rem',
-                      height: '3rem',
-                      borderRadius: '50%',
-                      background: 'var(--gray-200)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '1.5rem'
-                    }}>
-                      {contact.avatar || '👤'}
-                    </div>
-                    {contact.online && (
-                      <div style={{
-                        position: 'absolute',
-                        bottom: 0,
-                        right: 0,
-                        width: '0.75rem',
-                        height: '0.75rem',
-                        background: '#22c55e',
-                        border: '2px solid white',
-                        borderRadius: '50%'
-                      }}></div>
-                    )}
+                <>
+                  <span className="mini">Send to</span>
+                  <div className="track" role="group" aria-label="Send to">
+                    {AUDIENCES.map((x) => (
+                      <button key={x.key} type="button" aria-pressed={audience === x.key} aria-disabled={whoLocked && x.key !== 'one'} className={whoLocked && x.key !== 'one' && audience !== x.key ? 'locked' : ''} onClick={() => chooseAudience(x.key)}>
+                        {x.segment}
+                      </button>
+                    ))}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                    <div style={{
-                      fontSize: '0.9375rem',
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      marginBottom: '0.25rem',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
-                    }} title={contact.name}>{contact.name}</div>
-                    <div style={{
-                      fontSize: '0.8125rem',
-                      color: 'var(--text-secondary)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
-                    }} title={contact.relationship}>
-                      {contact.relationship}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: isNarrow ? '0.25rem' : '0.75rem', alignItems: 'center' }}>
-                    {/* Gift Indicator — inactive placeholder hidden on portrait (B1.5j) */}
-                    {(!isPortrait || contact.giftSelected) && (
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '26px',
-                          height: '26px',
-                          borderRadius: '50%',
-                          background: contact.giftSelected
-                            ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
-                            : 'var(--gray-100)',
-                          border: contact.giftSelected ? 'none' : '2px dashed var(--gray-300)',
-                          boxShadow: contact.giftSelected ? '0 2px 4px rgba(34, 197, 94, 0.3)' : 'none'
-                        }}
-                        title={contact.giftSelected ? 'Gift selected' : 'No gift selected'}
-                      >
-                        <Gift size={14} style={{ color: contact.giftSelected ? 'white' : 'var(--gray-400)' }} />
+                  <p className="cap" data-testid="gx-aud-caption">
+                    {whoLocked ? 'Several occasions are selected, so this card goes to one person. To send to several people, keep one occasion.'
+                      : audience === 'one'
+                        ? (chosen.length ? `${chosen.length} ${chosen.length === 1 ? 'person' : 'people'} added — add as many as you like.` : 'Add people one at a time, or switch to a whole category.')
+                        : groupMembers.length === 0 ? `No one is in ${aud.label.toLowerCase()} yet — set a relationship on a recipient.`
+                          : `${chosen.length} of your ${groupMembers.length} ${aud.people} will each get their own Greet-Me.`}
+                  </p>
+                  <div className="whobody">
+                    {audience === 'one' ? (
+                      <>
+                        <button type="button" className="addsome" data-testid="gx-addsome" aria-expanded={pickerOpen} onClick={() => setPickerOpen((v) => !v)}>
+                          <span className="pl"><Plus size={16} /></span>
+                          <span style={{ flex: 1, minWidth: 0 }}><span style={{ display: 'block', font: '500 15px var(--sans)', color: 'var(--ink)' }}>Add someone</span><span style={{ display: 'block', fontSize: 13, color: 'var(--muted)' }}>{picks.length ? `${picks.length} added — pick another` : 'Pick people one by one, as many as you like'}</span></span>
+                          <ChevronDown size={16} color="#9A7CCB" />
+                        </button>
+                        <div className="whoscroll" style={{ marginTop: 10 }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            {chosen.map((c) => (
+                              <span key={c.id} className="pchip"><span className="avatar" style={{ width: 24, height: 24, fontSize: 10, background: avatarBg(c.name) }}>{initials(c.name)}</span>{c.name}<button type="button" aria-label={`Remove ${c.name}`} onClick={() => togglePick(c.id)}><X size={14} /></button></span>
+                            ))}
+                          </div>
+                        </div>
+                        {pickerOpen ? (
+                          <div className="picker" data-testid="gx-picker">
+                            <div className="find"><Search size={15} color="#9A7CCB" /><input ref={(el) => { if (el && !el.dataset.f) { el.dataset.f = 1; el.focus({ preventScroll: true }); } }} value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find someone…" aria-label="Find someone" /></div>
+                            <div className="list">
+                              {contacts.filter((c) => (c.name || '').toLowerCase().includes(find.toLowerCase())).length === 0
+                                ? <p style={{ padding: '12px', fontSize: 14, color: 'var(--muted)' }}>No one matches that name yet.</p>
+                                : contacts.filter((c) => (c.name || '').toLowerCase().includes(find.toLowerCase())).map((c) => (
+                                  <button key={c.id} type="button" className={`prow ${whoLocked && picks.length >= 1 && !picks.includes(c.id) ? 'locked' : ''}`} aria-pressed={picks.includes(c.id)} aria-disabled={whoLocked && picks.length >= 1 && !picks.includes(c.id)} onClick={() => togglePick(c.id)}>
+                                    <span className="avatar" style={{ width: 30, height: 30, fontSize: 11, background: avatarBg(c.name) }}>{initials(c.name)}</span>
+                                    <span style={{ flex: 1, minWidth: 0 }}><span className="name" style={{ fontSize: 14.5 }}>{c.name}</span><span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>{c.relationship}</span></span>
+                                    {picks.includes(c.id) ? <Check size={16} color="#4A3273" /> : null}
+                                  </button>
+                                ))}
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                              <button type="button" className="btn btn-sm btn-line" style={{ flex: 1, borderStyle: 'dashed' }} onClick={goAddRecipient}><Plus size={15} /> Add a new recipient</button>
+                              <button type="button" className="btn btn-sm btn-primary" style={{ height: 38 }} onClick={() => setPickerOpen(false)}>Done</button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </>
+                    ) : (
+                      <div className="whoscroll" data-testid="gx-group-list">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, color: 'var(--muted)', padding: '0 4px 6px' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Users size={14} /> Tap anyone to leave them out</span>
+                          <span style={{ fontWeight: 600, color: 'var(--p700)' }}>{chosen.length} of {groupMembers.length} selected</span>
+                        </div>
+                        {groupMembers.map((c) => {
+                          const inc = !excluded.includes(c.id);
+                          return (
+                            <button key={c.id} type="button" className="grow" aria-pressed={inc} onClick={() => setExcluded((cur) => (inc ? [...cur, c.id] : cur.filter((x) => x !== c.id)))}>
+                              <span className={`box ${inc ? 'on' : ''}`}><Check size={12} /></span>
+                              <span className="avatar" style={{ width: 30, height: 30, fontSize: 11, background: avatarBg(c.name) }}>{initials(c.name)}</span>
+                              <span style={{ minWidth: 0 }}><span className="name" style={{ fontSize: 14.5, color: inc ? 'var(--ink)' : 'rgba(44,29,70,.45)' }}>{c.name}</span><span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>{c.relationship}</span></span>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
-                    {/* Occasion Icons */}
-                    <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                      {(contact.occasions || []).slice(0, isPortrait ? 2 : 3).map((occasion, idx) => {
-                        const occasionType = typeof occasion === 'object' ? occasion.type : occasion;
-                        const icon = getOccasionIcon(occasionType);
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Inline date-and-gift resolver: fixed height, scrolls inside; nothing collapses and no series of modals. */}
+            <div className="resolver" data-testid="gx-resolver">
+              <div className="rhead"><span className="mini">Dates &amp; gifts</span>{resolverOn ? <span className="sub" style={{ marginTop: 0 }}>{occasions.length} occasion{occasions.length === 1 ? '' : 's'} for {first(resolvePerson.name)} · each is its own scheduled Greet-Me</span>
+                : groupSchedOn ? <span className="sub" style={{ marginTop: 0 }}>{occasions[0]} for {chosen.length} people · each is their own scheduled Greet-Me</span> : null}</div>
+              {resolverOn && mode === 'now' ? <p className="rnote" data-testid="gx-resolver-sendnow">You chose Send Now. Several occasions can&rsquo;t go in one card, so each one is scheduled separately for its own date. Nothing is sent now; your Send Now choice is unchanged.</p> : null}
+              {resolverOn ? (
+                <div className="rrows">
+                  {occasions.map((o) => {
+                    const r = rowOf(o) || { date: '', gift: null };
+                    const ok = rowComplete(r);
+                    return (
+                      <div className="rrow" key={o} data-testid="gx-resolver-row">
+                        <span className={`num ${ok ? 'done' : ''}`} style={{ width: 22, height: 22 }}>{ok ? <Check size={12} /> : ''}</span>
+                        <span className="rname">{o}{r.prefilled ? <span className="rpre">saved</span> : null}</span>
+                        <input type="date" aria-label={`${o} date`} value={r.date || ''} onChange={(e) => setRow(o, { date: e.target.value })} className="rdate" />
+                        <select aria-label={`${o} gift`} value={r.gift ? r.gift.type : ''} onChange={(e) => setRow(o, { gift: chooseGift(r, e.target.value) })} className="rgift">
+                          {RESOLVER_GIFT_OPTIONS.map(([v, t]) => <option key={v} value={v} disabled={v === ''}>{t}</option>)}
+                        </select>
+                        <span className="rline"><ScheduledGiftLine gift={r.gift} />{r.gift && r.gift.type !== 'none' ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(resolvePerson.id, r.type)}>Gift details in their Occasion Scheduler</button></> : null}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                groupSchedOn ? (
+                  <>
+                    <label className="rgroupdefault">
+                      <span className="fieldlabel">Gift for everyone</span>
+                      <select data-testid="gx-group-default-gift" aria-label="Gift for everyone" value={groupDefaultGift ? groupDefaultGift.type : ''} onChange={(e) => { setSaveMsg(null); setGroupResults({}); setGroupDefaultGift(e.target.value ? chooseGift({ gift: null }, e.target.value) : null); }} className="rgift">
+                        {RESOLVER_GIFT_OPTIONS.map(([v, t]) => <option key={v} value={v} disabled={v === ''}>{t}</option>)}
+                      </select>
+                    </label>
+                    <div className="rrows">
+                      {chosen.map((p) => {
+                        const r = groupRowOf(p);
+                        const raw = rows[`${p.id}:${occasions[0]}`] || {};
+                        const ok = rowComplete(r);
+                        const res = groupResults[p.id];
                         return (
-                          <span
-                            key={idx}
-                            style={{
-                              fontSize: '1.25rem',
-                              lineHeight: 1
-                            }}
-                            title={typeof occasion === 'object' ? occasion.type : occasion}
-                          >
-                            {icon}
-                          </span>
+                          <div className="rrow" key={p.id} data-testid="gx-group-row">
+                            <span className={`num ${ok ? 'done' : ''}`} style={{ width: 22, height: 22 }}>{ok ? <Check size={12} /> : ''}</span>
+                            <span className="rname">{p.name}{raw.prefilled ? <span className="rpre">saved</span> : null}{res ? <span className={`tag ${res.status === 'saved' ? 'ok' : res.status === 'failed' ? 'muted' : 'amber'}`} data-testid="gx-group-row-status">{res.status === 'saved' ? 'Saved' : res.status === 'failed' ? 'Not saved' : 'Needs their scheduler'}</span> : null}</span>
+                            <input type="date" aria-label={`${p.name} ${occasions[0]} date`} value={r.date || ''} onChange={(e) => setGroupRow(p, { date: e.target.value })} className="rdate" />
+                            <select aria-label={`${p.name} gift`} value={raw.chosen ? raw.chosen.type : 'default'} onChange={(e) => setGroupRow(p, { chosen: e.target.value === 'default' ? null : chooseGift({ gift: raw.gift }, e.target.value) })} className="rgift">
+                              <option value="default">{raw.gift ? `Keep their saved gift (${(RESOLVER_GIFT_OPTIONS.find(([v]) => v === raw.gift.type) || [null, raw.gift.type])[1]})` : groupDefaultGift ? 'Same as everyone' : 'Choose a gift…'}</option>
+                              {RESOLVER_GIFT_OPTIONS.filter(([v]) => v !== '').map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                            </select>
+                            <span className="rline">{res && res.status === 'failed' ? res.message : null}{res && res.status === 'needs_scheduler' ? 'This save needs their card, consent or address step. ' : null}{!res || res.status === 'saved' ? <ScheduledGiftLine gift={r.gift} /> : null}{r.gift && r.gift.type !== 'none' || (res && res.status === 'needs_scheduler') ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(p.id, SCHEDULER_TYPE_OF(occasions[0]))}>Gift details in their Occasion Scheduler</button></> : null}</span>
+                          </div>
                         );
                       })}
-                      {contact.occasions && contact.occasions.length > (isPortrait ? 2 : 3) && (
-                        <span style={{
-                          fontSize: '0.75rem',
-                          color: 'var(--text-tertiary)',
-                          fontWeight: 500
-                        }}>
-                          +{contact.occasions.length - (isPortrait ? 2 : 3)}
-                        </span>
-                      )}
                     </div>
-                    {/* Quick Send button — preselects this recipient in the send flow */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/dashboard/send?contactId=${contact.id}`);
-                      }}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '0.25rem',
-                        color: 'var(--text-tertiary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                      title={`Send a Greet-Me to ${contact.name}`}
-                      aria-label={`Send a Greet-Me to ${contact.name}`}
-                    >
-                      <Send size={16} />
-                    </button>
-                    {/* Settings Icon */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate('/dashboard/contacts', { state: { openEditRecipientId: contact.id } });
-                      }}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '0.25rem',
-                        color: 'var(--text-tertiary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                      title="Edit contact"
-                    >
-                      <Settings size={16} />
-                    </button>
-                  </div>
-                </div>
-              )))}
+                  </>
+                ) : (
+                  <p className="rempty">When one person has several occasions, set each occasion&rsquo;s date and gift here. Each becomes its own scheduled Greet-Me; nothing is combined.</p>
+                )
+              )}
             </div>
-            )}
-
-            {/* Occasions List - By Occasion - PHASE 3: Internal scroll container */}
-            {viewMode === 'occasions' && (
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.75rem',
-              flex: 1,
-              minHeight: 0,
-              maxHeight: 'min(480px, 50dvh)',
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              WebkitOverflowScrolling: 'touch',
-              background: 'var(--gray-100)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '12px'
-            }}>
-              {(() => {
-                // Gather all unique occasions from contacts
-                const occasionMap = {};
-                contacts.forEach(contact => {
-                  (contact.occasions || []).forEach(occ => {
-                    const occasionType = typeof occ === 'object' ? occ.type : occ;
-                    if (!occasionMap[occasionType]) {
-                      occasionMap[occasionType] = [];
-                    }
-                    occasionMap[occasionType].push(contact);
-                  });
-                });
-
-                const occasionTypes = Object.keys(occasionMap).filter(type =>
-                  type.toLowerCase().includes(searchTerm.toLowerCase())
-                );
-
-                if (occasionTypes.length === 0 && searchTerm) {
-                  return (
-                    <div style={{
-                      textAlign: 'center',
-                      padding: '2rem',
-                      color: 'var(--text-secondary)',
-                      fontSize: '0.875rem'
-                    }}>
-                      No occasions match "{searchTerm}"
-                    </div>
-                  );
-                }
-
-                return occasionTypes.map((occasionType) => (
-                  <div
-                    key={occasionType}
-                    style={{
-                      padding: '0.75rem',
-                      borderRadius: 'var(--radius-lg)',
-                      background: 'var(--gray-50)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                    onClick={() => navigate('/dashboard/contacts')}
-                    {...getHoverHandlers({
-                      onEnter: (e) => { e.currentTarget.style.background = 'var(--gray-100)'; },
-                      onLeave: (e) => { e.currentTarget.style.background = 'var(--gray-50)'; },
-                    })}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                      <span style={{ fontSize: '1.5rem' }}>{getOccasionIcon(occasionType)}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{
-                          fontSize: '0.9375rem',
-                          fontWeight: 600,
-                          color: 'var(--text-primary)',
-                        }}>{occasionType}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                          {occasionMap[occasionType].length} recipient{occasionMap[occasionType].length !== 1 ? 's' : ''}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginLeft: '2.25rem' }}>
-                      {occasionMap[occasionType].slice(0, 4).map((contact, idx) => (
-                        <span
-                          key={idx}
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            background: 'white',
-                            borderRadius: 'var(--radius-md)',
-                            fontSize: '0.75rem',
-                            color: 'var(--text-secondary)',
-                            border: '1px solid var(--border)',
-                          }}
-                        >
-                          {contact.name}
-                        </span>
-                      ))}
-                      {occasionMap[occasionType].length > 4 && (
-                        <span style={{
-                          padding: '0.25rem 0.5rem',
-                          fontSize: '0.75rem',
-                          color: 'var(--text-tertiary)',
-                        }}>
-                          +{occasionMap[occasionType].length - 4} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ));
-              })()}
+            <div className="donerow">
+              <span className="hint">{chosen.length ? `${chosen.length} selected` : 'Select at least one person'}</span>
+              <button type="button" className="btn btn-sm btn-primary" style={{ height: 40 }} data-testid="gx-who-done" disabled={!chosen.length} onClick={() => { setWhoDone(true); setPickerOpen(false); }}><Check size={15} /> Done</button>
             </div>
-            )}
-
-            {/* Add Recipient button at bottom */}
-            <button
-              onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
-              style={{
-                width: '100%',
-                marginTop: '1rem',
-                padding: '0.75rem 1rem',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit'
-              }}
-              {...getHoverHandlers({
-                onEnter: (e) => { e.currentTarget.style.background = '#5568d3'; },
-                onLeave: (e) => { e.currentTarget.style.background = '#667eea'; },
-              })}
-            >
-              <Plus size={16} />
-              Add Recipient
-            </button>
           </div>
-        </div>
-      </div>
 
-      {/* Coming Up Section */}
-      <div style={{
-        background: 'var(--bg-primary)',
-        borderRadius: 'var(--radius-xl)',
-        padding: '1.5rem',
-        border: '1px solid var(--border)',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-        maxHeight: isNarrow ? '70dvh' : '600px',
-        overflowY: 'auto',
-        overflowX: 'hidden'
-      }}>
-        <div style={{
-          display: 'flex',
-          flexDirection: isPortrait ? 'column' : 'row',
-          alignItems: isPortrait ? 'stretch' : 'center',
-          justifyContent: 'space-between',
-          marginBottom: '1.5rem',
-          gap: isNarrow ? '0.75rem' : '0',
-          ...(isPortrait && {
-            position: 'sticky',
-            top: 0,
-            background: 'var(--bg-primary)',
-            zIndex: 2,
-          }),
-        }}>
-          <h2 style={{
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            color: 'var(--text-primary)',
-            margin: 0
-          }}>Upcoming Occasions <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>from your contacts</span></h2>
-          {/* Desktop: inline button in header */}
-          {!isPortrait && (
-            <button
-              onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
-              style={{
-                padding: '0.5rem 1rem',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit'
-              }}
-            >
-              <Plus size={16} />
-              Add Recipient
-            </button>
-          )}
-          {/* Mobile: full-width button under title */}
-          {isPortrait && (
-            <button
-              onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
-              style={{
-                width: '100%',
-                padding: '0.625rem 1rem',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit'
-              }}
-            >
-              <Plus size={16} />
-              Add Recipient
-            </button>
-          )}
-        </div>
-
-        {upcomingOccasions.length === 0 ? (
-          /* Empty state — only shown once the fetch has confirmed there are no upcoming occasions */
-          <div style={{
-            padding: '3rem 1.5rem',
-            textAlign: 'center',
-            color: 'var(--text-secondary)',
-            fontSize: '0.9375rem',
-            lineHeight: 1.6
-          }}>
-            <div>Upcoming occasions will appear here as you add recipients.</div>
-            <button
-              onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
-              style={{
-                marginTop: '1rem',
-                padding: '0.625rem 1.25rem',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit'
-              }}
-              {...getHoverHandlers({
-                onEnter: (e) => { e.currentTarget.style.background = '#5568d3'; },
-                onLeave: (e) => { e.currentTarget.style.background = '#667eea'; },
-              })}
-            >
-              <Plus size={16} />
-              Add Occasion
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {upcomingOccasions.map((occasion) => {
-              const status = OCCASION_STATUS_LABELS[occasion.scheduleStatus] || OCCASION_STATUS_LABELS[null];
-              const isUrgent = typeof occasion.daysUntil === 'number' && occasion.daysUntil <= 3;
-              return (
-                <div
-                  key={occasion.occasionId || `${occasion.contactId || occasion.contactName}-${occasion.occasionType}-${occasion.date}`}
-                  style={{
-                    padding: '0.75rem',
-                    borderRadius: 'var(--radius-lg)',
-                    background: 'var(--gray-50)',
-                    border: isUrgent ? '1px solid #E74C3C' : '1px solid var(--border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '0.75rem',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-                    <span style={{ fontSize: '1.5rem' }}>{getOccasionIcon(occasion.occasionType)}</span>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {occasion.contactName}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
-                        {(occasion.occasionType || '').replace(/_/g, ' ')}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: isUrgent ? '#E74C3C' : 'var(--text-primary)' }}>
-                        {occasion.daysUntil === 0 ? 'Today!' : occasion.daysUntil === 1 ? 'Tomorrow' : (occasion.daysUntil != null ? `${occasion.daysUntil} days` : '')}
-                      </div>
-                      {occasion.date && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                          {new Date(occasion.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </div>
-                      )}
-                    </div>
-                    <span style={{
-                      fontSize: '0.6875rem',
-                      fontWeight: 600,
-                      padding: '3px 8px',
-                      borderRadius: 'var(--radius-md)',
-                      color: status.color,
-                      background: status.bg,
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {status.text}
-                    </span>
-                    {occasion.contactId && (
-                      <button
-                        onClick={() => navigate('/dashboard/contacts', { state: { openEditRecipientId: occasion.contactId } })}
-                        title="Edit recipient"
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          padding: '0.25rem',
-                          color: 'var(--text-tertiary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <Settings size={16} />
-                      </button>
+          <div className="step" data-testid="gx-step-3">
+            <StepHead n={3} label="Personalize" isDone={persDone} />
+            <div className="ptiles">
+              <div className="ptile" data-testid="gx-voice-tile">
+                <span className={`ic ${voiceDone ? 'okc' : 'hero'}`}>{voiceDone ? <Check size={20} /> : <Mic size={20} />}</span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><b>{voiceDone ? 'Voice greeting ready' : 'Record your voice'}</b>{voiceDone ? <span className="tag" style={{ background: 'var(--g100)', color: '#6b4f08' }}>Saved</span> : null}</div>
+                  <p className="sub2">{voiceDone ? 'Your saved voice is used. No need to record again.' : 'Required for group sending — about 15 seconds is plenty.'}</p>
+                  <div className="acts2">
+                    {voiceDone ? (
+                      <>
+                        {voiceSrc ? <button type="button" className="btn btn-xs btn-line" data-testid="gx-play-voice" onClick={togglePlay}>{playingVoice ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Play</>}</button> : null}
+                        <button type="button" className="btn btn-xs btn-line" data-testid="gx-rerecord" onClick={openSetupRevisit}><RotateCcw size={14} /> Re-record</button>
+                        <button type="button" className="link" data-testid="gx-revisit" onClick={openSetupRevisit}>Revisit setup · voice &amp; photo</button>
+                      </>
+                    ) : (
+                      <button type="button" className="btn btn-xs btn-primary" style={{ height: 34 }} data-testid="gx-revisit" onClick={openSetupRevisit}><Mic size={14} /> Start recording</button>
                     )}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Mobile App QR Code - Subtle placement */}
-      <div style={{
-        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-        borderRadius: 'var(--radius-lg)',
-        padding: isNarrow ? '1rem' : '1rem 1.5rem',
-        marginBottom: '2rem',
-        display: 'flex',
-        flexDirection: isPortrait ? 'column' : 'row',
-        alignItems: 'center',
-        justifyContent: isPortrait ? 'center' : 'space-between',
-        gap: isNarrow ? '1rem' : '0',
-        border: '1px solid var(--border)',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: isPortrait ? 'center' : 'left' }}>
-          <div style={{
-            width: isNarrow ? '2.5rem' : '3rem',
-            height: isNarrow ? '2.5rem' : '3rem',
-            borderRadius: 'var(--radius-md)',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
-          }}>
-            <Smartphone size={isNarrow ? 16 : 20} style={{ color: 'white' }} />
-          </div>
-          <div>
-            <h3 style={{
-              fontSize: '0.9375rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              marginBottom: '0.25rem'
-            }}>Add Greet-Me™ to Your Home Screen</h3>
-            <p style={{
-              fontSize: '0.8125rem',
-              color: 'var(--text-secondary)',
-              margin: 0
-            }}>Scan the QR code to open the install page. No app store needed.</p>
-          </div>
-        </div>
-        <div style={{
-          width: '5rem',
-          height: '5rem',
-          background: 'white',
-          borderRadius: 'var(--radius-md)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '2px solid var(--border)',
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-          position: 'relative'
-        }}
-        onClick={() => navigate('/app')}
-        {...getHoverHandlers({
-          onEnter: (e) => {
-            e.currentTarget.style.transform = 'scale(1.05)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
-          },
-          onLeave: (e) => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = 'none';
-          },
-        })}
-        title="Scan to open the Greet-Me home-screen install page"
-        >
-          {appQrUrl
-            ? <img src={appQrUrl} alt="Scan to install Greet-Me" style={{ width: '70%', height: '70%' }} />
-            : <QrCode size={40} style={{ color: '#667eea', opacity: 0.3 }} />
-          }
-        </div>
-      </div>
-
-      {/* Past Greetings Section */}
-      <div style={{
-        background: 'var(--bg-primary)',
-        borderRadius: 'var(--radius-xl)',
-        padding: '1.5rem',
-        border: '2px solid var(--border)',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-        marginTop: '2rem',
-        maxHeight: isNarrow ? '70dvh' : '600px',
-        overflowY: 'auto',
-        overflowX: 'hidden'
-      }}>
-        <div style={{
-          marginBottom: '1.5rem',
-          paddingBottom: '1rem',
-          borderBottom: '2px solid var(--border)',
-          ...(isPortrait && {
-            position: 'sticky',
-            top: 0,
-            background: 'var(--bg-primary)',
-            zIndex: 2,
-          }),
-        }}>
-          <h2 style={{
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            color: 'var(--text-primary)',
-            margin: 0
-          }}>Past Sends <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>(Last 30 Days)</span></h2>
-        </div>
-
-        {/* Table Header */}
-        {!isPortrait && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '0.5fr 0.5fr 2fr 1fr 2fr 1fr',
-          padding: '0.75rem 1rem',
-          borderBottom: '2px solid var(--border)',
-          fontSize: '0.8125rem',
-          fontWeight: 600,
-          color: 'var(--text-secondary)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          position: 'sticky',
-          top: 0,
-          background: 'var(--bg-primary)',
-          zIndex: 1
-        }}>
-          <div style={{ textAlign: 'center' }}>STATUS</div>
-          <div style={{ textAlign: 'center' }}>CASH</div>
-          <div>RECIPIENT</div>
-          <div>ICONS</div>
-          <div>OCCASIONS</div>
-          <div style={{ textAlign: 'right' }}>SENT DATE</div>
-        </div>
-        )}
-
-        {/* Table Rows — outer card handles scroll; sticky header keeps columns visible */}
-        <div>
-          {(() => {
-            // Server-backed sent greetings only (no browser-local QR Cash list).
-            const allItems = sentGreetings.map(g => ({ ...g, type: 'greeting' }));
-
-            if (allItems.length === 0) {
-              return (
-                <div style={{
-                  padding: '2rem',
-                  textAlign: 'center',
-                  color: 'var(--text-secondary)',
-                }}>
-                  <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>💌</div>
-                  <p style={{ fontSize: '1rem', margin: '0 0 0.5rem', color: 'var(--text-primary)', fontWeight: 600 }}>
-                    No Greet-Me sends yet
-                  </p>
-                  <p style={{ fontSize: '0.875rem', margin: '0 0 1rem', lineHeight: 1.5 }}>
-                    Once you add contacts and occasions, Greet-Me™ will handle the rest!
-                  </p>
-                  <button
-                    onClick={() => navigate('/dashboard/send')}
-                    style={{
-                      padding: '0.625rem 1.5rem',
-                      background: '#6366f1',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 'var(--radius-lg)',
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    Send Your First Greet-Me
-                  </button>
-                </div>
-              );
-            }
-
-            return allItems.map((item, index, array) => (
-              <div
-                key={item.id}
-                style={{
-                  display: isPortrait ? 'flex' : 'grid',
-                  flexDirection: isPortrait ? 'column' : undefined,
-                  gridTemplateColumns: isPortrait ? undefined : '0.5fr 0.5fr 2fr 1fr 2fr 1fr',
-                  padding: isNarrow ? '0.75rem' : '1rem',
-                  gap: isNarrow ? '0.5rem' : undefined,
-                  borderBottom: index < array.length - 1 ? '1px solid var(--border)' : 'none',
-                  alignItems: isPortrait ? 'flex-start' : 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-                {...getHoverHandlers({
-                  onEnter: (e) => { e.currentTarget.style.background = 'var(--gray-50)'; },
-                  onLeave: (e) => { e.currentTarget.style.background = 'transparent'; },
-                })}
-              >
-                {!isPortrait && (
-                <div style={{ textAlign: 'center' }}>
-                  <CheckCircle
-                    size={24}
-                    style={{
-                      color: '#22c55e',
-                      fill: '#22c55e',
-                      strokeWidth: 2
-                    }}
-                  />
-                </div>
-                )}
-                {/* QR Cash Status Icon */}
-                {!isPortrait && (
-                <div style={{ textAlign: 'center' }}>
-                  {item.qrCash ? (
-                    <div
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '50%',
-                        background: item.qrCash.redeemed ? '#dcfce7' : '#fef2f2',
-                        border: `2px solid ${item.qrCash.redeemed ? '#22c55e' : '#ef4444'}`
-                      }}
-                      title={item.qrCash.redeemed ? `$${item.qrCash.amount} Received` : `$${item.qrCash.amount} Pending`}
-                    >
-                      <DollarSign
-                        size={16}
-                        style={{
-                          color: item.qrCash.redeemed ? '#22c55e' : '#ef4444',
-                          strokeWidth: 2.5
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>—</span>
-                  )}
-                </div>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: isPortrait ? '100%' : 'auto' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    {isPortrait && (
-                      <CheckCircle
-                        size={18}
-                        style={{
-                          color: '#22c55e',
-                          fill: '#22c55e',
-                          strokeWidth: 2
-                        }}
-                      />
-                    )}
-                    <div style={{
-                      width: isNarrow ? '2rem' : '2.5rem',
-                      height: isNarrow ? '2rem' : '2.5rem',
-                      borderRadius: '50%',
-                      background: 'var(--gray-200)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: isNarrow ? '1rem' : '1.25rem'
-                    }}>
-                      👤
-                    </div>
-                    <div>
-                      <div style={{
-                        fontSize: isNarrow ? '0.875rem' : '0.9375rem',
-                        fontWeight: 600,
-                        color: 'var(--text-primary)'
-                      }}>{item.recipient}</div>
-                      <div style={{
-                        fontSize: isNarrow ? '0.75rem' : '0.8125rem',
-                        color: 'var(--text-secondary)'
-                      }}>{item.relationship}</div>
-                    </div>
-                  </div>
-                  {isPortrait && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                      {item.date}
-                    </div>
-                  )}
-                </div>
-                {!isPortrait && (
-                <div style={{ display: 'flex', gap: '0.25rem' }}>
-                  {(item.icons || []).map((icon, idx) => (
-                    <span key={idx} style={{ fontSize: '1.25rem' }}>{icon}</span>
-                  ))}
-                </div>
-                )}
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {(item.occasions || []).map((occasion, idx) => (
-                    <span
-                      key={idx}
-                      style={{
-                        padding: '0.25rem 0.625rem',
-                        background: 'rgba(34, 197, 94, 0.1)',
-                        color: '#22c55e',
-                        borderRadius: 'var(--radius-md)',
-                        fontSize: '0.75rem',
-                        fontWeight: 500
-                      }}
-                    >
-                      {occasion}
-                    </span>
-                  ))}
-                  {item.qrCash && (
-                    <span
-                      style={{
-                        padding: '0.25rem 0.625rem',
-                        background: item.qrCash.redeemed ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                        color: item.qrCash.redeemed ? '#22c55e' : '#ef4444',
-                        borderRadius: 'var(--radius-md)',
-                        fontSize: '0.75rem',
-                        fontWeight: 500
-                      }}
-                    >
-                      💵 ${item.qrCash.amount}
-                    </span>
-                  )}
-                </div>
-                {!isPortrait && (
-                <div style={{
-                  textAlign: 'right',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: 'var(--text-secondary)'
-                }}>
-                  {item.date}
-                </div>
-                )}
               </div>
-            ));
-          })()}
-        </div>
-      </div>
-      </div>
-      {/* End Background Frame */}
+              <div className="ptile" data-testid="gx-photo-tile">
+                <span className="ic cam">{photoDone ? <img src={user.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Camera size={20} />}</span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><b>{photoDone ? 'Your photo is ready' : 'Add your photo'}</b>{photoDone ? <span className="tag" style={{ background: 'var(--g100)', color: '#6b4f08' }}>Uploaded</span> : null}</div>
+                  <p className="sub2">{photoDone ? 'It appears inside the Greet-Me card they receive.' : 'A face makes the moment warmer.'}</p>
+                  <div className="acts2">
+                    <button type="button" className="btn btn-xs btn-line" onClick={() => navigate('/dashboard/profile')}><Camera size={14} /> {photoDone ? 'Change photo' : 'Add photo'}</button>
+                    <button type="button" className="link" onClick={() => navigate('/dashboard/media')}>Media Library</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {!photoDone ? <div className="warn"><AlertCircle size={16} style={{ flex: 'none', marginTop: 2 }} /><span>{SENDER_PHOTO_REQUIRED_MESSAGE}</span></div> : null}
+            <label className="words" style={{ display: 'block' }}>
+              <span className="fieldlabel">A few words from you (optional)</span>
+              <textarea data-testid="gx-words" value={words} onChange={(e) => setWords(e.target.value)} maxLength={HANDOFF_MAX_WORDS} placeholder="Happy birthday, and thank you for always showing up for me…" />
+            </label>
+            <div className="fieldlabel" style={{ marginTop: 12 }}>Memory photos (optional)</div>
+            {/* Fixed-size drop box (the approved size): added photos show inside it, so nothing below moves. */}
+            <div className="moments" data-testid="gx-moments">
+              {memoryPhotos.length === 0 ? (
+                <button type="button" className="madd" data-testid="gx-moments-add" onClick={() => memoryInputRef.current?.click()}>
+                  <ImagePlus size={22} color="#7C63AE" />
+                  <span style={{ marginTop: 6, font: '600 14.5px var(--sans)', color: 'var(--p800)' }}>Add image here</span>
+                  <span style={{ marginTop: 2, fontSize: 13, color: 'var(--muted)' }}>{photoNote || 'These images can be presented inside your Greet-Me cards.'}</span>
+                </button>
+              ) : (
+                <>
+                  <div className="mthumbs" data-testid="gx-moments-thumbs" aria-label="Memory photos added">
+                    {memoryPhotos.map((src, k) => (
+                      <span className="mthumb" key={k}><img src={src} alt={`Memory photo ${k + 1}`} /><button type="button" aria-label={`Remove memory photo ${k + 1}`} onClick={() => setMemoryPhotos((cur) => cur.filter((_, j) => j !== k))}><X size={12} /></button></span>
+                    ))}
+                  </div>
+                  <button type="button" className="link" data-testid="gx-moments-add" style={{ marginTop: 6, fontSize: 13 }} disabled={memoryPhotos.length >= HANDOFF_MAX_PHOTOS} onClick={() => memoryInputRef.current?.click()}>
+                    {photoNote || (memoryPhotos.length >= HANDOFF_MAX_PHOTOS ? `${HANDOFF_MAX_PHOTOS} of ${HANDOFF_MAX_PHOTOS} added` : `Add more · ${memoryPhotos.length} of ${HANDOFF_MAX_PHOTOS}`)}
+                  </button>
+                </>
+              )}
+            </div>
+            <input ref={memoryInputRef} type="file" accept="image/jpeg,image/jpg,image/png" multiple onChange={addMemoryPhotos} style={{ display: 'none' }} data-testid="gx-moments-input" />
+            <div className="donerow">
+              <span className="hint">Words and memory photos are optional.</span>
+              <button type="button" className="btn btn-sm btn-primary" style={{ height: 40 }} data-testid="gx-pers-done" onClick={() => setPersDone(true)}><Check size={15} /> Done</button>
+            </div>
+          </div>
 
-      {/* TEAM 1 — the QRCashGiftModal simulation was removed from here; both "Send QR Cash" CTAs
-          above now navigate to the real composer flow instead. */}
+          <div className="giftband" id="gx-gifts" data-testid="gx-step-4">
+            <StepHead n={4} label="Add a gift (optional)" isDone={Boolean(gift) && !resolverOn} />
+            <GiftCarousel
+              chosen={resolverOn ? null : gift}
+              smartCardAvailable={smartCardAvailable}
+              onAdd={(g) => {
+                // Scheduled Greet-Mes take each occasion's gift from Dates & gifts (the Occasion Scheduler's own choice).
+                if (resolverOn) { setGiftNote('For scheduled Greet-Mes, choose each occasion’s gift under Dates & gifts above.'); return; }
+                setGiftNote(''); setGift((cur) => (cur === g ? null : g));
+              }}
+              onQuickGift={quickGift}
+              onLearnQr={() => setShowHowItWorksModal(true)}
+            />
+          </div>
+
+          <div className="footbar" data-testid="gx-footbar">
+            <div style={{ minWidth: 0 }}>
+              <StepHead n={5} label="Send" isDone={Boolean(saveMsg && saveMsg.ok)} />
+              <div className="sum" data-testid="gx-summary" style={{ marginTop: 6 }}>{summary}</div>
+              <div className={`fine ${saveMsg && !saveMsg.ok ? 'saveerr' : ''}`} data-testid="gx-fine" role="status" aria-live="polite">{fineText}</div>
+            </div>
+            <button type="button" className="btn btn-primary" data-testid="gx-continue" disabled={!canContinue} onClick={handoff}>
+              {resolverOn ? <><CalendarDays size={18} /> {saving ? 'Saving…' : `Save schedule${occasions.length === 1 ? '' : 's'}`}</>
+                : groupSchedOn ? <><CalendarDays size={18} /> {saving ? 'Saving…' : `Save ${chosen.length} schedules`}</>
+                  : <><Send size={18} /> Continue to review</>}
+            </button>
+          </div>
+        </section>
+
+        {/* 3. One full-width card: Recipients | Upcoming Occasions | Past Occasions (fixed size, scrolls inside) */}
+        <section className="card tabcard" data-testid="gx-lower">
+          <div className="tabhead">
+            <div className="tabs" role="tablist" aria-label="Your people and occasions">
+              {[['recipients', 'Recipients'], ['upcoming', 'Upcoming Occasions'], ['past', 'Past Occasions']].map(([k, t]) => (
+                <button key={k} type="button" role="tab" id={`gx-tab-${k}`} aria-selected={tab === k} aria-controls="gx-tabpanel" onClick={() => setTab(k)}>{t}</button>
+              ))}
+            </div>
+            <div className="tabact">
+              {tab === 'recipients' ? <button type="button" className="btn btn-sm btn-primary" style={{ height: 38 }} onClick={goAddRecipient}><UserPlus size={15} /> Add Recipient</button>
+                : tab === 'past' ? <button type="button" className="link" onClick={() => navigate('/dashboard/sent')}>See all</button>
+                  : <span className="sub" style={{ marginTop: 0 }}>From Occasion Schedulers</span>}
+            </div>
+          </div>
+          <div className="tabbody" id="gx-tabpanel" role="tabpanel" aria-labelledby={`gx-tab-${tab}`} data-testid="gx-tabbody">
+            {tab === 'recipients' ? (
+              contacts.length === 0 ? (
+                <div className="empty" data-testid="gx-lower-recipients-empty" style={{ marginTop: 0 }}>
+                  <div className="ico"><UserPlus size={20} /></div>
+                  <div className="t">No recipients yet</div>
+                  <p>Add your first recipient to schedule personalized Greet-Me greetings for each occasion where you turn on Enable Auto-Gift. You can also send a Greet-Me anytime.</p>
+                  <button type="button" className="btn btn-sm btn-line" onClick={() => navigate('/dashboard/import-wizard')}><Upload size={15} /> Import Wizard</button>
+                </div>
+              ) : (
+                <>
+                  <div className="search" style={{ marginTop: 0 }}><Search size={16} color="#8a8199" /><input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Find someone…" aria-label="Find a recipient" /></div>
+                  {filtered.map((c) => (
+                    <div className="row" key={c.id}>
+                      <div className="avatar" style={{ background: avatarBg(c.name) }}>{initials(c.name)}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="name">{c.name}</div>
+                        <div className="meta">{c.relationship}{(c.occasions || []).length ? ' · ' : ''}{(c.occasions || []).slice(0, 3).map((o) => getOccasionIcon(typeof o === 'string' ? o : o.type)).join(' ')}{(c.occasions || []).length > 3 ? ` +${c.occasions.length - 3}` : ''}</div>
+                      </div>
+                      <button type="button" className="iconbtn" aria-label={`Send a Greet-Me to ${c.name}`} title="Send" onClick={() => navigate(`/dashboard/send?contactId=${c.id}`)}><Send size={16} /></button>
+                      <button type="button" className="iconbtn" data-testid="gx-edit-recipient" aria-label={`Edit ${c.name}`} title="Edit" onClick={() => goEdit(c.id)}><Pencil size={16} /></button>
+                    </div>
+                  ))}
+                </>
+              )
+            ) : tab === 'upcoming' ? (
+              <>
+                {upcomingOccasions.length === 0 ? (
+                  <div className="empty" data-testid="gx-upcoming-empty" style={{ marginTop: 0 }}>
+                    <div className="ico"><CalendarDays size={20} /></div>
+                    <div className="t">Nothing coming up yet</div>
+                    <p>Upcoming occasions will appear here as you add recipients. Add a recipient and an occasion date in their Occasion Scheduler.</p>
+                    <button type="button" className="btn btn-sm btn-line" onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}>Add Occasion</button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="nudge" data-testid="gx-nudge">Don&rsquo;t miss their moment.</p>
+                    {upcomingOccasions.map((occasion) => {
+                      const d = new Date(`${String(occasion.date).slice(0, 10)}T12:00:00`);
+                      const isUrgent = typeof occasion.daysUntil === 'number' && occasion.daysUntil <= 3;
+                      // A row shows its real status once the scheduler holds one; otherwise "Auto-send on" (the scheduler
+                      // prepares it 14 days ahead) or the action to schedule it.
+                      const status = occasion.scheduleStatus ? (OCCASION_STATUS_LABELS[occasion.scheduleStatus] || OCCASION_STATUS_LABELS[null]) : null;
+                      const when = occasion.daysUntil === 0 ? 'Today!' : occasion.daysUntil === 1 ? 'Tomorrow' : `in ${occasion.daysUntil} days`;
+                      return (
+                        <div className="row uprow" key={occasion.occasionId || `${occasion.contactId}:${occasion.occasionType}`} data-testid="gx-up-row">
+                          <div className="datebox"><span>{d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</span><b>{d.getDate()}</b></div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="name">{occasion.contactName}</div>
+                            <div className="meta">{getOccasionIcon(occasion.occasionType)} {OCC_LABEL(occasion.occasionType)} · {d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · <span style={{ color: isUrgent ? '#b4232f' : 'inherit', fontWeight: isUrgent ? 700 : 400 }}>{when}</span></div>
+                          </div>
+                          {status ? <span className={`tag ${status.tone}`} data-testid="gx-up-status">{status.tone === 'ok' ? <Check size={12} /> : null}{status.text}</span>
+                            : occasion.autoSend ? <span className="tag plum" data-testid="gx-up-auto" title="The scheduler prepares it 14 days before the date">Auto-send on</span>
+                              : occasion.contactId ? <button type="button" className="btn btn-sm btn-primary sched" data-testid="gx-up-schedule" onClick={() => goScheduler(occasion.contactId, occasion.occasionType)}><CalendarDays size={14} /> Schedule the Love</button> : null}
+                          {occasion.contactId && (
+                            <button type="button" className="iconbtn" aria-label={`Edit ${occasion.contactName}`} title="Edit" onClick={() => navigate('/dashboard/contacts', { state: { openEditRecipientId: occasion.contactId } })}><Pencil size={16} /></button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </>
+            ) : (
+              pastItems.length === 0 ? (
+                <div className="empty" data-testid="gx-past-empty" style={{ marginTop: 0 }}>
+                  <div className="ico"><Send size={18} /></div>
+                  <div className="t">No Greet-Me sends yet</div>
+                  <p>Once you add contacts and occasions, Greet-Me™ will handle the rest!</p>
+                </div>
+              ) : pastItems.map((g) => {
+                const [label, tone] = PAST_STATUS[g.status] || ['Creating', 'amber'];
+                const when = g.completedAt || g.createdAt;
+                return (
+                  <div className="row" key={g.id} data-testid="gx-past-row">
+                    <div className="avatar" style={{ background: avatarBg(g.recipientName), width: 36, height: 36, fontSize: 13 }}>{initials(g.recipientName)}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="name">{g.recipientName || 'Unknown'}</div>
+                      <div className="meta">{getOccasionIcon(g.occasionType)} {OCC_LABEL(g.occasionType)}{when ? ` · ${new Date(when).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</div>
+                    </div>
+                    <span className={`tag ${tone}`}>{tone === 'ok' ? <Check size={12} /> : null}{label}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </section>
+
+        {groupReviewOpen ? (
+          <GroupReview
+            recipients={resumeRun ? resumeRun.items.map((it) => ({ id: it.contactId, name: it.name, email: it.email })) : chosen}
+            occasion={resumeRun ? resumeRun.occasion : occasions[0]}
+            words={resumeRun ? resumeRun.words : words}
+            defaultGiftChoice={gift === 'qrcash' ? { type: 'qrcash', amount: 25 } : gift === 'gift' ? { type: 'other' } : null}
+            senderPhotoMissing={!photoDone}
+            senderVoiceMissing={!voiceDone}
+            userId={user?.id}
+            initialRun={resumeRun}
+            buildPayload={(item, run) => {
+              const contact = contacts.find((c) => c.id === item.contactId);
+              if (!contact) return null;
+              // Each card uses that person's own saved memory photos; photos added on this page are for single sends.
+              return buildGreetingPayload({ user, contact, formData: { occasionType: run.occasion, customMessage: run.words, tone: 'warm' }, memoryPhotos: [], useMemoryPhotos: true, excludedMemoryPhotos: new Set(), giftSettings: null, maxPhotos: HANDOFF_MAX_PHOTOS });
+            }}
+            onClose={() => { setGroupReviewOpen(false); setResumeRun(null); const r = loadRun(window.localStorage, user?.id); setPendingRun(r && !runSummary(r).done ? r : null); }}
+            onDone={() => { setPendingRun(null); fetchDashboardData(); }}
+          />
+        ) : null}
+
+        {/* Mobile App QR Code — home-screen install panel */}
+        <section className="card install" data-testid="gx-install">
+          <div className="medal" style={{ width: 44, height: 44, background: 'var(--p50)' }}><Smartphone size={20} color="#5A3E8A" /></div>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ fontSize: 17 }}>Add Greet-Me™ to Your Home Screen</h3>
+            <p style={{ fontSize: 14, color: 'var(--muted)', marginTop: 2 }}>Scan the QR code to open the install page. No app store needed.</p>
+          </div>
+          <button type="button" className="qrbtn" onClick={() => navigate('/app')} title="Scan to open the Greet-Me home-screen install page" aria-label="Open the Greet-Me home-screen install page">
+            {appQrUrl ? <img src={appQrUrl} alt="Scan to install Greet-Me" style={{ width: 64, height: 64, borderRadius: 8, border: '1px solid var(--line)', display: 'block' }} /> : <QrCode size={32} style={{ color: '#667eea', opacity: 0.3 }} />}
+          </button>
+        </section>
+      </div>
+
+      {/* W07 SAVE-time authorization for the inline resolver — the scheduler's own modal, shown only when needed. */}
+      {SCHEDULED_QRCASH_AVAILABLE && authModal && authForm && (
+        <SaveAuthorizationModal
+          plan={authModal.plan} card={authModal.card}
+          formData={authForm} setFormData={setAuthForm}
+          onCancel={() => { setAuthModal(null); setAuthForm(null); }}
+          onSave={async (consents) => {
+            await commitSchedules(authModal.person, sanitizeRelationshipForSave(authForm), consents);
+            setAuthModal(null); setAuthForm(null);
+          }}
+        />
+      )}
 
       {/* How QR Cash Works Modal */}
       {showHowItWorksModal && (
@@ -2674,217 +1335,6 @@ export default function DashboardHome() {
           </div>
         </>
       )}
-
-      {/* Greet One, Give One Modal */}
-      {showG1G1Modal && (
-        <>
-          {/* Backdrop */}
-          <div
-            onClick={() => setShowG1G1Modal(false)}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0, 0, 0, 0.5)',
-              zIndex: 999,
-              backdropFilter: 'blur(4px)'
-            }}
-          />
-
-          {/* Modal */}
-          <div style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            background: 'white',
-            borderRadius: '1rem',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-            zIndex: 1000,
-            width: '90%',
-            maxWidth: '550px',
-            maxHeight: '90vh',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
-            {/* Close Button */}
-            <button
-              onClick={() => setShowG1G1Modal(false)}
-              style={{
-                position: 'absolute',
-                top: '12px',
-                right: '12px',
-                background: 'rgba(255, 255, 255, 0.2)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: '50%',
-                width: '36px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                zIndex: 10
-              }}
-              {...getHoverHandlers({
-                onEnter: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'; },
-                onLeave: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'; },
-              })}
-            >
-              <span style={{ fontSize: '24px', fontWeight: 'bold', color: 'white', lineHeight: 1 }}>×</span>
-            </button>
-
-            {/* Header */}
-            <div style={{
-              padding: '1.5rem',
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              color: 'white',
-              textAlign: 'center'
-            }}>
-              <div style={{
-                width: '4rem',
-                height: '4rem',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 1rem',
-                fontSize: '2rem'
-              }}>
-                🎁
-              </div>
-              <h2 style={{
-                fontSize: '1.5rem',
-                fontWeight: 700,
-                marginBottom: '0.5rem'
-              }}>
-                Greet One, Give One™
-              </h2>
-              <p style={{
-                fontSize: '0.9375rem',
-                opacity: 0.95
-              }}>
-                Share the joy of connection
-              </p>
-            </div>
-
-            {/* Content */}
-            <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
-              {/* How It Works */}
-              <div style={{
-                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '1.25rem',
-                marginBottom: '1.5rem',
-                border: '1px solid rgba(16, 185, 129, 0.2)'
-              }}>
-                <h3 style={{
-                  fontSize: '1.125rem',
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  marginBottom: '0.75rem'
-                }}>
-                  How It Works
-                </h3>
-                <p style={{
-                  fontSize: '0.9375rem',
-                  color: 'var(--text-secondary)',
-                  lineHeight: 1.6,
-                  marginBottom: '0.75rem'
-                }}>
-                  Every Greet-Me™ subscription includes <strong>two subscriptions</strong> — one for you and one to gift to someone you care about. It's our way of spreading meaningful connections.
-                </p>
-                <ul style={{
-                  fontSize: '0.9375rem',
-                  color: 'var(--text-secondary)',
-                  lineHeight: 1.8,
-                  paddingLeft: '1.25rem',
-                  margin: 0
-                }}>
-                  <li>Your gift subscription has the <strong>same value</strong> as yours</li>
-                  <li>Recipient gets <strong>full access</strong> to all features <strong>free for one year</strong></li>
-                  <li>Gift link never expires — send it when you're ready</li>
-                  <li>At checkout, <strong>designate a recipient</strong> or <strong>receive the gift link via email</strong> — however you prefer</li>
-                </ul>
-              </div>
-
-              {/* Limitations */}
-              <div style={{
-                background: '#fef3c7',
-                borderRadius: 'var(--radius-lg)',
-                padding: '1rem',
-                marginBottom: '1.5rem',
-                border: '1px solid #fcd34d'
-              }}>
-                <p style={{
-                  fontSize: '0.875rem',
-                  color: '#92400e',
-                  margin: 0,
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '0.5rem'
-                }}>
-                  <span style={{ fontSize: '1rem' }}>⚠️</span>
-                  <span><strong>Note:</strong> Greet One, Give One is available for individual subscriptions only and does not apply to corporate bundles or Hero Program purchases.</span>
-                </p>
-              </div>
-
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button
-                  onClick={() => setShowG1G1Modal(false)}
-                  style={{
-                    flex: 1,
-                    padding: '0.875rem 1.5rem',
-                    background: 'white',
-                    color: 'var(--text-primary)',
-                    border: '2px solid var(--border)',
-                    borderRadius: 'var(--radius-lg)',
-                    fontSize: '0.9375rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    fontFamily: 'inherit'
-                  }}
-                >
-                  Got It
-                </button>
-                <button
-                  onClick={() => {
-                    setShowG1G1Modal(false);
-                    navigate('/pricing');
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: '0.875rem 1.5rem',
-                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 'var(--radius-lg)',
-                    fontSize: '0.9375rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    fontFamily: 'inherit',
-                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem'
-                  }}
-                >
-                  View Plans
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
     </div>
   );
 }

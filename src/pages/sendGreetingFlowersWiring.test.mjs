@@ -52,8 +52,11 @@ test("includeGift is evaluated, and flowers is excluded UNTIL the provider has a
   // is built the flower order has not been placed, so there is no record and no claim token: the flag
   // must be false. It is set later, in handleFlowerOrderAccepted, and only with a token the SERVER
   // minted — which is the next test.
-  const match = SRC.match(/includeGift:\s*Boolean\(([\s\S]*?)\),\s*\r?\n/);
-  assert.ok(match, "the includeGift expression must be findable in the page source");
+  // G5 (Report 103): the payload, and this rule, are built by utils/sendGreetingPayload.js; the send page uses it.
+  assert.match(SRC, /buildGreetingPayload\(\{/, "the send page builds its payload through the shared builder");
+  const PAYLOAD = readFileSync(join(__dirname, "..", "utils", "sendGreetingPayload.js"), "utf8");
+  const match = PAYLOAD.match(/includeGift:\s*Boolean\(([\s\S]*?)\),\s*\r?\n/);
+  assert.ok(match, "the includeGift expression must be findable in the shared payload builder");
 
   const decide = new Function("giftSettings", `return Boolean(${match[1]});`);
   for (const type of SELECTABLE) {

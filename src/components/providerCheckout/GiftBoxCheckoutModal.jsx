@@ -24,6 +24,11 @@ import GreetMeLogo from '../GreetMeLogo';
 import api from '../../api/api';
 import { stripePromise } from '../../stripe/stripeProvider';
 import { EMAIL_UNCONFIRMED_MESSAGE } from '../../utils/sendGating';
+import {
+  GIFT_BOX_LIMITS, DEFAULT_QUOTE_VALID_MS, validateGiftBoxForm, toGiftBoxQuoteRequest, parseGiftBoxQuote,
+  isGiftBoxQuoteExpired, giftBoxErrorCopy, PRE_CHARGE_CODES, OUTCOME_UNKNOWN_MESSAGE, PAID_NOT_FINALIZED_MESSAGE,
+  PENDING_FALLBACK_MESSAGE, EMPTY_GIFT_BOX_FORM,
+} from './giftBoxRules';
 
 // The visual language of ProviderCheckoutModal.jsx, reused exactly.
 const label = { display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-secondary, #475569)' };
@@ -57,95 +62,12 @@ const CARD_ELEMENT_OPTIONS = {
 };
 
 /** Backend limits, mirrored so the customer hears about them before a round trip. */
-export const GIFT_BOX_LIMITS = Object.freeze({ maxQuantity: 10 });
-const DEFAULT_QUOTE_VALID_MS = 120000;
-
 const fmt = (cents) => `$${(Number(cents) / 100).toFixed(2)}`;
 const trimmed = (v) => (typeof v === 'string' ? v.trim() : '');
-
-const EMPTY_FORM = {
-  firstName: '', lastName: '', address1: '', address2: '', city: '', state: '', postalCode: '',
-  phone: '', quantity: '1',
-};
-
-/** Client-side validation. The backend re-validates everything; this only saves a round trip. */
-export function validateGiftBoxForm(form) {
-  const errors = {};
-  if (!trimmed(form.firstName)) errors.firstName = 'Enter the recipient’s first name.';
-  if (!trimmed(form.address1)) errors.address1 = 'Enter the street address.';
-  if (!trimmed(form.city)) errors.city = 'Enter the city.';
-  if (!/^[A-Za-z]{2}$/.test(trimmed(form.state))) errors.state = 'Use the 2-letter state code, e.g. NJ.';
-  if (!/^\d{5}(-\d{4})?$/.test(trimmed(form.postalCode))) errors.postalCode = 'Enter a 5-digit ZIP (or ZIP+4).';
-  const qty = Number(form.quantity);
-  if (!Number.isInteger(qty) || qty < 1 || qty > GIFT_BOX_LIMITS.maxQuantity) {
-    errors.quantity = `Choose a quantity from 1 to ${GIFT_BOX_LIMITS.maxQuantity}.`;
-  }
-  return errors;
-}
-
-/** The selection + recipient body shared by the quote and the charge. Empty optionals are omitted. */
-export function toGiftBoxQuoteRequest(form, product) {
-  const address = {
-    address1: trimmed(form.address1),
-    city: trimmed(form.city),
-    state: trimmed(form.state).toUpperCase(),
-    postalCode: trimmed(form.postalCode),
-    country: 'US',
-  };
-  if (trimmed(form.address2)) address.address2 = trimmed(form.address2);
-  const recipient = { address };
-  if (trimmed(form.firstName)) recipient.firstName = trimmed(form.firstName);
-  if (trimmed(form.lastName)) recipient.lastName = trimmed(form.lastName);
-  return {
-    providerProductId: String(product?.providerProductId ?? ''),
-    quantity: Number(form.quantity),
-    recipient,
-  };
-}
-
-/** Customer-safe copy for every quote-route error code. Never a raw server string, except the one
- * the backend already writes for customers (a refused destination). */
-export function giftBoxErrorCopy(err) {
-  const code = err?.code;
-  switch (code) {
-    case 'gift_box_quote_refused':
-      return err?.message || 'This gift box can’t be shipped to that address.';
-    case 'INVALID_REQUEST':
-      return 'Please check the recipient’s name and address — we couldn’t use them as entered.';
-    case 'gift_box_product_unavailable':
-    case 'gift_box_product_unsupported':
-      return 'This gift box isn’t available right now. Please choose another.';
-    case 'gift_box_selection_invalid':
-      return 'This gift box can’t be ordered as selected. Please choose another option.';
-    case 'gift_box_quote_failed':
-    case 'gift_box_quote_not_authoritative':
-      return 'We couldn’t get a price for this gift box right now. Please try again in a moment.';
-    case 'gift_box_unavailable':
-    case 'gift_box_product_lookup_failed':
-      return 'Gift boxes are temporarily unavailable. Please try again later.';
-    case 'gift_box_request_conflict':
-      return 'This checkout was already used for a different order. Please close it and start again.';
-    case 'RATE_LIMIT_GENERAL':
-      return 'Too many attempts. Please wait a moment and try again.';
-    default:
-      return 'We couldn’t price this gift box. Please try again.';
-  }
-}
-
-/** Errors that the backend raises BEFORE any charge is attempted — so a fresh attempt is safe. */
-const PRE_CHARGE_CODES = new Set([
-  'INVALID_REQUEST', 'gift_box_product_unavailable', 'gift_box_product_unsupported',
-  'gift_box_selection_invalid', 'gift_box_quote_refused', 'gift_box_quote_failed',
-  'gift_box_quote_not_authoritative', 'gift_box_unavailable', 'gift_box_product_lookup_failed',
-  'gift_box_request_conflict',
-]);
-
-const OUTCOME_UNKNOWN_MESSAGE = 'We couldn’t confirm whether your payment went through. Please don’t try '
-  + 'again from here — check your orders, or contact support and we’ll sort it out.';
-const PAID_NOT_FINALIZED_MESSAGE = 'Your payment went through, but we couldn’t finish placing your gift box '
-  + 'order. Please try again — you will not be charged again.';
-const PENDING_FALLBACK_MESSAGE = 'Your payment was received. We’re still confirming your gift box order — '
-  + 'check back shortly, or contact support if this persists.';
+// The checkout's rules live in giftBoxRules.js (moved unchanged; shared with group gift boxes) and are re-exported.
+const EMPTY_FORM = EMPTY_GIFT_BOX_FORM;
+// Re-exported exactly as before the move, for existing importers.
+export { GIFT_BOX_LIMITS, validateGiftBoxForm, toGiftBoxQuoteRequest, giftBoxErrorCopy };
 
 function Shell({ children, onClose, showClose = true, closeDisabled = false }) {
   return (
@@ -221,7 +143,7 @@ function GiftBoxCheckoutForm({
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const quoteExpired = (q) => !q || (Date.now() - q.receivedAt) >= (q.validForMs || DEFAULT_QUOTE_VALID_MS);
+  const quoteExpired = (q) => isGiftBoxQuoteExpired(q);
 
   /** Fetch a fresh authoritative price. Returns the new quote, or null (with failure copy set). */
   const fetchQuote = useCallback(async () => {
@@ -232,39 +154,14 @@ function GiftBoxCheckoutForm({
       setFailure(giftBoxErrorCopy(err));
       return null;
     }
-    if (res?.networkError) {
-      setFailure('We could not reach Greet-Me. Please check your connection and try again.');
+    // BOTH figures are required, and the server's four display lines must add up to the charge exactly; the rules
+    // live in parseGiftBoxQuote (shared with group gift boxes) and fail closed.
+    const parsed = parseGiftBoxQuote(res);
+    if (!parsed.quote) {
+      setFailure(parsed.failure);
       return null;
     }
-    // BOTH figures are required: `quotedTotalCents` is the fee-inclusive amount the customer pays
-    // (and is shown), `providerQuotedTotalCents` is the fee-free partner price the server re-checks.
-    // A quote missing either cannot be charged against, so it fails closed here.
-    if (!res?.ok || !Number.isSafeInteger(res.quotedTotalCents) || res.quotedTotalCents <= 0
-        || !Number.isSafeInteger(res.providerQuotedTotalCents) || res.providerQuotedTotalCents <= 0
-        || !res.quotedAt) {
-      setFailure(res?.status === 401
-        ? 'Your session has expired. Please sign in again.'
-        : giftBoxErrorCopy(res));
-      return null;
-    }
-    // The server's four display lines are the ONLY price breakdown the customer is shown. They must add up to the
-    // charge exactly; a quote without them (or that does not add up) cannot be shown honestly, so it fails closed.
-    const d = res.display;
-    const lines = d && [d.productCents, d.shippingHandlingCents, d.taxCents, d.totalCents];
-    if (!lines || !lines.every(Number.isSafeInteger) || d.productCents <= 0 || d.shippingHandlingCents < 0 || d.taxCents < 0
-        || d.productCents + d.shippingHandlingCents + d.taxCents !== d.totalCents || d.totalCents !== res.quotedTotalCents) {
-      setFailure(giftBoxErrorCopy(res));
-      return null;
-    }
-    const next = {
-      display: { productCents: d.productCents, shippingHandlingCents: d.shippingHandlingCents, taxCents: d.taxCents, totalCents: d.totalCents },
-      quotedTotalCents: res.quotedTotalCents,
-      providerQuotedTotalCents: res.providerQuotedTotalCents,
-      feeCents: Number.isSafeInteger(res.feeCents) ? res.feeCents : null,
-      quotedAt: res.quotedAt,
-      validForMs: Number(res.quoteValidForMs) || DEFAULT_QUOTE_VALID_MS,
-      receivedAt: Date.now(),
-    };
+    const next = parsed.quote;
     setQuote(next);
     return next;
   }, [form, product]);

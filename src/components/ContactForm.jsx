@@ -20,6 +20,7 @@ import { SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_QRCASH_UNAVAILABLE_COPY } from '.
 import SaveAuthorizationModal from './w07Auth/SaveAuthorizationModal';
 import PaymentInfoTriangle from './w07Auth/PaymentInfoTriangle';
 import { planAuthorization } from '../utils/scheduledQrCashConsent';
+import { QRCASH_DEFAULT_DOLLARS, normalizeGiftSettingsForSave } from '../utils/occasionGiftSave';
 import { deterministicStructuredForContact } from '../import/completionModel.js';
 
 // Session storage key for preserving form data during gift selection navigation
@@ -433,10 +434,6 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
   // Scheduled QR Cash is not live (src/config/scheduledQrCash.js): a QR Cash gift is sent when the sender sends the
   // Greet-Me, never automatically on the occasion date. The inline Auto-Gift toggle must therefore be off/disabled.
   const qrCashManualOnly = (gs) => gs?.type === 'qrcash' && !SCHEDULED_QRCASH_AVAILABLE;
-  // The amount <select> DISPLAYS $25 when no amount is stored; write that default so the form never shows a
-  // figure it does not send.
-  const QRCASH_DEFAULT_DOLLARS = 25;
-
   const handleOccasionGiftChange = (occasionValue, field, value) => {
     setFormData(prev => {
       const current = getOccasionGiftSetting(occasionValue);
@@ -454,22 +451,8 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
     });
   };
 
-  // Save-path normalisation (see qrCashManualOnly): every qrcash entry saves with autoGift:false while scheduled QR Cash
-  // is unavailable, and with the amount the form displays. Other gift types are passed through untouched.
-  const normalizeGiftSettingsForSave = (settings) => {
-    if (!settings || typeof settings !== 'object') return settings;
-    const out = {};
-    for (const [key, gs] of Object.entries(settings)) {
-      if (gs && gs.type === 'qrcash' && !SCHEDULED_QRCASH_AVAILABLE) {
-        out[key] = { ...gs, autoGift: false, amount: gs.amount === undefined || gs.amount === null ? QRCASH_DEFAULT_DOLLARS : gs.amount };
-      } else if (gs && gs.type === 'qrcash' && gs.autoGift === true && (gs.amount === undefined || gs.amount === null)) {
-        out[key] = { ...gs, amount: QRCASH_DEFAULT_DOLLARS }; // an Auto-Gift QR Cash entry is never sent without the amount it shows
-      } else {
-        out[key] = gs;
-      }
-    }
-    return out;
-  };
+  // Save-path normalisation (see qrCashManualOnly) lives in utils/occasionGiftSave.js, shared with the dashboard's
+  // inline date-and-gift resolver so both save exactly the same way.
 
   const handleFaithSelectionChange = (newSelectedFaiths) => {
     // Phase 3D Batch H H12+H13 — diff-based reconciliation. Replaces the
