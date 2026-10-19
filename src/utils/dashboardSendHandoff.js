@@ -8,11 +8,12 @@
 //     the same form the send flow already keeps in sessionStorage for its own round trips). The send flow reads
 //     the hand-off once, only for the same recipient and occasion, and removes it.
 
-// The send flow's occasion list (its existing five plus the four approved 2026-10-18). Hanukkah, Sympathy and
-// Engagement are held pending the founder's ruling on their protected content (GREETING_RULES untouched).
+// The send flow's occasion list: its existing five plus Season's Greetings (approved 2026-10-18, offered by the
+// dashboard). Hanukkah, Sympathy and Engagement are held pending the founder's ruling on their protected content;
+// Christmas, Wedding and Baby are held until their known generation and cover defects are corrected (Report 109).
+// GREETING_RULES untouched.
 export const SEND_OCCASION_OPTIONS = Object.freeze([
-  'Birthday', 'Anniversary', 'Thank You', 'Congratulations', 'Just Because',
-  'Wedding', 'Baby', 'Christmas', "Season's Greetings",
+  'Birthday', 'Anniversary', 'Thank You', 'Congratulations', 'Just Because', "Season's Greetings",
 ]);
 
 // Occasion labels whose canonical key the shared normaliser does not derive from the label itself. The backend

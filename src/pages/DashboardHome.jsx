@@ -89,10 +89,11 @@ const SLIDES = [
 ];
 const SMARTCARD_UNAVAILABLE_LINE = 'Coming later — not yet available';
 
-// Occasions (founder 2026-10-18): the send flow's five plus Baby and Wedding, and a Season's Greetings menu.
-// Engagement, Sympathy and Hanukkah are held until their protected content is ruled on (GREETING_RULES untouched).
-const OCCASIONS = ['Birthday', 'Anniversary', 'Thank You', 'Congratulations', 'Just Because', 'Baby', 'Wedding'];
-const SEASON = ['Christmas', "Season's Greetings"];
+// Occasions (founder 2026-10-18): the send flow's five, and a Season's Greetings menu.
+// Engagement, Sympathy and Hanukkah are held until their protected content is ruled on; Christmas, Wedding and Baby are
+// held until their known generation and cover defects are corrected (Report 109). GREETING_RULES untouched.
+const OCCASIONS = ['Birthday', 'Anniversary', 'Thank You', 'Congratulations', 'Just Because'];
+const SEASON = ["Season's Greetings"];
 // Base44 "Send to" segments mapped onto the recipient's existing relationshipCategory (family | friend | professional).
 const AUDIENCES = [
   { key: 'one', segment: 'Individuals', label: 'People you choose' },
@@ -349,8 +350,8 @@ export default function DashboardHome() {
     : overCap ? `A group is up to ${GROUP_MAX} people. Leave out ${chosen.length - GROUP_MAX} more to continue.`
     : ruleNote === 'occ' ? 'You’re sending to several people, so they share one occasion. Remove people to add more occasions.'
     : ruleNote === 'who' || ruleNote === 'group' ? 'Several occasions go to one person. To send to several people, keep just one occasion.'
-      : ruleNote.startsWith('sched:') ? `${ruleNote.slice(6)} is sent on its own with Send Now. Several occasions for one person are scheduled in their Occasion Scheduler: Birthday, Anniversary and Christmas.`
-        : notSchedulable ? `${notSchedulable} can’t be scheduled in the Occasion Scheduler. Choose Send Now, or Birthday, Anniversary or Christmas.`
+      : ruleNote.startsWith('sched:') ? `${ruleNote.slice(6)} is sent on its own with Send Now. Several occasions for one person are scheduled in their Occasion Scheduler: Birthday and Anniversary.`
+        : notSchedulable ? `${notSchedulable} can’t be scheduled in the Occasion Scheduler. Choose Send Now, or Birthday or Anniversary.`
           : occLocked ? 'Several people share one occasion.'
             : whoLocked ? 'Several occasions go to one person.'
               : 'One person: choose one or more occasions. Several people: one shared occasion.';
@@ -796,13 +797,13 @@ export default function DashboardHome() {
           </div>
 
           <div className="step" data-testid="gx-step-3">
-            <StepHead n={3} label="Personalize — optional" isDone={persDone} />
+            <StepHead n={3} label="Personalize" isDone={persDone} />
             <div className="ptiles">
               <div className="ptile" data-testid="gx-voice-tile">
                 <span className={`ic ${voiceDone ? 'okc' : 'hero'}`}>{voiceDone ? <Check size={20} /> : <Mic size={20} />}</span>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><b>{voiceDone ? 'Voice greeting ready' : 'Record your voice'}</b>{voiceDone ? <span className="tag" style={{ background: 'var(--g100)', color: '#6b4f08' }}>Saved</span> : null}</div>
-                  <p className="sub2">{voiceDone ? 'Your saved voice is used. No need to record again.' : 'Optional — about 15 seconds is plenty.'}</p>
+                  <p className="sub2">{voiceDone ? 'Your saved voice is used. No need to record again.' : 'Required for group sending — about 15 seconds is plenty.'}</p>
                   <div className="acts2">
                     {voiceDone ? (
                       <>
@@ -884,8 +885,8 @@ export default function DashboardHome() {
               <div className={`fine ${saveMsg && !saveMsg.ok ? 'saveerr' : ''}`} data-testid="gx-fine" role="status" aria-live="polite">{fineText}</div>
             </div>
             <button type="button" className="btn btn-primary" data-testid="gx-continue" disabled={!canContinue} onClick={handoff}>
-              {resolverOn ? <><CalendarDays size={18} /> {saving ? 'Saving…' : `Review and save schedule${occasions.length === 1 ? '' : 's'}`}</>
-                : groupSchedOn ? <><CalendarDays size={18} /> {saving ? 'Saving…' : `Review and save ${chosen.length} schedules`}</>
+              {resolverOn ? <><CalendarDays size={18} /> {saving ? 'Saving…' : `Save schedule${occasions.length === 1 ? '' : 's'}`}</>
+                : groupSchedOn ? <><CalendarDays size={18} /> {saving ? 'Saving…' : `Save ${chosen.length} schedules`}</>
                   : <><Send size={18} /> Continue to review</>}
             </button>
           </div>

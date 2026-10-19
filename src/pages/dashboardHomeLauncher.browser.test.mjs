@@ -180,10 +180,16 @@ test("renders the approved sections; held occasions are not rendered; Upcoming a
     assert.ok($(`[data-testid=${id}]`), id);
   }
   const chips = $$("[data-testid=gx-occasion] .occ").map((e) => e.textContent.trim());
-  assert.deepEqual(chips.slice(0, 7), ["Birthday", "Anniversary", "Thank You", "Congratulations", "Just Because", "Baby", "Wedding"]);
+  assert.deepEqual(chips.slice(0, 5), ["Birthday", "Anniversary", "Thank You", "Congratulations", "Just Because"]);
   await click($("[data-testid=gx-season]"));
-  assert.deepEqual($$(".menu button").map((b) => b.textContent.trim()), ["Christmas", "Season's Greetings"]);
+  assert.deepEqual($$(".menu button").map((b) => b.textContent.trim()), ["Season's Greetings"]);
+  const occasionChoices = [...chips, ...$$(".menu button").map((b) => b.textContent.trim())];
+  for (const held of ["Engagement", "Sympathy", "Hanukkah", "Christmas", "Wedding", "Baby"]) assert.equal(occasionChoices.includes(held), false, `${held} is held from the dashboard selections`);
   for (const held of ["Engagement", "Sympathy", "Hanukkah"]) assert.equal(document.body.textContent.includes(held), false, `${held} is held`);
+  // N-6 (founder 2026-10-18): a recorded voice is required for group sending; words and memory photos stay optional
+  assert.equal($("[data-testid=gx-step-3]").textContent.includes("Personalize — optional"), false);
+  const step3 = $("[data-testid=gx-step-3]").textContent;
+  assert.match(step3, /A few words from you \(optional\)/); assert.match(step3, /Memory photos \(optional\)/);
   assert.deepEqual(globalThis.__calls.find((c) => c[0] === "upcoming"), ["upcoming", 60]);
   assert.equal(document.body.textContent.includes("SIMULATED"), false, "no preview simulation ships");
 });
@@ -206,11 +212,11 @@ test("rule: one person may take several scheduler occasions; a second person is 
 test("rule: several people share one occasion; a second occasion is refused and nothing is dropped", async () => {
   await mount();
   await click(byText(".mode", "Send Now"));
-  await click(occ("Wedding"));
+  await click(occ("Congratulations"));
   await pickPerson("Theresa"); await pickPerson("Margaret");
-  await click(occ("Baby"));
+  await click(occ("Thank You"));
   const s = state();
-  assert.deepEqual(s.occ, ["Wedding"]);
+  assert.deepEqual(s.occ, ["Congratulations"]);
   assert.equal(s.picks.length, 2);
   assert.match(s.rule, /share one occasion/);
 });
@@ -370,7 +376,7 @@ test("S3: a person whose save needs the scheduler's card/consent step is listed,
 test("Send Now: one person + one occasion hands off to the existing send flow, with words and photos carried once", async () => {
   await mount();
   await click(byText(".mode", "Send Now"));
-  await click(occ("Baby"));
+  await click(occ("Just Because"));
   await pickPerson("Margaret");
   await click($("[data-testid=gx-who-done]"));
   await setValue($("[data-testid=gx-words]"), "Welcome, little one");
@@ -378,9 +384,10 @@ test("Send Now: one person + one occasion hands off to the existing send flow, w
   assert.equal(state().cont.disabled, false);
   await click(state().cont);
   const nav = globalThis.__nav.at(-1).to;
-  assert.equal(nav, "/dashboard/send?contactId=c2&occasion=Baby&from=dashboard&gift=choose");
+  assert.equal(nav, "/dashboard/send?contactId=c2&occasion=Just+Because&from=dashboard&gift=choose");
   const h = JSON.parse(window.sessionStorage.getItem("gm_dashboard_send_handoff_v1"));
-  assert.equal(h.contactId, "c2"); assert.equal(h.occasion, "Baby"); assert.equal(h.words, "Welcome, little one");
+  assert.equal(new URLSearchParams(nav.split("?")[1]).get("occasion"), "Just Because", "the send page reads the occasion back exactly");
+  assert.equal(h.contactId, "c2"); assert.equal(h.occasion, "Just Because"); assert.equal(h.words, "Welcome, little one");
   assert.equal(globalThis.__saves.length, 0, "the dashboard itself saves nothing");
 });
 
@@ -415,7 +422,7 @@ test("resolver: one person + several occasions -> prefilled rows, blocked until 
   assert.equal(state().cont.disabled, true, "a date alone does not complete a row");
   await setValue($$("[data-testid=gx-resolver-row]")[1].querySelector("select"), "none");
   assert.equal(state().cont.disabled, false);
-  assert.match(state().cont.textContent, /Review and save schedules/);
+  assert.equal(state().cont.textContent.trim(), "Save schedules");
 });
 
 test("resolver save: PUT /api/contacts/:id with the FULL record; other data untouched; success reported only after acceptance", async () => {
@@ -468,7 +475,7 @@ test("resolver save refused by the server: the error is shown and nothing claims
 test("resolver: a shipped gift with no address uses the scheduler's own authorisation step before anything is saved", async () => {
   await mount();
   await click(byText(".mode", "Schedule the Love"));
-  await click(occ("Christmas") || occ("Birthday"));
+  await click(occ("Birthday"));
   await pickPerson("Margaret");
   await click($("[data-testid=gx-who-done]"));
   // Margaret has no saved occasions; Birthday needs a date
@@ -738,4 +745,12 @@ test("scheduled gifts: one short status — 'Auto-Gift on' or 'Reminder only —
   assert.match($$("[data-testid=gx-resolver-row]")[0].textContent, /QR Cash \$50\.00 \+ \$3\.49 fee = \$53\.49/);
   await click($$("[data-testid=gx-sched-info]")[1]);
   assert.match($("[data-testid=gx-sched-info-text]").textContent, /remind you 10 days before.*nothing is charged automatically.*\$1\.99 \+ 3%/);
+});
+
+test("N-6: with no recorded voice, Personalize says the voice is required for group sending; words and memory photos stay optional", async () => {
+  await mount({ user: { id: "u1", name: "Alex Rivera", photoUrl: "p.jpg" } });
+  const step3 = $("[data-testid=gx-step-3]").textContent;
+  assert.match($("[data-testid=gx-voice-tile]").textContent, /Record your voice.*Required for group sending — about 15 seconds is plenty\./);
+  assert.equal(/Personalize — optional|Optional — about 15/.test(step3), false);
+  assert.match(step3, /A few words from you \(optional\)/); assert.match(step3, /Memory photos \(optional\)/);
 });
