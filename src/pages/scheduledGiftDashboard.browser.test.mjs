@@ -268,7 +268,8 @@ test("no saved card: the final confirmation asks for the card too; Cancel saves 
 test("reuse: a valid card and an unchanged, already-consented selection save with no confirmation step", async () => {
   const g = { type: "gift_boxes", autoGift: true, scheduledGift: { v: 1, vendor: "gift_boxes", name: "Cookie Box", imageUrl: "", maxTotalCents: 4600,
     delivery: { firstName: "Margaret", address1: "2 Elm St", city: "Town", state: "NJ", postalCode: "07001", country: "US" }, providerProductId: "goody-1", variants: [], quantity: 1 } };
-  const contacts = CONTACTS(); contacts[1] = { ...contacts[1], occasions: [{ id: "m1", type: "birthday", date: "1960-02-11", autoSend: true }], occasionGiftSettings: { birthday: g } };
+  const contacts = CONTACTS(); contacts[1] = { ...contacts[1], occasions: [{ id: "m1", type: "birthday", date: "1960-02-11", autoSend: true }], occasionGiftSettings: { birthday: g },
+    scheduledGiftConsents: { birthday: { contactId: "c2", occasionType: "birthday", vendor: "gift_boxes", wordingVersion: "sched-gift-v1", maxTotalCents: 4600, acceptedAt: "2026-10-19T00:00:00Z" } } };
   await mount({ contacts });
   await click(byText(".mode", "Schedule the Love"));
   await click(occ("Birthday"));
@@ -315,4 +316,48 @@ test("a maximum over $1,000 is refused in the picker; changing the row's gift ty
   await setValue($$("[data-testid=gx-resolver-row]")[0].querySelector("select"), "none");
   await click($("[data-testid=gx-dates-save]"));
   assert.deepEqual(globalThis.__saves[0].body.occasionGiftSettings.birthday, { type: "none", autoGift: false });
+});
+
+test("server parity (a): a stored Auto-Gift with NO stored consent is asked at Save, never sent without one", async () => {
+  const g = { type: "gift_boxes", autoGift: true, scheduledGift: { v: 1, vendor: "gift_boxes", name: "Cookie Box", imageUrl: "", maxTotalCents: 4600,
+    delivery: { firstName: "Margaret", lastName: "", address1: "2 Elm St", city: "Town", state: "NJ", postalCode: "07001", country: "US" }, providerProductId: "goody-1", variants: [], quantity: 1 } };
+  const contacts = CONTACTS(); contacts[1] = { ...contacts[1], occasions: [{ id: "m1", type: "birthday", date: "1960-02-11", autoSend: true }], occasionGiftSettings: { birthday: g } };
+  await mount({ contacts });
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday"));
+  await pickPerson("Margaret");
+  await click($("[data-testid=gx-who-done]"));
+  await click($("[data-testid=gx-dates-save]"));
+  assert.ok($("[data-testid=auth-modal]"), "asked");
+  assert.equal(authNeed().scheduledGiftConsent, true);
+  await click($("[data-testid=auth-save]"));
+  assert.deepEqual(globalThis.__saves[0].body.scheduledGiftConsents, { birthday: { accepted: true, wordingVersion: "sched-gift-v1" } });
+});
+
+test("group schedule: a person whose scheduled gift needs consent is not saved silently; 'Add missing details' opens their final confirmation, then saves them with the consent", async () => {
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday"));
+  await pickPerson("Theresa"); await pickPerson("Margaret");
+  await click($("[data-testid=gx-who-done]"));
+  const rowOf = (n) => $$("[data-testid=gx-group-row]").find((r) => r.textContent.includes(n));
+  await setValue(rowOf("Margaret").querySelector("input"), "1960-02-11");
+  await setValue(rowOf("Margaret").querySelector("select"), "merch");
+  await click(rowOf("Margaret").querySelector("[data-testid=sg-choose]"));
+  await pickTab("merch"); await chooseFirst();
+  await setValue($("[data-testid=sg-variant]"), "40021");
+  for (const [k, v] of [["firstName", "Margaret"], ["address1", "2 Elm St"], ["city", "Town"], ["state", "NJ"], ["postalCode", "07001"]]) await fill(k, v);
+  await setValue($("[data-testid=sg-max]"), "60");
+  await click($("[data-testid=sg-use]"));
+  await click(datesSave());
+  assert.deepEqual(globalThis.__saves.map((x) => x.id), ["c1"], "Theresa (nothing needed) saved; Margaret not saved without her consent");
+  assert.match(rowOf("Margaret").textContent, /Your Auto-Gift authorization is needed/);
+  await click(rowOf("Margaret").querySelector("[data-testid=gx-group-finish]"));
+  assert.equal(authNeed().scheduledGiftConsent, true, "her final confirmation asks for the consent");
+  await click($("[data-testid=auth-save]"));
+  assert.deepEqual(globalThis.__saves.map((x) => x.id), ["c1", "c2"]);
+  const m = globalThis.__saves[1].body;
+  assert.deepEqual(m.scheduledGiftConsents, { birthday: { accepted: true, wordingVersion: "sched-gift-v1" } });
+  assert.deepEqual(m.occasionGiftSettings.birthday.scheduledGift.items, [{ syncVariantId: 40021 }]);
+  assert.match($("[data-testid=gx-fine]").textContent, /Saved 2 of 2 scheduled Greet-Mes for Birthday/);
 });

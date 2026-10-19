@@ -93,7 +93,7 @@ export function addressMissing(formData, settings, requiresDelivery) {
  * occasions and non-QR-Cash gifts never appear (the server refuses a consent for any other gift type).
  * @returns {{ items: Array<{key,label,date,dateLabel,amountCents}>, cardState: string, need: {card:boolean, consent:boolean, address:boolean} }}
  */
-export function planAuthorization({ settings, initialSettings, occasions, card, formData, labelFor, requiresDelivery }) {
+export function planAuthorization({ settings, initialSettings, occasions, card, formData, labelFor, requiresDelivery, storedScheduledGiftConsents }) {
   const init = initialSettings && typeof initialSettings === 'object' ? initialSettings : {};
   const all = [];
   for (const [key, g] of Object.entries(settings || {})) {
@@ -112,7 +112,7 @@ export function planAuthorization({ settings, initialSettings, occasions, card, 
     if (!g || !g.scheduledGift || g.autoGift !== true) continue;
     const occ = (occasions || []).find((o) => o && o.type === key) || {};
     const date = typeof occ.date === 'string' ? occ.date.slice(0, 10) : '';
-    sgAll.push({ key, label: (labelFor && labelFor(key)) || key, date, dateLabel: monthDay(date) || DATE_FALLBACK, name: g.scheduledGift.name || '', maxTotalCents: g.scheduledGift.maxTotalCents, changed: needsScheduledGiftConsent(init[key], g) });
+    sgAll.push({ key, label: (labelFor && labelFor(key)) || key, date, dateLabel: monthDay(date) || DATE_FALLBACK, name: g.scheduledGift.name || '', maxTotalCents: g.scheduledGift.maxTotalCents, changed: needsScheduledGiftConsent(init[key], g, (storedScheduledGiftConsents || {})[key]) });
   }
   const dated = [...all, ...sgAll];
   const state = dated.length ? cardStateFor(card, dated.map((i) => i.date)) : 'ok';

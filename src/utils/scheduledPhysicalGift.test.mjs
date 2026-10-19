@@ -42,17 +42,31 @@ test("an incomplete selection is reported: no product, no maximum, an incomplete
   assert.deepEqual(G.scheduledGiftProblems(s), ["product", "maxTotal", "delivery"]);
 });
 
-test("consent: new on first enable or any product/variant/quantity/delivery change or a higher maximum; a lower maximum keeps it; off needs none", () => {
+test("consent parity with the server: reused only when the STORED consent (current wording) matches the stored selection and the maximum is not higher; otherwise asked", () => {
   const a = G.buildScheduledGiftSetting({ vendor: "gift_boxes", providerProductId: "77", variants: ["v1"], quantity: 1 }, { maxTotalCents: 6000, delivery: DELIVERY });
-  assert.equal(G.needsScheduledGiftConsent(null, a), true, "first enable");
-  assert.equal(G.needsScheduledGiftConsent(a, a), false, "unchanged");
-  const lower = { ...a, scheduledGift: { ...a.scheduledGift, maxTotalCents: 5000 } };
-  assert.equal(G.needsScheduledGiftConsent(a, lower), false, "a lower maximum keeps consent");
-  assert.equal(G.needsScheduledGiftConsent(a, { ...a, scheduledGift: { ...a.scheduledGift, maxTotalCents: 7000 } }), true, "a higher maximum");
-  assert.equal(G.needsScheduledGiftConsent(a, { ...a, scheduledGift: { ...a.scheduledGift, quantity: 2 } }), true, "quantity");
-  assert.equal(G.needsScheduledGiftConsent(a, { ...a, scheduledGift: { ...a.scheduledGift, delivery: { ...DELIVERY, city: "Newark" } } }), true, "delivery");
-  assert.equal(G.needsScheduledGiftConsent(a, { ...a, autoGift: false }), false, "off: nothing to consent to");
+  const stored = { ...a, scheduledGift: { ...a.scheduledGift, selectionHash: "h1" } };
+  const consent = { wordingVersion: "sched-gift-v1", maxTotalCents: 6000, selectionHash: "h1" };
+  assert.equal(G.needsScheduledGiftConsent(null, a, undefined), true, "first enable");
+  assert.equal(G.needsScheduledGiftConsent(stored, a, consent), false, "unchanged with a valid stored consent: reused");
+  assert.equal(G.needsScheduledGiftConsent(stored, a, undefined), true, "(a) stored Auto-Gift but no stored consent: asked");
+  assert.equal(G.needsScheduledGiftConsent(stored, a, { ...consent, wordingVersion: "old" }), true, "(a) another wording version: asked");
+  assert.equal(G.needsScheduledGiftConsent(stored, a, { ...consent, selectionHash: "h0" }), true, "consent belongs to an older selection: asked");
+  assert.equal(G.needsScheduledGiftConsent(stored, { ...a, scheduledGift: { ...a.scheduledGift, maxTotalCents: 5000 } }, consent), false, "a lower maximum keeps it");
+  assert.equal(G.needsScheduledGiftConsent(stored, { ...a, scheduledGift: { ...a.scheduledGift, maxTotalCents: 7000 } }, consent), true, "a higher maximum");
+  assert.equal(G.needsScheduledGiftConsent(stored, { ...a, scheduledGift: { ...a.scheduledGift, quantity: 2 } }, consent), true, "quantity");
+  assert.equal(G.needsScheduledGiftConsent(stored, { ...a, scheduledGift: { ...a.scheduledGift, delivery: { ...DELIVERY, city: "Newark" } } }, consent), true, "delivery");
+  assert.equal(G.needsScheduledGiftConsent(stored, { ...a, autoGift: false }, undefined), false, "off: nothing to consent to");
+  // (b) re-picking the same gift: raw picker values vs the server-normalised snapshot compare equal
+  const serverNormalised = { ...stored, scheduledGift: { ...stored.scheduledGift, delivery: { firstName: "Evelyn", lastName: "", address1: "41 Orchard Lane", city: "Montclair", state: "NJ", postalCode: "07042", country: "US" } } };
+  const rawRepick = G.buildScheduledGiftSetting({ vendor: "gift_boxes", providerProductId: 77, variants: ["v1"], quantity: "1" }, { maxTotalCents: 6000, delivery: { firstName: " Evelyn", lastName: "", address1: "41 Orchard Lane", address2: "", city: "Montclair", state: "nj", postalCode: "07042", country: "US", phone: "" } });
+  assert.equal(G.needsScheduledGiftConsent(serverNormalised, rawRepick, consent), false, "(b) same gift re-picked: not asked again");
   assert.deepEqual(G.scheduledGiftConsentsFor(["christmas"]), { christmas: { accepted: true, wordingVersion: "sched-gift-v1" } });
+});
+
+test("the save-time authorisation step runs when either scheduled QR Cash or scheduled physical gifts are live", () => {
+  assert.equal(G.authorizationStepEnabled(false, true), true);
+  assert.equal(G.authorizationStepEnabled(true, false), true);
+  assert.equal(G.authorizationStepEnabled(false, false), false);
 });
 
 test("consent wording names the date and the maximum, promises no delivery date, and says what happens otherwise", () => {

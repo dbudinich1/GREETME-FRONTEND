@@ -21,7 +21,7 @@ import SaveAuthorizationModal from './w07Auth/SaveAuthorizationModal';
 import ScheduledGiftPicker from './scheduledGift/ScheduledGiftPicker';
 import ScheduledGiftEntry from './scheduledGift/ScheduledGiftEntry';
 import { SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from '../config/scheduledPhysicalGift';
-import { scheduledGiftConsentsFor } from '../utils/scheduledPhysicalGift';
+import { scheduledGiftConsentsFor, authorizationStepEnabled } from '../utils/scheduledPhysicalGift';
 import PaymentInfoTriangle from './w07Auth/PaymentInfoTriangle';
 import { planAuthorization } from '../utils/scheduledQrCashConsent';
 import { QRCASH_DEFAULT_DOLLARS, normalizeGiftSettingsForSave } from '../utils/occasionGiftSave';
@@ -578,7 +578,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
     try {
       const toSave = sanitizeRelationshipForSave(formData);
       const settings = normalizeGiftSettingsForSave(toSave.occasionGiftSettings);
-      if (SCHEDULED_QRCASH_AVAILABLE) {
+      if (authorizationStepEnabled(SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_PHYSICAL_GIFT_AVAILABLE)) {
         // W07: before saving, work out what the sender still has to give us (consent per new or changed QR Cash Auto-Gift, a card
         // when none usable is on file, the mailing address of a shipped gift). Nothing is requested when no QR Cash Auto-Gift exists.
         let card = null;
@@ -593,6 +593,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
         }
         const plan = planAuthorization({
           settings, initialSettings: contact && contact.occasionGiftSettings, occasions: toSave.occasions, card, formData: toSave,
+          storedScheduledGiftConsents: contact && contact.scheduledGiftConsents,
           labelFor: (type) => (occasionTypes.find((o) => o.value === type) || {}).label,
           requiresDelivery: requiresDeliveryAddress,
         });
@@ -3050,7 +3051,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
       ) : null}
 
       {/* W07 SAVE-time authorization (dormant: authModal is only ever set when SCHEDULED_QRCASH_AVAILABLE) */}
-      {SCHEDULED_QRCASH_AVAILABLE && authModal && (
+      {authorizationStepEnabled(SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_PHYSICAL_GIFT_AVAILABLE) && authModal && (
         <SaveAuthorizationModal
           plan={authModal.plan} card={authModal.card}
           formData={formData} setFormData={setFormData}

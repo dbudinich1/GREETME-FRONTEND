@@ -36,7 +36,6 @@ import { requiresDeliveryAddress } from '../components/ContactForm';
 import { relationshipErrors, sanitizeRelationshipForSave } from '../components/contactFormValidation.js';
 import SaveAuthorizationModal from '../components/w07Auth/SaveAuthorizationModal';
 import { planAuthorization } from '../utils/scheduledQrCashConsent';
-import { SCHEDULED_QRCASH_AVAILABLE } from '../config/scheduledQrCash';
 import { normalizeGiftSettingsForSave } from '../utils/occasionGiftSave';
 import {
   SCHEDULER_OCCASION_TYPES, isSchedulerOccasion, prefillRow, chooseGift, rowComplete, buildResolverContact, finalizeResolverSave,
@@ -54,7 +53,8 @@ import { OCCASION_CHIPS, OCCASION_MENUS } from '../utils/dashboardOccasions';
 import ScheduledGiftPicker from '../components/scheduledGift/ScheduledGiftPicker';
 import ScheduledGiftEntry from '../components/scheduledGift/ScheduledGiftEntry';
 import { SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from '../config/scheduledPhysicalGift';
-import { scheduledGiftConsentsFor } from '../utils/scheduledPhysicalGift';
+import { scheduledGiftConsentsFor, authorizationStepEnabled } from '../utils/scheduledPhysicalGift';
+import { SCHEDULED_QRCASH_AVAILABLE } from '../config/scheduledQrCash';
 import { saveLauncherState, readLauncherState, clearLauncherState } from '../utils/dashboardLauncherState';
 import giftLuxuryBox from '../assets/gifts/gift-luxury-box.png';
 import giftBouquet from '../assets/gifts/gift-bouquet.png';
@@ -424,12 +424,12 @@ export default function DashboardHome() {
     try {
       const people = chosen.slice();
       let card; // fetched once, only if a QR Cash Auto-Gift is involved
-      const plan = SCHEDULED_QRCASH_AVAILABLE ? async (person, toSave) => {
+      const plan = authorizationStepEnabled(SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_PHYSICAL_GIFT_AVAILABLE) ? async (person, toSave) => {
         const settings = normalizeGiftSettingsForSave(toSave.occasionGiftSettings);
         if (card === undefined && hasAutoGiftNeedingCard(settings)) {
           try { const r = await api.getQrCashCardStatus(); card = (r && r.card) || null; } catch { card = null; }
         }
-        return planAuthorization({ settings, initialSettings: person.occasionGiftSettings, occasions: toSave.occasions, card: card || null, formData: toSave, labelFor: labelForType, requiresDelivery: requiresDeliveryAddress }).need;
+        return planAuthorization({ settings, initialSettings: person.occasionGiftSettings, occasions: toSave.occasions, card: card || null, formData: toSave, labelFor: labelForType, requiresDelivery: requiresDeliveryAddress, storedScheduledGiftConsents: person.scheduledGiftConsents }).need;
       } : null;
       const results = await saveGroupSchedules({
         people, rowFor: (p) => groupRowOf(p), api, sanitize: sanitizeRelationshipForSave, plan,
@@ -472,7 +472,7 @@ export default function DashboardHome() {
       try { const r = await api.getQrCashCardStatus(); card = (r && r.card) || null; }
       catch { setSaveMsg({ ok: false, text: 'We couldn’t check the card on file just now. Please try again.' }); return; }
     }
-    const plan = planAuthorization({ settings, initialSettings: person.occasionGiftSettings, occasions: toSave.occasions, card, formData: toSave, labelFor: labelForType, requiresDelivery: requiresDeliveryAddress });
+    const plan = planAuthorization({ settings, initialSettings: person.occasionGiftSettings, occasions: toSave.occasions, card, formData: toSave, labelFor: labelForType, requiresDelivery: requiresDeliveryAddress, storedScheduledGiftConsents: person.scheduledGiftConsents });
     setAuthForm(toSave); setAuthModal({ plan, card, person, group: true });
   };
   const commitGroupPerson = async (person, toSave, consents = [], sgTypes = []) => {
@@ -510,7 +510,7 @@ export default function DashboardHome() {
       }
       const toSave = sanitizeRelationshipForSave(built);
       const settings = normalizeGiftSettingsForSave(toSave.occasionGiftSettings);
-      if (SCHEDULED_QRCASH_AVAILABLE) {
+      if (authorizationStepEnabled(SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_PHYSICAL_GIFT_AVAILABLE)) {
         // The scheduler's own SAVE-time authorisation: consent for a new or changed QR Cash Auto-Gift, a card when
         // none usable is on file, the mailing address of a shipped gift. Nothing is requested when none applies.
         let card = null;
@@ -520,7 +520,7 @@ export default function DashboardHome() {
         }
         const plan = planAuthorization({
           settings, initialSettings: person.occasionGiftSettings, occasions: toSave.occasions, card, formData: toSave,
-          labelFor: labelForType, requiresDelivery: requiresDeliveryAddress,
+          labelFor: labelForType, requiresDelivery: requiresDeliveryAddress, storedScheduledGiftConsents: person.scheduledGiftConsents,
         });
         if (plan.need.consent || plan.need.address || plan.need.scheduledGiftConsent || plan.need.card) { setAuthForm(toSave); setAuthModal({ plan, card, person }); return; }
       }
@@ -1174,7 +1174,7 @@ export default function DashboardHome() {
       </div>
 
       {/* W07 SAVE-time authorization for the inline resolver — the scheduler's own modal, shown only when needed. */}
-      {SCHEDULED_QRCASH_AVAILABLE && authModal && authForm && (
+      {authorizationStepEnabled(SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_PHYSICAL_GIFT_AVAILABLE) && authModal && authForm && (
         <SaveAuthorizationModal
           plan={authModal.plan} card={authModal.card}
           formData={authForm} setFormData={setAuthForm}

@@ -212,6 +212,7 @@ test("reuse: with a valid saved card and an unchanged, already-consented gift, S
     delivery: { firstName: "Avery", address1: "9 Pine Rd", city: "Austin", state: "TX", postalCode: "73301", country: "US" }, items: [{ syncVariantId: 40011 }] } };
   const saved = JSON.parse(JSON.stringify(CONTACTS));
   saved[0].occasionGiftSettings = { ...saved[0].occasionGiftSettings, christmas: g };
+  saved[0].scheduledGiftConsents = { christmas: { contactId: "c1", occasionType: "christmas", vendor: "merch", wordingVersion: "sched-gift-v1", maxTotalCents: 4000, acceptedAt: "2026-10-19T00:00:00Z" } };
   const prev = CONTACTS.slice();
   CONTACTS.splice(0, CONTACTS.length, ...saved);
   try {

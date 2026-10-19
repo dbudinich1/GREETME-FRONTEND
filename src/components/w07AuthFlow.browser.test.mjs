@@ -317,14 +317,14 @@ test("OFF (forced; the shipped constant is now ON): the whole flow is unreachabl
   assert.equal(submitBtn().textContent, "SAVE");
 });
 
-test("source: every W07 use in ContactForm is behind SCHEDULED_QRCASH_AVAILABLE", () => {
+test("source: every W07 use in ContactForm is behind its switch; the SAVE-time step runs when scheduled QR Cash OR scheduled physical gifts are live", () => {
   const src = readFileSync(join(__dirname, "ContactForm.jsx"), "utf8");
   assert.match(src, /import \{ SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_QRCASH_UNAVAILABLE_COPY \} from '\.\.\/config\/scheduledQrCash';/);
   assert.doesNotMatch(src, /const SCHEDULED_QRCASH_AVAILABLE\s*=/);
   assert.equal((src.match(/api\.getQrCashCardStatus\(/g) || []).length, 1);
   const call = src.indexOf("api.getQrCashCardStatus(");
-  assert.ok(src.lastIndexOf("if (SCHEDULED_QRCASH_AVAILABLE) {", call) > src.lastIndexOf("const handleSubmit", call), "the status read is inside the flag guard of handleSubmit");
-  assert.match(src, /\{SCHEDULED_QRCASH_AVAILABLE && authModal && \(/);
+  assert.ok(src.lastIndexOf("if (authorizationStepEnabled(SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_PHYSICAL_GIFT_AVAILABLE)) {", call) > src.lastIndexOf("const handleSubmit", call), "the status read is inside the switch guard of handleSubmit");
+  assert.match(src, /\{authorizationStepEnabled\(SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_PHYSICAL_GIFT_AVAILABLE\) && authModal && \(/);
   assert.match(src, /SCHEDULED_QRCASH_AVAILABLE && giftSetting\.type === 'qrcash' && <PaymentInfoTriangle \/>/);
   assert.equal((src.match(/\{!SCHEDULED_QRCASH_AVAILABLE && requiresDeliveryAddress\(giftSetting\.type\) && \(/g) || []).length, 3);
   assert.doesNotMatch(src, /Update Recipient/);

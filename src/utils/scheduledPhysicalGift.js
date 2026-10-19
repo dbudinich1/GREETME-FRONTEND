@@ -5,7 +5,12 @@
 //   occasionGiftSettings[occasionType] = { type: 'gift_boxes' | 'merch', autoGift: true, scheduledGift: { v: 1, ... } }
 // with a sibling consent request scheduledGiftConsents[occasionType] = { accepted: true, wordingVersion }.
 // Nothing here prices, charges or orders: the server re-quotes and decides on the occasion date. Pure functions only.
-import { SCHEDULED_GIFT_WORDING_VERSION } from '../config/scheduledPhysicalGift.js';
+import { SCHEDULED_GIFT_WORDING_VERSION, SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from '../config/scheduledPhysicalGift.js';
+import { SCHEDULED_QRCASH_AVAILABLE } from '../config/scheduledQrCash.js';
+
+/** The save-time authorisation step (card, consent, address) runs when EITHER scheduled QR Cash or scheduled physical
+ * gifts are live — each independently of the other (Team 5 note on 4bc1680). */
+export const authorizationStepEnabled = (qr = SCHEDULED_QRCASH_AVAILABLE, physical = SCHEDULED_PHYSICAL_GIFT_AVAILABLE) => Boolean(qr || physical);
 
 export const SCHEDULED_GIFT_TYPES = Object.freeze({ gift_boxes: 'gift_boxes', merch: 'merch' });
 export const GIFT_BOX_MAX_QUANTITY = 10;
@@ -89,19 +94,47 @@ export function scheduledGiftProblems(setting) {
   return out;
 }
 
-const pick = (g) => g && JSON.stringify({ vendor: g.vendor, providerProductId: g.providerProductId, variants: g.variants, quantity: g.quantity, items: g.items, delivery: g.delivery });
+// The selection a consent is bound to, normalised exactly as the server stores it (BE scheduledGiftSnapshot
+// normalizeDelivery + selectionHashOf): vendor, product, options/items, quantity and delivery; last name kept even when
+// empty, an empty phone / second line left out, state upper-case, country US. Raw picker values and the server's stored
+// snapshot therefore compare equal when they describe the same gift.
+export function canonicalSelection(g) {
+  if (!g) return null;
+  const d = g.delivery || {};
+  const delivery = {
+    firstName: s(d.firstName), lastName: s(d.lastName), ...(s(d.phone) ? { phone: s(d.phone) } : {}),
+    address1: s(d.address1), ...(s(d.address2) ? { address2: s(d.address2) } : {}),
+    city: s(d.city), state: s(d.state).toUpperCase(), postalCode: s(d.postalCode), country: 'US',
+  };
+  const sorted = Object.fromEntries(Object.keys(delivery).sort().map((k) => [k, delivery[k]]));
+  return JSON.stringify({
+    vendor: g.vendor,
+    ...(g.vendor === 'gift_boxes'
+      ? { providerProductId: String(g.providerProductId), variants: (g.variants || []).map(String), quantity: Number(g.quantity) }
+      : { items: (g.items || []).map((i) => ({ syncVariantId: Number(i.syncVariantId) })) }),
+    delivery: sorted,
+  });
+}
 
 /**
- * Does saving `next` need the sender's (new) consent? Contract v1: any change to product, variants, items, quantity or
- * delivery, a higher maximum, or turning Auto-Gift on. A lower maximum keeps the existing consent. Off needs none.
+ * Does saving `next` need the sender's (new) consent? Parity with the server (BE reconcileScheduledGiftConsents): the
+ * consent recorded for this occasion is reused ONLY when it exists with the current wording version, it belongs to the
+ * selection being saved (same canonical selection as the stored snapshot, and the snapshot's selectionHash matches the
+ * consent's when both are known) and the new maximum is not higher. Anything else asks — it fails safe. Off needs none.
+ * @param prev           the occasion's stored gift setting (server-normalised)
+ * @param next           the gift setting about to be saved
+ * @param storedConsent  contact.scheduledGiftConsents[occasionType] as stored by the server (undefined = none)
  */
-export function needsScheduledGiftConsent(prev, next) {
+export function needsScheduledGiftConsent(prev, next, storedConsent) {
   const n = next && next.autoGift === true && next.scheduledGift;
   if (!n) return false;
+  const c = storedConsent;
+  if (!c || c.wordingVersion !== SCHEDULED_GIFT_WORDING_VERSION || !Number.isSafeInteger(c.maxTotalCents)) return true;
   const p = prev && prev.autoGift === true && prev.scheduledGift;
   if (!p) return true;
-  if (pick(p) !== pick(n)) return true;
-  return n.maxTotalCents > p.maxTotalCents;
+  if (p.selectionHash && c.selectionHash && p.selectionHash !== c.selectionHash) return true;
+  if (canonicalSelection(p) !== canonicalSelection(n)) return true;
+  return n.maxTotalCents > c.maxTotalCents;
 }
 
 /** The consent request for the occasions the sender has just agreed to. */

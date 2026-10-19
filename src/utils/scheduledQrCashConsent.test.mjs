@@ -211,9 +211,12 @@ test("planAuthorization: a scheduled physical gift on Auto-Gift asks for its con
   assert.deepEqual(fresh.scheduledGiftItems, [{ key: "christmas", label: "Christmas", date: "2026-12-25", dateLabel: "December 25", name: "Cookie Box", maxTotalCents: 4600 }]);
   const noCard = planAuthorization({ ...base, settings: { christmas: g }, initialSettings: {}, card: null });
   assert.equal(noCard.need.card, true, "no usable card: the card step is needed");
-  const unchanged = planAuthorization({ ...base, settings: { christmas: g }, initialSettings: { christmas: g }, card });
+  const stored = { christmas: { wordingVersion: "sched-gift-v1", maxTotalCents: 4600 } };
+  const unchanged = planAuthorization({ ...base, settings: { christmas: g }, initialSettings: { christmas: g }, card, storedScheduledGiftConsents: stored });
   assert.deepEqual(unchanged.need, { card: false, consent: false, scheduledGiftConsent: false, address: false }, "reuse: nothing asked again");
-  const lower = planAuthorization({ ...base, settings: { christmas: { ...g, scheduledGift: { ...g.scheduledGift, maxTotalCents: 4000 } } }, initialSettings: { christmas: g }, card });
+  const noStored = planAuthorization({ ...base, settings: { christmas: g }, initialSettings: { christmas: g }, card });
+  assert.equal(noStored.need.scheduledGiftConsent, true, "a stored Auto-Gift with no stored consent is asked (server parity)");
+  const lower = planAuthorization({ ...base, settings: { christmas: { ...g, scheduledGift: { ...g.scheduledGift, maxTotalCents: 4000 } } }, initialSettings: { christmas: g }, card, storedScheduledGiftConsents: stored });
   assert.equal(lower.need.scheduledGiftConsent, false, "a lower maximum keeps the consent");
   const reminder = planAuthorization({ ...base, settings: { christmas: { ...g, autoGift: false } }, initialSettings: {}, card: null });
   assert.deepEqual(reminder.need, { card: false, consent: false, scheduledGiftConsent: false, address: false }, "a reminder needs no card and no consent");

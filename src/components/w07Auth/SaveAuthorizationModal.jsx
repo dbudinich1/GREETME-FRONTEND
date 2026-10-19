@@ -133,7 +133,8 @@ function Inner({ plan, card, formData, setFormData, onSave, onCancel, withStripe
       <div role="dialog" aria-modal="true" aria-label="Finish saving" data-testid="save-modal" style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: '#fff', borderRadius: 14, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', zIndex: 1000, width: '94%', maxWidth: 520, maxHeight: '92vh', overflow: 'auto', padding: '1.1rem 1.25rem' }}>
         <h2 style={{ margin: '0 0 4px', fontSize: '1.15rem' }}>Almost done</h2>
         <p style={{ margin: '0 0 12px', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-          {need.scheduledGiftConsent && need.card ? 'Auto-Gift orders this gift on the occasion date, so we need a card for that charge and your authorization before we save.'
+          {need.scheduledGiftConsent && need.consent && !need.card ? 'Please confirm your authorization for each Auto-Gift below before we save.'
+            : need.scheduledGiftConsent && need.card ? 'Auto-Gift orders this gift on the occasion date, so we need a card for that charge and your authorization before we save.'
             : need.scheduledGiftConsent ? (sgItems.length > 1 ? 'Please confirm Auto-Gift for each gift below before we save.' : 'Please confirm Auto-Gift for this gift before we save.')
             : need.card && need.address ? 'We need a payment method for Auto-Gift and the mailing address for this gift before we save.'
             : need.card ? 'Auto-Gift needs a valid payment method on file before we save.'
@@ -187,7 +188,7 @@ function Inner({ plan, card, formData, setFormData, onSave, onCancel, withStripe
                   {consentParagraphs(it).map((p, i) => <p key={i} style={{ margin: '0 0 6px' }}>{p}</p>)}
                 </div>
                 <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}>
-                  <input type="checkbox" data-testid="consent-checkbox" checked={!!consents[it.key]} onChange={(e) => { setConsents((c) => ({ ...c, [it.key]: e.target.checked })); setErrorKeys((x) => ({ ...x, [it.key]: undefined })); setSetupError(null); }} />
+                  <input type="checkbox" data-testid="consent-checkbox" style={{ width: 'auto', flex: 'none', margin: 0 }} checked={!!consents[it.key]} onChange={(e) => { setConsents((c) => ({ ...c, [it.key]: e.target.checked })); setErrorKeys((x) => ({ ...x, [it.key]: undefined })); setSetupError(null); }} />
                   {CONSENT_TICK_LABEL}
                 </label>
                 <p style={{ ...small, marginTop: 2 }}>Wording version {SCHED_QRCASH_WORDING_VERSION} (sent with your confirmation).</p>

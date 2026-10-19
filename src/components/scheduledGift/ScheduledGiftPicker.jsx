@@ -200,7 +200,7 @@ export default function ScheduledGiftPicker({ isOpen, onClose, contact, occasion
         <section style={box} data-testid="sg-step-autogift">
           <p style={h}>4. Auto-Gift</p>
           <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: '0.875rem', lineHeight: 1.5 }}>
-            <input type="checkbox" data-testid="sg-autogift" checked={autoGift} onChange={(e) => setAutoGift(e.target.checked)} style={{ marginTop: 3 }} />
+            <input type="checkbox" data-testid="sg-autogift" checked={autoGift} onChange={(e) => setAutoGift(e.target.checked)} style={{ width: 'auto', flex: 'none', margin: '3px 0 0' }} />
             <span>Order it automatically on {occasionDateLabel}: we charge your saved card the full total, up to your maximum, and place the order.</span>
           </label>
           <p style={sub}>{autoGift ? 'You confirm your card and authorize the charge when you save the schedule. Nothing is charged today.' : 'Off: you get a reminder 10 days before to confirm the gift; nothing is ordered or charged automatically.'}</p>
