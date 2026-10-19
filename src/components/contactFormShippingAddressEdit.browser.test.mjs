@@ -108,10 +108,11 @@ test("editing a recipient with a partial saved address keeps it and fills only t
     { line1: "9 Oak Ave", line2: "", city: "Newark", state: "NJ", zip: "07102", country: "United States" });
 });
 
-test("editing a recipient with no saved address still submits the blank default shape", async () => {
+test("editing a record that carries no address submits no address field (T5 M1: Business contacts keep their stored address)", async () => {
   await mountEdit(baseContact());
   await click(document.querySelector('button[type="submit"]'));
   await flush();
-  assert.deepEqual(globalThis.__submitted.shippingAddress,
-    { line1: "", line2: "", city: "", state: "", zip: "", country: "United States" });
+  assert.ok(globalThis.__submitted, "form submitted");
+  assert.equal("shippingAddress" in globalThis.__submitted && globalThis.__submitted.shippingAddress !== undefined, false,
+    "no address is sent, so neither the personal PUT nor the corporate PATCH overwrites a stored one");
 });
