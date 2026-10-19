@@ -591,7 +591,7 @@ test("G7: a gift box for everyone — address per person (prefilled only from sa
   await settle();
   assert.equal(globalThis.__quotes.length, 3, "every gift box quoted, together");
   assert.equal($$("[data-testid=grv-quote-lines]").length, 3);
-  assert.match($$("[data-testid=grv-quote-lines]")[0].textContent, /Item \$36\.99 · Shipping \$6\.00 · Tax \$3\.00 · Total \$45\.99/, "the four lines, expandable");
+  assert.match($$("[data-testid=grv-quote-lines]")[0].textContent, /Item \$36\.99 · S&H \$6\.00 · Tax \$3\.00 · Total \$45\.99/, "the four lines, expandable");
   assert.equal($$("[data-testid=grv-quote-lines]")[0].tagName, "DETAILS");
   assert.match($("[data-testid=grv-total]").textContent, /Total \$137\.97/);
   assert.equal(globalThis.__boxCharges.length, 0, "nothing charged at review");
@@ -673,7 +673,7 @@ test("group: a sender without a recorded voice is stopped at review, before any 
   assert.match($("[data-testid=grv-blockers]").textContent, /recorded voice/);
 });
 
-test("pricing wording: 'From $X + shipping & tax' with the actual starting price; 'Total pending' and 'Get total' before quoting", async () => {
+test("pricing wording: 'From $X + S&H' with the actual starting price; 'Total pending' and 'Get total' before quoting", async () => {
   await mount();
   await click(byText(".mode", "Send Now"));
   await click(occ("Birthday"));
@@ -682,8 +682,9 @@ test("pricing wording: 'From $X + shipping & tax' with the actual starting price
   await click(state().cont);
   await settle();
   const opt = [...$("[data-testid=grv-default-gift]").options].find((o) => o.value === "box:goody-1");
-  assert.equal(opt.textContent, "Gift box: Cookie Box \u00b7 From $36.99 + shipping & tax");
+  assert.equal(opt.textContent, "Gift box: Cookie Box \u00b7 From $36.99 + S&H");
   await setValue($("[data-testid=grv-default-gift]"), "box:goody-1");
+  assert.match($("[data-testid=grv-default-gift]").parentElement.querySelector(".sub").textContent, /^From \$36\.99 \+ S&H\./, "the starting price stays readable where a phone clips the selector");
   assert.equal($("[data-testid=grv-total]").textContent.startsWith("Total pending"), true);
   assert.equal(document.body.textContent.includes("$0.00"), false, "never 'Total $0.00'");
   assert.equal($("[data-testid=grv-get-prices]").textContent, "Get total");
@@ -710,8 +711,8 @@ test("info icon: opens on hover, keyboard focus and tap; closes on Escape and le
   assert.equal(btn.getAttribute("aria-describedby"), text().id);
   await act(async () => { btn.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); }); await settle();
   assert.equal(text(), null, "Escape closes it");
-  await click(btn);
-  assert.ok(text(), "tap");
+  await act(async () => { btn.focus(); btn.click(); }); await settle();
+  assert.ok(text(), "a real tap (focus, then click) leaves it open");
   // QR Cash: the fee formula sits behind the icon
   await setValue($("[data-testid=grv-default-gift]"), "qrcash:25");
   await click($("[data-testid=grv-fee-info]"));

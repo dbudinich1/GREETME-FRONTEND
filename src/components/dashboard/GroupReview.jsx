@@ -81,7 +81,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
     ['none', 'No gift'],
     ...GROUP_QRCASH_AMOUNTS.map((a) => [`qrcash:${a}`, `QR Cash™ $${a}`]),
     // The catalogue's actual starting price; shipping and tax depend on the address and come with the total.
-    ...(giftBoxes || []).map((p) => [`box:${p.providerProductId}`, `Gift box: ${p.name}${Number.isFinite(p.priceMinor) ? ` \u00b7 From ${centsToDollarString(p.priceMinor)} + shipping & tax` : ''}`]),
+    ...(giftBoxes || []).map((p) => [`box:${p.providerProductId}`, `Gift box: ${p.name}${Number.isFinite(p.priceMinor) ? ` \u00b7 From ${centsToDollarString(p.priceMinor)} + S&H` : ''}`]),
   ];
 
   const included = recipients.filter((r) => !left.includes(r.id));
@@ -157,13 +157,13 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
 
   const summary = run ? runSummary(run) : null;
   // The server's own four lines (the gift-box checkout shows exactly these; they add up to the total).
-  const fourLines = (d) => `Item ${centsToDollarString(d.productCents)} · Shipping ${centsToDollarString(d.shippingHandlingCents)} · Tax ${centsToDollarString(d.taxCents)} · Total ${centsToDollarString(d.totalCents)}`;
+  const fourLines = (d) => `Item ${centsToDollarString(d.productCents)} · S&H ${centsToDollarString(d.shippingHandlingCents)} · Tax ${centsToDollarString(d.taxCents)} · Total ${centsToDollarString(d.totalCents)}`;
   const qrRows = costs.rows.filter((x) => x.kind === 'qrcash');
   const boxRows = costs.rows.filter((x) => x.kind === 'gift_box' && x.display);
   const sumOf = (rows, k) => rows.reduce((n, x) => n + x[k], 0);
   const totalBreakdown = [
     qrRows.length ? `QR Cash ${centsToDollarString(sumOf(qrRows, 'giftCents'))} + fees ${centsToDollarString(sumOf(qrRows, 'feeCents'))}` : null,
-    boxRows.length ? `Gift boxes ${centsToDollarString(sumOf(boxRows, 'totalCents'))} (item, shipping and tax)` : null,
+    boxRows.length ? `Gift boxes ${centsToDollarString(sumOf(boxRows, 'totalCents'))} (item, S&H and tax)` : null,
   ].filter(Boolean).join(' · ');
   const freshlyPriced = run ? run.items.filter((i) => i.quote && i.status === 'pending' && groupGift(i.gift).type === 'gift_box') : [];
 
@@ -195,7 +195,9 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
               </select>
               <span className="sub">{defaultGiftChoice && defaultGiftChoice.type === 'other'
                 ? 'A group can include QR Cash or a gift box; other gifts are chosen one person at a time in the send flow.'
-                : boxState === 'loading' ? 'Change it for anyone below. Loading gift boxes…' : 'Change it for anyone below.'}</span>
+                : groupGift(defaultGift).type === 'gift_box' && Number.isFinite(productById(groupGift(defaultGift).product.providerProductId)?.priceMinor)
+                  ? `From ${centsToDollarString(productById(groupGift(defaultGift).product.providerProductId).priceMinor)} + S&H. Change it for anyone below.`
+                  : boxState === 'loading' ? 'Change it for anyone below. Loading gift boxes…' : 'Change it for anyone below.'}</span>
             </label>
 
             <div className="grv-list" data-testid="grv-list">
