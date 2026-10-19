@@ -565,7 +565,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
     // Show saved toast — only now, after the save succeeded. A scheduled physical gift on Auto-Gift says what happens on its date.
     const sgAuto = Object.entries(toSave.occasionGiftSettings || {}).filter(([, g]) => g && g.scheduledGift && g.autoGift === true);
     showManualToast('Saved ✓', sgAuto.length
-      ? sgAuto.map(([t, g]) => `${(occasionTypes.find((o) => o.value === t) || {}).label || t}: on ${sgDateLabel(t)} the greeting is sent and ${g.scheduledGift.name || 'the gift'} is charged to your saved card and ordered. Delivery follows after that date.`).join(' ')
+      ? sgAuto.map(([t, g]) => `On ${sgDateLabel(t)}, the greeting is sent and ${g.scheduledGift.name || 'the gift'} is charged to your saved card and ordered; delivery follows after that date.`).join(' ')
       : 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
   };
 

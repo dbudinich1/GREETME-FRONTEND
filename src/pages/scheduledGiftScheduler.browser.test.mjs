@@ -37,7 +37,7 @@ before(async () => {
   writeFileSync(API, `
     export const __calls = [];
     const impl = { getContacts: async () => { __calls.push("getContacts"); return { ok: true, data: JSON.parse(JSON.stringify(globalThis.__contacts)) }; },
-      updateContact: async (id, body) => { __calls.push("updateContact:" + id); (globalThis.__bodies = globalThis.__bodies || []).push(body); return { ok: true, data: { id, ...body } }; },
+      updateContact: async (id, body) => { __calls.push("updateContact:" + id); (globalThis.__bodies = globalThis.__bodies || []).push(body); return globalThis.__saveRefused ? { ok: false, status: 409, error: "CARD_REQUIRED" } : { ok: true, data: { id, ...body } }; },
       getQrCashCardStatus: async () => { __calls.push("cardStatus"); return { ok: true, card: globalThis.__card || null }; },
       setupQrCashCard: async () => { __calls.push("setupCard"); return { clientSecret: "seti_secret_test", setupIntentId: "seti_test", consentWordingVersion: "card-v1" }; },
       completeQrCashCard: async (b) => { __calls.push("completeCard:" + b.setupIntentId); globalThis.__card = { present: true, brand: "visa", last4: "4242", expMonth: 12, expYear: 2030 }; return { ok: true }; },
@@ -174,7 +174,22 @@ test("full path: no card -> SAVE -> final confirmation asks card + consent -> ad
   assert.deepEqual(body.scheduledGiftConsents, { christmas: { accepted: true, wordingVersion: "sched-gift-v1" } });
   assert.deepEqual(body.occasionGiftSettings.birthday, { type: "qrcash", amount: 25, autoGift: false }, "the other occasion's gift is kept");
   assert.deepEqual(body.occasions.map((o) => o.type).sort(), ["birthday", "christmas"]);
-  assert.match(globalThis.__toasts.at(-1), /Christmas: on December 25 the greeting is sent and Mug — 11 oz is charged to your saved card and ordered\. Delivery follows after that date\./, "the date and what happens, after the save");
+  assert.equal(globalThis.__toasts.at(-1), "On December 25, the greeting is sent and Mug — 11 oz is charged to your saved card and ordered; delivery follows after that date.", "the date-specific confirmation IS the success toast, after the save");
+  assert.equal(globalThis.__toasts.includes("Recipient settings have been saved."), false, "not the generic message instead of it");
+});
+
+test("the server refuses the save: no success toast, no date sentence, the selection is kept", async () => {
+  globalThis.__card = { present: true, brand: "visa", last4: "4242", expMonth: 12, expYear: 2030 };
+  const card = await chooseMugForChristmas();
+  globalThis.__saveRefused = true;
+  try {
+    await clickEl(SAVE()); await settle();
+    await clickEl($("[data-testid=sg-consent-checkbox]"));
+    await clickEl($("[data-testid=save-modal-save]")); await settle();
+    assert.equal(globalThis.__bodies.length, 1, "the save was attempted once");
+    assert.equal(globalThis.__toasts.length, 0, "nothing says saved before (or without) a 2xx");
+    assert.match(card.querySelector("[data-testid=sg-entry]").textContent, /Mug/, "the selection is kept");
+  } finally { globalThis.__saveRefused = false; }
 });
 
 test("card step cancelled: nothing saved, never 'saved', every selection kept", async () => {

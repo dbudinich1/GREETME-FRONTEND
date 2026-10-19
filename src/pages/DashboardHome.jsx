@@ -483,7 +483,7 @@ export default function DashboardHome() {
     const next = { ...groupResults, [person.id]: { id: person.id, status: 'saved' } };
     setGroupResults(next);
     setSaveMsg(groupSaveMsg(chosen.map((p) => next[p.id] || { id: p.id, status: 'failed' })));
-    showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
+    showManualToast('Saved ✓', sgAfterSave(toSave).trim() || 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
     fetchDashboardData();
   };
 
@@ -494,7 +494,7 @@ export default function DashboardHome() {
     }
     const n = occasions.length;
     setSaveMsg({ ok: true, text: `Saved: ${n} scheduled Greet-Me${n === 1 ? '' : 's'} for ${first(person.name)}, each on its own date. You’ll find ${n === 1 ? 'it' : 'them'} in their Occasion Scheduler and under Upcoming Occasions.${sgAfterSave(toSave)}` });
-    showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
+    showManualToast('Saved ✓', sgAfterSave(toSave).trim() || 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
     fetchDashboardData();
   };
 
