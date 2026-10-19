@@ -7,7 +7,7 @@
 // own address and their own server quote (four lines: product, S/H, tax, total), fetched together right before the
 // one confirmation. Pressing Send runs utils/groupSend.js: gifts first, then one EXISTING per-recipient send each,
 // with their own idempotency keys. Results stay on screen; only failures are retried; an unfinished run resumes.
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Check, X, AlertCircle, RotateCcw, Send, Users } from 'lucide-react';
 import api from '../../api/api';
 import { stripePromise } from '../../stripe/stripeProvider';
@@ -46,6 +46,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
   const [loading, setLoading] = useState(true);
   const [defaultGift, setDefaultGift] = useState(groupGift(defaultGiftChoice));
   const [overrides, setOverrides] = useState({});
+  const defaultGiftSelectId = useId();
   const [left, setLeft] = useState([]); // people the sender leaves out at review (never dropped silently)
   const [addresses, setAddresses] = useState(() => Object.fromEntries(recipients.map((r) => [r.id, addressFor(r)])));
   const [quotes, setQuotes] = useState({});
@@ -188,9 +189,10 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
               {allowance.aiDaily ? ` Today: ${allowance.aiDaily.remaining} of ${allowance.aiDaily.limit} Greet-Mes left to create.` : allowance.aiUnknown ? ` Daily limit: ${allowance.aiLimit ?? '—'} Greet-Mes (today’s count couldn’t be checked).` : ''} Up to 20 Greet-Mes can be sent per hour.</div>
             </div>
 
-            <label className="grv-default">
-              <span className="fieldlabel">Gift for everyone{(giftBoxes || []).length ? <> <InfoTip label="About gift box prices" testid="grv-box-info">{SHIPPING_TAX_NOTE}</InfoTip></> : null}</span>
-              <select data-testid="grv-default-gift" value={giftValue(defaultGift)} onChange={(e) => { setExpiredNote(false); setQuotes({}); setQuoteErrors({}); setDefaultGift(giftFromValue(e.target.value)); }}>
+            {/* A div, not a <label>: the info button must not become the label's control (Team 5 P-1). */}
+            <div className="grv-default">
+              <span className="fieldlabel"><label htmlFor={defaultGiftSelectId}>Gift for everyone</label>{(giftBoxes || []).length ? <> <InfoTip label="About gift box prices" testid="grv-box-info">{SHIPPING_TAX_NOTE}</InfoTip></> : null}</span>
+              <select id={defaultGiftSelectId} data-testid="grv-default-gift" value={giftValue(defaultGift)} onChange={(e) => { setExpiredNote(false); setQuotes({}); setQuoteErrors({}); setDefaultGift(giftFromValue(e.target.value)); }}>
                 {giftOptions.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
               </select>
               <span className="sub">{defaultGiftChoice && defaultGiftChoice.type === 'other'
@@ -198,7 +200,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
                 : groupGift(defaultGift).type === 'gift_box' && Number.isFinite(productById(groupGift(defaultGift).product.providerProductId)?.priceMinor)
                   ? `From ${centsToDollarString(productById(groupGift(defaultGift).product.providerProductId).priceMinor)} + S&H. Change it for anyone below.`
                   : boxState === 'loading' ? 'Change it for anyone below. Loading gift boxes…' : 'Change it for anyone below.'}</span>
-            </label>
+            </div>
 
             <div className="grv-list" data-testid="grv-list">
               {recipients.map((r) => {

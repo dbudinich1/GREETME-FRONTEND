@@ -702,6 +702,13 @@ test("info icon: opens on hover, keyboard focus and tap; closes on Escape and le
   const btn = $("[data-testid=grv-box-info]");
   const text = () => $("[data-testid=grv-box-info-text]");
   assert.equal(text(), null);
+  // Team 5 P-1: the dropdown keeps its accessible name; the info button is not the label's control
+  const sel = $("[data-testid=grv-default-gift]");
+  assert.equal([...sel.labels].map((l) => l.textContent).join("|"), "Gift for everyone", "the select is named by its label");
+  assert.equal(btn.closest("label"), null, "the info button sits outside any <label>");
+  assert.equal(btn.getAttribute("aria-label"), "About gift box prices");
+  await click(sel.labels[0]);
+  assert.equal(text(), null, "clicking the label text does not open the tip");
   await act(async () => { btn.parentElement.dispatchEvent(new window.MouseEvent("mouseover", { bubbles: true })); }); await settle();
   assert.equal(text().textContent, "Shipping and tax depend on the delivery address. Your total is shown before you pay.", "hover");
   await act(async () => { btn.parentElement.dispatchEvent(new window.MouseEvent("mouseout", { bubbles: true })); }); await settle();
