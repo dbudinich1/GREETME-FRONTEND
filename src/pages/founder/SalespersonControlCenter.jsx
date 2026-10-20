@@ -662,7 +662,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
               <CommissionSection id="links" testPrefix="fcc-section" title="Links" summary={linksSummary(linksInfo, detail)}>
                 <div style={{ display: "grid", gap: "1rem" }}>
                   {/* W51: assigned links. Read-only, gated by the api (absent read = nothing rendered). */}
-                  <AssignedLinksPanel api={api} salespersonId={detail.salespersonId} separateQr embedded onLinks={setLinksInfo} />
+                  <AssignedLinksPanel api={api} salespersonId={detail.salespersonId} separateQr embedded compact onLinks={setLinksInfo} />
                   {/* ── VANITY ALIAS ──
                       Separate from the opaque link by design, and the copy says so: changing or
                       removing an alias never touches the attribution token. */}
@@ -871,7 +871,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                 {typeof api.giftCommission === "function" && typeof api.setGiftCommission === "function" ? (
                   <CommissionSection id="gift" title="Gift commission" summary={giftSummaryText || "Loading…"}>
                     <GiftCommissionPanel api={api} salespersonId={detail.salespersonId} compensation={detail.compensation || null}
-                      embedded onSummary={setGiftSummaryText} />
+                      embedded simple onSummary={setGiftSummaryText} />
                   </CommissionSection>
                 ) : null}
                 {/* B3 - READ-ONLY REPORTING. Nothing below mutates anything, and every figure is

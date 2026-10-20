@@ -52,7 +52,9 @@ export function ShareQr({ url }) {
 // `separateQr`: the Control Center draws the QR code itself, AFTER all link areas (founder 2026-10-19), so the panel
 // leaves it out. `embedded`: the panel sits inside the collapsible "Links" section, which carries the heading.
 // `onLinks`: reports what the panel loaded, for that section's closed summary and its QR code. Standalone use is unchanged.
-export function AssignedLinksPanel({ api, salespersonId, separateQr = false, embedded = false, onLinks }) {
+// `compact` (founder 2026-10-19): only the shareable link is shown; the private tracking link and the QR Cash gift link
+// appear as status indicators in the Links section header instead (reported through onLinks).
+export function AssignedLinksPanel({ api, salespersonId, separateQr = false, embedded = false, compact = false, onLinks }) {
   const [state, setState] = useState({ loading: true });
   const has = typeof api.assignedLinks === "function";
   useEffect(() => {
@@ -61,10 +63,14 @@ export function AssignedLinksPanel({ api, salespersonId, separateQr = false, emb
     if (state.loading) { onLinks({ state: "loading" }); return; }
     if (state.error) { onLinks({ state: "error" }); return; }
     const v = state.data.links.find((l) => l.type === "vanity_alias");
+    const sh = state.data.links.find((l) => l.type === "share_link");
+    const cl = state.data.links.find((l) => l.type === "gift_claim_attribution");
     onLinks({
       state: "ready",
       vanityUrl: v && v.assigned && v.url ? v.url : null,
       vanityActive: !!(v && v.active),
+      shareStatus: sh ? (sh.active ? "Active" : "Paused") : null,
+      claimStatus: cl ? (cl.linked ? (cl.active ? "Active" : "Paused") : "Not linked") : null,
       platformOff: state.data.referralPublicEnabled === false,
     });
   }, [onLinks, has, state]);
@@ -97,14 +103,14 @@ export function AssignedLinksPanel({ api, salespersonId, separateQr = false, emb
           ) : <p style={small} data-testid="cc-link-vanity-none">No shareable link assigned yet. Assign one below.</p>}
         </div>
       ) : null}
-      {share ? (
+      {share && !compact ? (
         <div style={box} data-testid="cc-link-share">
           <div style={head}><span>Private tracking link</span><span data-testid="cc-link-share-state">{share.active ? "Active" : "Paused"}, version {share.tokenVersion}</span></div>
           <p style={small}>Opens: {share.destination}. {share.note}</p>
           <p style={small} data-testid="cc-link-share-rotate">To get a new link, use Rotate on this profile; the new link is shown once.</p>
         </div>
       ) : null}
-      {claim ? (
+      {claim && !compact ? (
         <div style={box} data-testid="cc-link-claim">
           <div style={head}><span>QR Cash gift link</span><span data-testid="cc-link-claim-state">{claim.linked ? (claim.active ? "Active" : "Paused") : "Not linked"}</span></div>
           <p style={small}>{claim.linked ? claim.destination : "Link a Greet-Me account below so recipients who claim this person's QR Cash gifts are credited to them."}</p>

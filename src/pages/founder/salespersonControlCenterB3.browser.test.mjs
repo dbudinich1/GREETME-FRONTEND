@@ -350,7 +350,10 @@ test("Links: one collapsible section holds Assigned links, Vanity URL and Linked
   await open(a); await flush();
   const sec = tid("fcc-section-links");
   assert.equal(sec.tagName, "DETAILS"); assert.equal(sec.open, false, "collapsed by default");
-  assert.equal(tid("fcc-section-links-summary").textContent, "greet-me.com/north · Active · Account linked");
+  assert.equal(tid("fcc-section-links-summary").textContent, "Shareable link: Active · Private tracking link: Active · QR Cash gift link: Active", "status indicators in the header");
+  assert.equal(sec.querySelector('[data-testid="cc-link-share"]'), null, "private tracking link box removed from the section");
+  assert.equal(sec.querySelector('[data-testid="cc-link-claim"]'), null, "QR Cash gift link box removed from the section");
+  assert.ok(sec.querySelector('[data-testid="cc-link-vanity"]'), "the shareable link box stays");
   const order = ["cc-assigned-links", "fcc-slug-input", "fcc-linked-current", "fcc-links-qr"].map((t) => sec.querySelector(`[data-testid="${t}"]`));
   order.forEach((el, i) => assert.ok(el, `section contains ${["assigned links", "vanity URL", "linked account", "QR"][i]}`));
   for (let i = 1; i < order.length; i++) {
