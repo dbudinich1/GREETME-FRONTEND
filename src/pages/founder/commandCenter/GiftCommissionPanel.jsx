@@ -13,6 +13,9 @@ const small = { margin: 0, fontSize: ".8rem", color: "#475569", lineHeight: 1.45
 const lab = { display: "block", fontSize: ".78rem", fontWeight: 700, color: "#3a3552", margin: "6px 0 3px" };
 const inp = { padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: ".9rem", boxSizing: "border-box", maxWidth: "100%" };
 const err = { color: "#b3261e", fontSize: ".78rem", margin: "2px 0 0" };
+// The app's global CSS gives every <input> width:100% and padding, which pushed each checkbox and radio onto its own
+// line, detached from its label. Ticks and radios here keep their natural size, inline with the label text.
+const tick = { width: "auto", padding: 0, margin: "0 6px 0 0", verticalAlign: "middle", display: "inline-block" };
 
 // `compensation` is the salesperson's SAVED subscription schedule (bps), shown when the gift rate reuses it. `embedded` drops
 // the panel's own frame and heading when it sits inside a collapsible commission section; `onSummary` reports the saved
@@ -97,13 +100,13 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
 
           {mode === "edit" ? (
             <form onSubmit={review} noValidate data-testid="cc-giftcomm-form" style={{ display: "grid", gap: 4 }}>
-              <label style={{ fontSize: ".86rem", fontWeight: 600 }}><input type="checkbox" data-testid="cc-giftcomm-f-disable" checked={!draft.enabled} onChange={(e) => set("enabled", !e.target.checked)} /> Disable gift commission</label>
+              <label style={{ fontSize: ".86rem", fontWeight: 600 }}><input type="checkbox" style={tick} data-testid="cc-giftcomm-f-disable" checked={!draft.enabled} onChange={(e) => set("enabled", !e.target.checked)} /> Disable gift commission</label>
               {!draft.enabled ? (
                 <p style={{ ...small, color: "#92400e" }} data-testid="cc-giftcomm-disabled-note">Gift commission will be disabled for this salesperson: nothing accrues on their gift sales from the start date. The current terms stay in the history.</p>
               ) : (<>
               <span style={lab}>Gift rate</span>
               {RATE_SOURCES.map((r) => (
-                <label key={r.id} style={{ fontSize: ".86rem" }}><input type="radio" name="gc-src" data-testid={`cc-giftcomm-f-source-${r.id}`} checked={draft.rateSource === r.id} onChange={() => set("rateSource", r.id)} /> {r.label}</label>
+                <label key={r.id} style={{ fontSize: ".86rem" }}><input type="radio" style={tick} name="gc-src" data-testid={`cc-giftcomm-f-source-${r.id}`} checked={draft.rateSource === r.id} onChange={() => set("rateSource", r.id)} /> {r.label}</label>
               ))}
               {draft.rateSource === "customer_schedule" ? (
                 <div data-testid="cc-giftcomm-schedule-info" style={{ ...small, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
@@ -123,7 +126,7 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
               {errors.rate ? <p style={err} data-testid="cc-giftcomm-err-rate">{errors.rate}</p> : null}
               <span style={lab}>How long it earns</span>
               {DURATION_MODES.map((m) => (
-                <label key={m.id} style={{ fontSize: ".86rem" }}><input type="radio" name="gc-dur" data-testid={`cc-giftcomm-f-mode-${m.id}`} checked={draft.mode === m.id} onChange={() => set("mode", m.id)} /> {m.label}</label>
+                <label key={m.id} style={{ fontSize: ".86rem" }}><input type="radio" style={tick} name="gc-dur" data-testid={`cc-giftcomm-f-mode-${m.id}`} checked={draft.mode === m.id} onChange={() => set("mode", m.id)} /> {m.label}</label>
               ))}
               {draft.mode === "months_from_first_gift" ? (
                 <div><label style={lab} htmlFor="gc-months">Months (1 to 120)</label><input id="gc-months" style={{ ...inp, width: 100 }} inputMode="numeric" data-testid="cc-giftcomm-f-months" value={draft.months} onChange={(e) => set("months", e.target.value)} /></div>
@@ -133,12 +136,12 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
               <span style={lab}>Gift types that can earn</span>
               {GIFT_TYPE_OPTIONS.map((o) => (
                 <label key={o.id} style={{ fontSize: ".86rem", opacity: o.selectable ? 1 : 0.6 }}>
-                  <input type="checkbox" data-testid={`cc-giftcomm-f-type-${o.id}`} disabled={!o.selectable} checked={draft.types.includes(o.id)} onChange={() => toggleType(o.id)} /> {o.label} <span style={small}>({o.note})</span>
+                  <input type="checkbox" style={tick} data-testid={`cc-giftcomm-f-type-${o.id}`} disabled={!o.selectable} checked={draft.types.includes(o.id)} onChange={() => toggleType(o.id)} /> {o.label} <span style={small}>({o.note})</span>
                 </label>
               ))}
               {NEVER_EARN.map((n) => (
                 <label key={n.id} style={{ fontSize: ".86rem", opacity: 0.6 }}>
-                  <input type="checkbox" disabled checked={false} readOnly data-testid={`cc-giftcomm-f-type-${n.id}`} /> {n.label} <span style={small}>(Never earns)</span>
+                  <input type="checkbox" style={tick} disabled checked={false} readOnly data-testid={`cc-giftcomm-f-type-${n.id}`} /> {n.label} <span style={small}>(Never earns)</span>
                 </label>
               ))}
               {errors.types ? <p style={err} data-testid="cc-giftcomm-err-types">{errors.types}</p> : null}
