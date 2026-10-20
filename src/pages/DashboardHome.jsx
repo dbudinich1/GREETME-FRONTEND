@@ -174,18 +174,18 @@ function GiftCarousel({ chosen, onAdd, onRemove, onLearnQr, smartCardAvailable }
         </div>
       </div>
       <div className="cta-col">
-        {s.key === 'qrcash' ? (
-          <button type="button" className="btn btn-sm btn-primary" style={{ height: 40 }} data-testid="gx-add-qr" aria-pressed={chosen === 'qrcash'} onClick={() => onAdd('qrcash')}>
-            {chosen === 'qrcash' ? <><Check size={16} /> QR Cash added</> : <><Gift size={16} /> Add QR Cash</>}
-          </button>
-        ) : (
-          <button type="button" className="btn btn-sm btn-primary" style={{ height: 40, visibility: smartCardOff ? 'hidden' : 'visible' }} tabIndex={smartCardOff ? -1 : 0} data-testid="gx-add-gift" aria-pressed={chosen === 'gift'} onClick={() => onAdd('gift')}>
-            {chosen === 'gift' ? <><Check size={16} /> Gift added</> : <><Gift size={16} /> Add a gift</>}
-          </button>
-        )}
         {/* Adding never toggles off on a second tap; removing is its own action. */}
         <button type="button" className="link" data-testid="gx-gift-remove" style={{ visibility: chosen ? 'visible' : 'hidden' }} tabIndex={chosen ? 0 : -1} onClick={onRemove}>Remove {chosen === 'qrcash' ? 'QR Cash' : 'gift'}</button>
         <button type="button" className="link" style={{ visibility: s.key === 'qrcash' ? 'visible' : 'hidden' }} onClick={onLearnQr} tabIndex={s.key === 'qrcash' ? 0 : -1}>How it works</button>
+        {s.key === 'qrcash' ? (
+          <button type="button" className="btn btn-sm btn-gold" style={{ height: 40 }} data-testid="gx-add-qr" aria-pressed={chosen === 'qrcash'} onClick={() => onAdd('qrcash')}>
+            {chosen === 'qrcash' ? <><Check size={16} /> QR Cash added</> : <><Gift size={16} /> Add QR Cash</>}
+          </button>
+        ) : (
+          <button type="button" className="btn btn-sm btn-gold" style={{ height: 40, visibility: smartCardOff ? 'hidden' : 'visible' }} tabIndex={smartCardOff ? -1 : 0} data-testid="gx-add-gift" aria-pressed={chosen === 'gift'} onClick={() => onAdd('gift')}>
+            {chosen === 'gift' ? <><Check size={16} /> Gift added</> : <><Gift size={16} /> Add a gift</>}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -661,7 +661,7 @@ export default function DashboardHome() {
             </div>
           </div>
           <div style={{ position: 'relative' }}>
-            <h1>{firstName ? `${firstName}, who would you like to celebrate today?` : 'Who would you like to celebrate today?'}</h1>
+            <h1>{firstName ? `${firstName}, who would you like to celebrate today?` : 'Who would you like to celebrate today?'}<button type="button" className="quick" data-testid="gx-quick-hero" onClick={() => navigate('/dashboard/gifts')}><Gift size={15} /> Quick Gift <ChevronRight size={15} /></button></h1>
             <p className="lede">Send a personalized Greet-Me now, or set one to arrive on their occasion. Tap a face to begin.</p>
             {contacts.length > 0 ? (
               <>
@@ -693,7 +693,7 @@ export default function DashboardHome() {
         {/* 2. Greeting flow — a persistent screen */}
         <section className="card flow" id="gx-flow" data-testid="gx-flow" style={{ scrollMarginTop: 90 }}>
           <div className="flow-head">
-            <div><span className="eyebrow">Send a Greet-Me</span><h2>Greet-Me, right now, or right on time?</h2></div>
+            <div><h2>Greet-Me, right now, or right on time?</h2></div>
             <p>You review everything, and pay for any gift, before anything is sent.</p>
           </div>
 

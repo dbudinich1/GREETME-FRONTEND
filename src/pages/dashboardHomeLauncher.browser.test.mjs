@@ -189,7 +189,7 @@ async function mount({ contacts = CONTACTS(), upcoming = UPCOMING(), sent = SENT
   return root;
 }
 
-test("renders the sections; occasions are the Recipients page's list and groups plus the send page's own; no Quick Gift; Upcoming asks for 60 days", async () => {
+test("renders the sections; occasions are the Recipients page's list and groups plus the send page's own; Quick Gift only in the welcome banner; Upcoming asks for 60 days", async () => {
   await mount();
   for (const id of ["gx-hero", "gx-modes", "gx-step-1", "gx-step-2", "gx-step-3", "gx-step-4", "gx-footbar", "gx-lower", "gx-install"]) {
     assert.ok($(`[data-testid=${id}]`), id);
@@ -206,8 +206,8 @@ test("renders the sections; occasions are the Recipients page's list and groups 
   assert.deepEqual(menuItems(), ["Christmas", "Easter", "Rosh Hashanah", "Hanukkah", "Passover", "Eid al-Fitr", "Eid al-Adha", "Ramadan"]);
   const occasionChoices = [...chips, ...holidays, ...menuItems()];
   for (const absent of ["Engagement", "Sympathy", "Wedding", "Baby", "Get Well"]) assert.equal(occasionChoices.includes(absent), false, `${absent} is not on the Recipients list`);
-  assert.equal($("[data-testid=gx-quick-hero]"), null); assert.equal($("[data-testid=gx-quick-banner]"), null);
-  assert.equal(document.body.textContent.includes("Quick Gift"), false, "Quick Gift is removed from the dashboard");
+  assert.ok($("[data-testid=gx-hero] [data-testid=gx-quick-hero]"), "Quick Gift is in the welcome banner (founder 2026-10-20)"); assert.equal($("[data-testid=gx-quick-banner]"), null, "never in the gift carousel");
+  assert.equal($("[data-testid=gx-step-4]").textContent.includes("Quick Gift"), false, "Quick Gift is not in the gift carousel");
   // N-6 (founder 2026-10-18): a recorded voice is required for group sending; words and memory photos stay optional
   assert.equal($("[data-testid=gx-step-3]").textContent.includes("Personalize — optional"), false);
   const step3 = $("[data-testid=gx-step-3]").textContent;
@@ -1005,4 +1005,19 @@ test("composer heading is centred; the compact presentation keeps body text at i
   const { DASHBOARD_HOME_CSS } = await import(pathToFileURL(join(__dirname, "dashboardHomeStyles.js")).href);
   assert.match(DASHBOARD_HOME_CSS, /\.gx \.flow-head \{ flex-direction:column; align-items:center; text-align:center;/);
   assert.equal(/font(-size)?:[^;]*\b(9|10|11)px/.test(DASHBOARD_HOME_CSS.slice(DASHBOARD_HOME_CSS.indexOf("Revision 2026-10-20"))), false, "the revision sets no text below 11.5px");
+});
+
+test("adjustments: no gold 'Send a Greet-Me' label; Quick Gift in the welcome headline goes to the Gift Place; Add a gift is gold, last in the gift card", async () => {
+  await mount();
+  assert.equal($("[data-testid=gx-flow] .flow-head .eyebrow"), null);
+  assert.equal(/Send a Greet-Me/i.test($("[data-testid=gx-flow] .flow-head").textContent), false);
+  const q = $("[data-testid=gx-hero] h1 [data-testid=gx-quick-hero]");
+  assert.ok(q, "inside the welcome headline, where it was");
+  assert.match(q.textContent, /Quick Gift/);
+  await click(q);
+  assert.deepEqual(globalThis.__nav.at(-1), { to: "/dashboard/gifts", opts: undefined });
+  assert.equal($("[data-testid=gx-carousel] [data-testid=gx-quick-banner]"), null);
+  const add = $("[data-testid=gx-add-gift]") || $("[data-testid=gx-add-qr]");
+  assert.ok(add.classList.contains("btn-gold"), "gold");
+  assert.equal(add.parentElement.lastElementChild, add, "the last control in the card's action column (lower right)");
 });

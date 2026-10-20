@@ -458,4 +458,13 @@ export const DASHBOARD_HOME_CSS = `
   .gx .rcaret { padding:0 6px 0 2px; height:auto; align-self:stretch; min-width:28px; }
   .gx .menu-recip { left:auto; right:auto; }
 }
+/* Adjustments 2026-10-20 (founder): Add a gift is gold, at the lower right of the gift card. */
+.gx .carousel .cta-col { align-self:stretch; display:flex; flex-direction:column; justify-content:flex-end; align-items:flex-end; gap:6px; }
+.gx .carousel .cta-col .btn-gold { box-shadow:0 12px 26px -16px rgba(44,29,70,.55); }
+/* Quick Gift sits at the end of the headline, as on the live dashboard (the denser headline needs a little more width). */
+.gx .hero h1 { max-width:54rem; }
+@media (max-width: 640px) {
+  .gx .carousel .cta-col { grid-column:1 / -1; flex-direction:row; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:6px 14px; }
+  .gx .carousel .cta-col .link { grid-column:auto; justify-self:auto; }
+}
 `;
