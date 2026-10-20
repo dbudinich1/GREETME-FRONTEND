@@ -9,14 +9,14 @@ export const GIFT_COMMISSION_BANNER = "Gift commission is OFF platform-wide unti
 /** What the founder can pick. `selectable:false` rows are shown but cannot be chosen. */
 export const GIFT_TYPE_OPTIONS = [
   { id: "gift_boxes", label: "Gift boxes", selectable: true, note: "Earns on Greet-Me's mark-up on the gift box." },
-  { id: "merch", label: "Merch", selectable: true, note: "Accrues nothing while the merch mark-up is off." },
+  { id: "merch", label: "Branded Goods", selectable: true, note: "Earns on what the customer paid minus Printful's charge (recorded when the order ships), after the card fee and any fundraiser partner's share." },
   { id: "flowers", label: "Flowers", selectable: true, note: "Earns a share of Greet-Me's 20% florist share; florist payment is verified before approval." },
 ];
 export const NEVER_EARN = [
   { id: "qrcash", label: "QR Cash", note: "Never earns." },
   { id: "gift_cards", label: "Smart Card", note: "Never earns." },
 ];
-const TYPE_WORDS = { gift_boxes: "gift boxes", merch: "merch", flowers: "flowers" };
+const TYPE_WORDS = { gift_boxes: "gift boxes", merch: "Branded Goods", flowers: "flowers" };
 
 export const DURATION_MODES = [
   { id: "first_gift_only", label: "First gift only" },

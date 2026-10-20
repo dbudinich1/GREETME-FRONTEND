@@ -63,7 +63,7 @@ test("shows current terms, plain summary, never-earn list, OFF banner, history; 
   assert.match(tid("cc-giftcomm-setby").textContent, /2026-09-01 by account founder-1/);
   assert.match(tid("cc-giftcomm-banner").textContent, /OFF platform-wide/); assert.match(tid("cc-giftcomm-banner").textContent, /payouts are off/);
   assert.match(tid("cc-giftcomm-never-qrcash").textContent, /never earns/); assert.match(tid("cc-giftcomm-never-gift_cards").textContent, /Smart Card/);
-  assert.match(tid("cc-giftcomm-flowers-note").textContent, /20% florist share; florist payment is verified before approval/); assert.match(tid("cc-giftcomm-merch-note").textContent, /mark-up is off/);
+  assert.match(tid("cc-giftcomm-flowers-note").textContent, /20% florist share; florist payment is verified before approval/); assert.match(tid("cc-giftcomm-merch-note").textContent, /^Branded Goods: earns on what the customer paid minus Printful.s charge/); assert.doesNotMatch(tid("cc-giftcomm-merch-note").textContent, /mark-up is off/);
   assert.equal(document.querySelectorAll('[data-testid="cc-giftcomm-history-row"]').length, 1);
   assert.match(tid("cc-giftcomm-history").textContent, /10%.*first gift only/);
   assert.deepEqual(api.calls.map((c) => c[0]), ["GET"], "only a read on open");
@@ -156,7 +156,7 @@ test("round trip: Change terms then Save keeps stored flowers (and every stored 
   assert.equal(tid("cc-giftcomm-removal-warning"), null);
   await submit(tid("cc-giftcomm-form"));
   assert.equal(tid("cc-giftcomm-confirm-removal"), null);
-  assert.match(tid("cc-giftcomm-confirm-summary").textContent, /gift boxes, merch and flowers|gift boxes, flowers and merch/);
+  assert.match(tid("cc-giftcomm-confirm-summary").textContent, /gift boxes, Branded Goods and flowers|gift boxes, flowers and Branded Goods/);
   await click(tid("cc-giftcomm-confirm-go"));
   assert.deepEqual(writes(api)[0][2].eligibleTypes, ["gift_boxes", "flowers", "merch"]);
 });

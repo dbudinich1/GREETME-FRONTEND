@@ -66,7 +66,7 @@ test("turning it off does not require types and sends enabled:false", () => {
 });
 test("plain-language summary", () => {
   assert.equal(summaryLine({ enabled: true, rateBps: 2000, duration: { mode: "months_from_first_gift", months: 12 }, eligibleTypes: ["gift_boxes"] }, "2026-10-03"), "Earns 20% of Greet-Me's margin on gift boxes for 12 months starting 2026-10-03.");
-  assert.equal(summaryLine({ enabled: true, rateBps: 1000, duration: { mode: "first_gift_only" }, eligibleTypes: ["gift_boxes", "merch"] }, ""), "Earns 10% of Greet-Me's margin on gift boxes and merch, on the first gift only.");
+  assert.equal(summaryLine({ enabled: true, rateBps: 1000, duration: { mode: "first_gift_only" }, eligibleTypes: ["gift_boxes", "merch"] }, ""), "Earns 10% of Greet-Me's margin on gift boxes and Branded Goods, on the first gift only.");
   assert.match(summaryLine({ enabled: true, rateBps: 500, duration: { mode: "ongoing" }, eligibleTypes: ["merch"] }, "now"), /ongoing starting now/);
   assert.match(summaryLine(null), /off/); assert.match(summaryLine({ enabled: false }), /nothing accrues/);
 });
