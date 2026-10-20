@@ -59,7 +59,7 @@ const writes = (api) => api.calls.filter((c) => c[0] === "PUT");
 test("shows current terms, plain summary, never-earn list, OFF banner, history; reads only", async () => {
   const api = fakeApi(); await mount(api);
   assert.equal(tid("cc-giftcomm-summary").textContent, "Earns 20% of Greet-Me's margin on gift boxes for 12 months starting 2026-09-01.");
-  assert.equal(tid("cc-giftcomm-rate").textContent, "20%");
+  assert.equal(tid("cc-giftcomm-rate").textContent, "20% of Greet-Me's margin");
   assert.match(tid("cc-giftcomm-setby").textContent, /2026-09-01 by account founder-1/);
   assert.match(tid("cc-giftcomm-banner").textContent, /OFF platform-wide/); assert.match(tid("cc-giftcomm-banner").textContent, /payouts are off/);
   assert.match(tid("cc-giftcomm-never-qrcash").textContent, /never earns/); assert.match(tid("cc-giftcomm-never-gift_cards").textContent, /Smart Card/);
@@ -98,7 +98,7 @@ test("QR Cash and Smart Card are unselectable; flowers is selectable", async () 
 
 test("validation blocks the confirm step", async () => {
   const api = fakeApi({ gc: { current: null, history: [] } }); await mount(api);
-  await click(tid("cc-giftcomm-edit")); await submit(tid("cc-giftcomm-form"));
+  await click(tid("cc-giftcomm-edit")); await click(tid("cc-giftcomm-f-source-fixed")); await submit(tid("cc-giftcomm-form"));
   assert.ok(tid("cc-giftcomm-err-rate")); assert.ok(tid("cc-giftcomm-err-types")); assert.equal(tid("cc-giftcomm-confirm"), null);
   await setValue(tid("cc-giftcomm-f-rate"), "150"); await submit(tid("cc-giftcomm-form")); assert.match(tid("cc-giftcomm-err-rate").textContent, /between 0 and 100/);
   await setValue(tid("cc-giftcomm-f-rate"), "20"); await click(tid("cc-giftcomm-f-type-gift_boxes"));
@@ -108,7 +108,7 @@ test("validation blocks the confirm step", async () => {
 
 test("explicit confirm: exact body, 'future sales only' wording, one PUT, then reload", async () => {
   const api = fakeApi({ gc: { current: null, history: [] } }); await mount(api);
-  await click(tid("cc-giftcomm-edit"));
+  await click(tid("cc-giftcomm-edit")); await click(tid("cc-giftcomm-f-source-fixed"));
   await setValue(tid("cc-giftcomm-f-rate"), "15");
   await click(tid("cc-giftcomm-f-mode-months_from_first_gift")); await setValue(tid("cc-giftcomm-f-months"), "6");
   await click(tid("cc-giftcomm-f-type-gift_boxes"));
@@ -126,13 +126,13 @@ test("explicit confirm: exact body, 'future sales only' wording, one PUT, then r
 test("server refusals map to plain words and keep the form open", async () => {
   for (const [reason, re] of [["rate_out_of_range", /between 0 and 100/], ["ineligible_type", /never do/], ["effective_from_in_the_past", /future sales only/]]) {
     const api = fakeApi({ gc: { current: null, history: [] }, writeRes: { ok: false, status: 400, data: { ok: false, reason } } }); await mount(api);
-    await click(tid("cc-giftcomm-edit")); await setValue(tid("cc-giftcomm-f-rate"), "10"); await click(tid("cc-giftcomm-f-type-gift_boxes"));
+    await click(tid("cc-giftcomm-edit")); await click(tid("cc-giftcomm-f-source-fixed")); await setValue(tid("cc-giftcomm-f-rate"), "10"); await click(tid("cc-giftcomm-f-type-gift_boxes"));
     await submit(tid("cc-giftcomm-form")); await click(tid("cc-giftcomm-confirm-go"));
     assert.match(tid("cc-giftcomm-form-error").textContent, re, reason); assert.doesNotMatch(tid("cc-giftcomm-form-error").textContent, /_/);
     assert.ok(tid("cc-giftcomm-form"));
   }
   const api403 = fakeApi({ gc: { current: null, history: [] }, writeRes: { ok: false, status: 403, data: null } }); await mount(api403);
-  await click(tid("cc-giftcomm-edit")); await setValue(tid("cc-giftcomm-f-rate"), "10"); await click(tid("cc-giftcomm-f-type-gift_boxes"));
+  await click(tid("cc-giftcomm-edit")); await click(tid("cc-giftcomm-f-source-fixed")); await setValue(tid("cc-giftcomm-f-rate"), "10"); await click(tid("cc-giftcomm-f-type-gift_boxes"));
   await submit(tid("cc-giftcomm-form")); await click(tid("cc-giftcomm-confirm-go"));
   assert.match(tid("cc-giftcomm-form-error").textContent, /founder account/);
 });

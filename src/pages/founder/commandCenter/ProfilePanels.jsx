@@ -49,9 +49,25 @@ export function ShareQr({ url }) {
   );
 }
 
-export function AssignedLinksPanel({ api, salespersonId }) {
+// `separateQr`: the Control Center draws the QR code itself, AFTER all link areas (founder 2026-10-19), so the panel
+// leaves it out. `embedded`: the panel sits inside the collapsible "Links" section, which carries the heading.
+// `onLinks`: reports what the panel loaded, for that section's closed summary and its QR code. Standalone use is unchanged.
+export function AssignedLinksPanel({ api, salespersonId, separateQr = false, embedded = false, onLinks }) {
   const [state, setState] = useState({ loading: true });
   const has = typeof api.assignedLinks === "function";
+  useEffect(() => {
+    if (typeof onLinks !== "function") return;
+    if (!has) { onLinks({ state: "unavailable" }); return; }
+    if (state.loading) { onLinks({ state: "loading" }); return; }
+    if (state.error) { onLinks({ state: "error" }); return; }
+    const v = state.data.links.find((l) => l.type === "vanity_alias");
+    onLinks({
+      state: "ready",
+      vanityUrl: v && v.assigned && v.url ? v.url : null,
+      vanityActive: !!(v && v.active),
+      platformOff: state.data.referralPublicEnabled === false,
+    });
+  }, [onLinks, has, state]);
   useEffect(() => {
     if (!has) return undefined;
     let live = true;
@@ -66,7 +82,7 @@ export function AssignedLinksPanel({ api, salespersonId }) {
   const share = by.share_link; const vanity = by.vanity_alias; const claim = by.gift_claim_attribution;
   return (
     <section data-testid="cc-assigned-links" style={{ display: "grid", gap: 10 }}>
-      <h3 style={{ fontSize: ".92rem", margin: 0 }}>Assigned links</h3>
+      <h3 style={{ fontSize: embedded ? ".86rem" : ".92rem", margin: 0 }}>Assigned links</h3>
       {state.data.referralPublicEnabled === false ? <p style={{ ...small, color: "#92400e" }} data-testid="cc-links-platform-off">Referral links are switched off platform-wide, so none of these links credit anyone yet.</p> : null}
       {vanity ? (
         <div style={box} data-testid="cc-link-vanity">
@@ -76,7 +92,7 @@ export function AssignedLinksPanel({ api, salespersonId }) {
               <code data-testid="cc-link-vanity-url" style={{ wordBreak: "break-all", userSelect: "all" }}>{vanity.url}</code>
               <p style={small}>Opens: {vanity.destination}.{vanity.active ? "" : " This salesperson is inactive, so new visitors are not credited to them."}</p>
               <div><CopyButton text={vanity.url} testid="cc-link-vanity-copy" /></div>
-              {vanity.active ? <ShareQr url={vanity.url} /> : <p style={small} data-testid="cc-link-qr-paused">No QR code is shown while this salesperson is inactive.</p>}
+              {separateQr ? null : (vanity.active ? <ShareQr url={vanity.url} /> : <p style={small} data-testid="cc-link-qr-paused">No QR code is shown while this salesperson is inactive.</p>)}
             </>
           ) : <p style={small} data-testid="cc-link-vanity-none">No shareable link assigned yet. Assign one below.</p>}
         </div>

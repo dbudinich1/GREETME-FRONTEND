@@ -3,17 +3,24 @@
 // The gift-sales panel next to it stays a sales-only panel and shows no commission figure.
 import { useCallback, useEffect, useState } from "react";
 import {
-  GIFT_COMMISSION_BANNER, GIFT_TYPE_OPTIONS, NEVER_EARN, DURATION_MODES, blankDraft, draftFromCurrent, validateDraft,
+  GIFT_COMMISSION_BANNER, GIFT_TYPE_OPTIONS, NEVER_EARN, DURATION_MODES, RATE_SOURCES, blankDraft, draftFromCurrent, validateDraft,
   summaryLine, historyRows, giftCommissionErrorMessage, removedTypes, typeLabel,
 } from "./giftCommissionLogic.js";
+import { giftSummary, inheritedRatesText } from "./commissionSummaries.js";
 
 const box = { border: "1px solid var(--border, #e5e7eb)", borderRadius: 12, padding: "12px 14px", display: "grid", gap: 8, background: "#fff" };
 const small = { margin: 0, fontSize: ".8rem", color: "#475569", lineHeight: 1.45 };
 const lab = { display: "block", fontSize: ".78rem", fontWeight: 700, color: "#3a3552", margin: "6px 0 3px" };
 const inp = { padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: ".9rem", boxSizing: "border-box", maxWidth: "100%" };
 const err = { color: "#b3261e", fontSize: ".78rem", margin: "2px 0 0" };
+// The app's global CSS gives every <input> width:100% and padding, which pushed each checkbox and radio onto its own
+// line, detached from its label. Ticks and radios here keep their natural size, inline with the label text.
+const tick = { width: "auto", padding: 0, margin: "0 6px 0 0", verticalAlign: "middle", display: "inline-block" };
 
-export default function GiftCommissionPanel({ api, salespersonId, now = () => new Date() }) {
+// `compensation` is the salesperson's SAVED subscription schedule (bps), shown when the gift rate reuses it. `embedded` drops
+// the panel's own frame and heading when it sits inside a collapsible commission section; `onSummary` reports the saved
+// one-line summary for that section's collapsed row.
+export default function GiftCommissionPanel({ api, salespersonId, now = () => new Date(), compensation = null, embedded = false, onSummary }) {
   const has = typeof api.giftCommission === "function" && typeof api.setGiftCommission === "function";
   const [state, setState] = useState({ loading: true });
   const [mode, setMode] = useState("view"); // view | edit | confirm
@@ -32,8 +39,12 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
   }, [api, salespersonId]);
   useEffect(() => { if (has) { setState({ loading: true }); setMode("view"); setSaved(""); load(); } }, [has, load]);
 
+  const savedSummary = giftSummary(state.gc ? state.gc.current : null, compensation, state.loading ? "loading" : state.error ? "error" : "ready");
+  useEffect(() => { if (typeof onSummary === "function") onSummary(has ? savedSummary : null); }, [onSummary, has, savedSummary]);
+
   if (!has) return null;
   const set = (k, v) => setDraft((d) => ({ ...d, [k]: v }));
+  const inherited = inheritedRatesText(compensation);
   const toggleType = (id) => setDraft((d) => ({ ...d, types: d.types.includes(id) ? d.types.filter((x) => x !== id) : [...d.types, id] }));
   const cur = state.gc && state.gc.current;
 
@@ -54,8 +65,8 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
   const startsOn = payload && payload.effectiveFrom ? payload.effectiveFrom.slice(0, 10) : "now";
 
   return (
-    <section data-testid="cc-giftcomm" style={box}>
-      <h3 style={{ margin: 0, fontSize: ".95rem" }}>Gift commission</h3>
+    <section data-testid="cc-giftcomm" style={embedded ? { ...box, border: "none", padding: 0, background: "transparent" } : box}>
+      {embedded ? null : <h3 style={{ margin: 0, fontSize: ".95rem" }}>Gift commission</h3>}
       <p style={{ ...small, background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 10, padding: "8px 12px", color: "#3b2a6b" }} data-testid="cc-giftcomm-banner">{GIFT_COMMISSION_BANNER}</p>
       {saved ? <p role="status" style={{ ...small, color: "#166534" }} data-testid="cc-giftcomm-saved">{saved}</p> : null}
       {state.loading ? <p style={small} data-testid="cc-giftcomm-loading">Loading gift commission terms...</p> : null}
@@ -67,8 +78,11 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
             <p style={{ margin: 0, fontSize: ".9rem", fontWeight: 600 }} data-testid="cc-giftcomm-summary">{summaryLine(cur, cur && cur.effectiveFrom ? String(cur.effectiveFrom).slice(0, 10) : "")}</p>
             {cur ? (
               <dl style={{ display: "grid", gridTemplateColumns: "auto minmax(0,1fr)", gap: ".2rem .8rem", margin: 0, fontSize: ".82rem" }}>
-                <dt>Status</dt><dd style={{ margin: 0 }} data-testid="cc-giftcomm-enabled">{cur.enabled ? "On (accrues only after activation)" : "Off"}</dd>
-                <dt>Share of Greet-Me's margin</dt><dd style={{ margin: 0 }} data-testid="cc-giftcomm-rate">{cur.rateBps / 100}%</dd>
+                <dt>Status</dt><dd style={{ margin: 0 }} data-testid="cc-giftcomm-enabled">{cur.enabled ? "On (accrues only after activation)" : "Disabled"}</dd>
+                <dt>Gift rate</dt><dd style={{ margin: 0 }} data-testid="cc-giftcomm-rate">{!cur.enabled ? "None while disabled"
+                  : cur.rateSource === "customer_schedule"
+                    ? `Inherited from subscription commission: ${inherited || "no subscription terms saved"}`
+                    : `${cur.rateBps / 100}% of Greet-Me's margin`}</dd>
                 <dt>Starts</dt><dd style={{ margin: 0 }} data-testid="cc-giftcomm-from">{String(cur.effectiveFrom || "").slice(0, 10)}</dd>
                 <dt>Set</dt><dd style={{ margin: 0 }} data-testid="cc-giftcomm-setby">{String(cur.setAt || "").slice(0, 10)} by account {cur.setBy}</dd>
               </dl>
@@ -86,13 +100,33 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
 
           {mode === "edit" ? (
             <form onSubmit={review} noValidate data-testid="cc-giftcomm-form" style={{ display: "grid", gap: 4 }}>
-              <label style={{ fontSize: ".86rem" }}><input type="checkbox" data-testid="cc-giftcomm-f-enabled" checked={draft.enabled} onChange={(e) => set("enabled", e.target.checked)} /> Gift commission on for this salesperson</label>
-              <label style={lab} htmlFor="gc-rate">Share of Greet-Me's margin (percent)</label>
-              <input id="gc-rate" style={{ ...inp, width: 120 }} inputMode="decimal" data-testid="cc-giftcomm-f-rate" value={draft.ratePercent} onChange={(e) => set("ratePercent", e.target.value)} />
+              <label style={{ fontSize: ".86rem", fontWeight: 600 }}><input type="checkbox" style={tick} data-testid="cc-giftcomm-f-disable" checked={!draft.enabled} onChange={(e) => set("enabled", !e.target.checked)} /> Disable gift commission</label>
+              {!draft.enabled ? (
+                <p style={{ ...small, color: "#92400e" }} data-testid="cc-giftcomm-disabled-note">Gift commission will be disabled for this salesperson: nothing accrues on their gift sales from the start date. The current terms stay in the history.</p>
+              ) : (<>
+              <span style={lab}>Gift rate</span>
+              {RATE_SOURCES.map((r) => (
+                <label key={r.id} style={{ fontSize: ".86rem" }}><input type="radio" style={tick} name="gc-src" data-testid={`cc-giftcomm-f-source-${r.id}`} checked={draft.rateSource === r.id} onChange={() => set("rateSource", r.id)} /> {r.label}</label>
+              ))}
+              {draft.rateSource === "customer_schedule" ? (
+                <div data-testid="cc-giftcomm-schedule-info" style={{ ...small, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+                  {inherited ? (
+                    <><span style={{ display: "block", fontSize: ".9rem", color: "#1f2937", fontWeight: 600, marginBottom: 4 }}>Inherited from subscription commission: <span data-testid="cc-giftcomm-schedule-rates">{inherited}</span></span>Each gift earns the rate for the customer&rsquo;s current year, counted from that customer&rsquo;s start date, as a share of Greet-Me&rsquo;s margin. These are the rates new customers receive; existing customers keep the rates frozen when they started. Change them under Subscription commission. No override is paid on gifts.</>
+                  ) : (
+                    <span style={{ color: "#92400e" }} data-testid="cc-giftcomm-schedule-missing">This salesperson has no subscription commission terms saved. Gifts will earn nothing until terms are saved under Subscription commission.</span>
+                  )}
+                  {draft.mode !== "ongoing" ? <span style={{ display: "block", marginTop: 4 }} data-testid="cc-giftcomm-schedule-duration-hint">To follow the year schedule for as long as it runs, choose &ldquo;Ongoing&rdquo; below.</span> : null}
+                </div>
+              ) : (
+                <>
+                  <label style={lab} htmlFor="gc-rate">Share of Greet-Me's margin (percent)</label>
+                  <input id="gc-rate" style={{ ...inp, width: 120 }} inputMode="decimal" data-testid="cc-giftcomm-f-rate" value={draft.ratePercent} onChange={(e) => set("ratePercent", e.target.value)} />
+                </>
+              )}
               {errors.rate ? <p style={err} data-testid="cc-giftcomm-err-rate">{errors.rate}</p> : null}
               <span style={lab}>How long it earns</span>
               {DURATION_MODES.map((m) => (
-                <label key={m.id} style={{ fontSize: ".86rem" }}><input type="radio" name="gc-dur" data-testid={`cc-giftcomm-f-mode-${m.id}`} checked={draft.mode === m.id} onChange={() => set("mode", m.id)} /> {m.label}</label>
+                <label key={m.id} style={{ fontSize: ".86rem" }}><input type="radio" style={tick} name="gc-dur" data-testid={`cc-giftcomm-f-mode-${m.id}`} checked={draft.mode === m.id} onChange={() => set("mode", m.id)} /> {m.label}</label>
               ))}
               {draft.mode === "months_from_first_gift" ? (
                 <div><label style={lab} htmlFor="gc-months">Months (1 to 120)</label><input id="gc-months" style={{ ...inp, width: 100 }} inputMode="numeric" data-testid="cc-giftcomm-f-months" value={draft.months} onChange={(e) => set("months", e.target.value)} /></div>
@@ -102,16 +136,17 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
               <span style={lab}>Gift types that can earn</span>
               {GIFT_TYPE_OPTIONS.map((o) => (
                 <label key={o.id} style={{ fontSize: ".86rem", opacity: o.selectable ? 1 : 0.6 }}>
-                  <input type="checkbox" data-testid={`cc-giftcomm-f-type-${o.id}`} disabled={!o.selectable} checked={draft.types.includes(o.id)} onChange={() => toggleType(o.id)} /> {o.label} <span style={small}>({o.note})</span>
+                  <input type="checkbox" style={tick} data-testid={`cc-giftcomm-f-type-${o.id}`} disabled={!o.selectable} checked={draft.types.includes(o.id)} onChange={() => toggleType(o.id)} /> {o.label} <span style={small}>({o.note})</span>
                 </label>
               ))}
               {NEVER_EARN.map((n) => (
                 <label key={n.id} style={{ fontSize: ".86rem", opacity: 0.6 }}>
-                  <input type="checkbox" disabled checked={false} readOnly data-testid={`cc-giftcomm-f-type-${n.id}`} /> {n.label} <span style={small}>(Never earns)</span>
+                  <input type="checkbox" style={tick} disabled checked={false} readOnly data-testid={`cc-giftcomm-f-type-${n.id}`} /> {n.label} <span style={small}>(Never earns)</span>
                 </label>
               ))}
               {errors.types ? <p style={err} data-testid="cc-giftcomm-err-types">{errors.types}</p> : null}
               {removedTypes(draft).length ? <p style={{ ...small, color: "#92400e" }} data-testid="cc-giftcomm-removal-warning">You are removing {removedTypes(draft).map(typeLabel).join(", ")} from the types that earn. Future sales of {removedTypes(draft).length === 1 ? "that type" : "those types"} will earn nothing.</p> : null}
+              </>)}
               <label style={lab} htmlFor="gc-start">Start date (optional, YYYY-MM-DD; leave empty to start now)</label>
               <input id="gc-start" style={{ ...inp, width: 160 }} data-testid="cc-giftcomm-f-start" value={draft.startDate} onChange={(e) => set("startDate", e.target.value)} />
               {errors.startDate ? <p style={err} data-testid="cc-giftcomm-err-start">{errors.startDate}</p> : null}

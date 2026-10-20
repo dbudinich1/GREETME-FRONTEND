@@ -24,14 +24,24 @@ export const DURATION_MODES = [
   { id: "ongoing", label: "Ongoing" },
 ];
 
-export const blankDraft = () => ({ enabled: true, ratePercent: "", mode: "first_gift_only", months: "12", types: [], stored: [], startDate: "" });
+/** Where the rate comes from. "customer_schedule" reuses each customer's subscription schedule and clock (no second rate). */
+export const RATE_SOURCES = [
+  { id: "customer_schedule", label: "Inherit this salesperson's subscription commission rates" },
+  { id: "fixed", label: "A separate fixed percentage" },
+];
+
+// A new setting INHERITS the subscription commission rates by default (no rate is entered twice); a separate fixed
+// percentage stays available as the second choice.
+export const blankDraft = () => ({ enabled: true, rateSource: "customer_schedule", ratePercent: "", mode: "first_gift_only", months: "12", types: [], stored: [], startDate: "" });
 
 /** Draft from the stored `current` block (or blank when nothing is set). */
 export function draftFromCurrent(cur) {
   if (!cur) return blankDraft();
   return {
     enabled: cur.enabled === true,
-    ratePercent: Number.isFinite(cur.rateBps) ? String(cur.rateBps / 100) : "",
+    rateSource: cur.rateSource === "customer_schedule" ? "customer_schedule" : "fixed",
+    // An OFF setting is stored with rateBps 0 as a placeholder; it is not a rate, so the field starts blank (no prefilled 0).
+    ratePercent: cur.enabled === true && Number.isFinite(cur.rateBps) ? String(cur.rateBps / 100) : "",
     mode: cur.duration && cur.duration.mode ? cur.duration.mode : "first_gift_only",
     months: cur.duration && cur.duration.months ? String(cur.duration.months) : "12",
     // Every stored eligible type is pre-selected, so saving without touching the types keeps exactly what is stored.
@@ -56,7 +66,10 @@ export function validateDraft(d, now = new Date()) {
   const errors = {};
   let rateBps = null;
   const raw = String(d.ratePercent ?? "").trim();
-  if (d.enabled || raw !== "") {
+  const fromSchedule = d.enabled && d.rateSource === "customer_schedule";
+  if (fromSchedule) {
+    // The rate is each customer's own subscription schedule; no percentage is entered or sent.
+  } else if (d.enabled || raw !== "") {
     const n = Number(raw);
     if (raw === "" || !Number.isFinite(n)) errors.rate = "Enter the percentage of Greet-Me's margin, for example 20.";
     else if (n < 0 || n > 100) errors.rate = "The percentage must be between 0 and 100.";
@@ -84,7 +97,10 @@ export function validateDraft(d, now = new Date()) {
     }
   }
   if (Object.keys(errors).length) return { errors, payload: null };
-  const payload = { enabled: !!d.enabled, rateBps, duration, eligibleTypes: d.enabled ? types : types };
+  // A fixed-rate payload keeps its exact original shape (no rateSource key); the schedule payload carries no rateBps.
+  const payload = fromSchedule
+    ? { enabled: true, rateSource: "customer_schedule", duration, eligibleTypes: types }
+    : { enabled: !!d.enabled, rateBps, duration, eligibleTypes: d.enabled ? types : types };
   if (effectiveFrom) payload.effectiveFrom = effectiveFrom;
   return { errors, payload };
 }
@@ -104,9 +120,15 @@ export function durationPhrase(dur) {
 /** Plain-language summary of a setting (stored block or validated payload). `startsOn` is a display date. */
 export function summaryLine(s, startsOn) {
   if (!s || s.enabled !== true) return "Gift commission is off for this salesperson: nothing accrues.";
-  const pct = s.rateBps / 100;
   const dur = s.duration || {};
   const when = startsOn ? ` starting ${startsOn}` : "";
+  if (s.rateSource === "customer_schedule") {
+    const how = dur.mode === "first_gift_only" ? ", on the first gift only"
+      : dur.mode === "months_from_first_gift" ? ` for ${dur.months} month${dur.months === 1 ? "" : "s"} from the first gift`
+        : ", ongoing";
+    return `Earns the inherited subscription commission rate for each customer's current year (Year 1, Year 2 or Year 3+, counted from the customer's own start date) as a share of Greet-Me's margin on ${typesPhrase(s.eligibleTypes)}${how}${when}.`;
+  }
+  const pct = s.rateBps / 100;
   if (dur.mode === "first_gift_only") return `Earns ${pct}% of Greet-Me's margin on ${typesPhrase(s.eligibleTypes)}, on the first gift only${when}.`;
   if (dur.mode === "months_from_first_gift") return `Earns ${pct}% of Greet-Me's margin on ${typesPhrase(s.eligibleTypes)} for ${dur.months} month${dur.months === 1 ? "" : "s"}${when}.`;
   return `Earns ${pct}% of Greet-Me's margin on ${typesPhrase(s.eligibleTypes)}, ongoing${when}.`;
@@ -137,6 +159,8 @@ export function giftCommissionErrorMessage(res) {
         eligible_types_required: "Choose at least one gift type.",
         ineligible_type: "One of the chosen gift types can never earn commission (QR Cash and Smart Card never do) or is not available yet.",
         effective_from_in_the_past: "The start date cannot be in the past. Terms apply to future sales only.",
+        rate_not_allowed_with_customer_schedule: "A percentage cannot be set when the subscription schedule is used. Remove it or choose a fixed percentage.",
+        rate_source_invalid: "Choose where the rate comes from.",
       })[reason] || "Those terms were not accepted. Check the highlighted fields.";
     }
     default: return "That didn't go through. Please try again.";

@@ -17,8 +17,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { salesAdminApi, salesAdminErrorMessage } from "../../api/salesAdmin.js";
-import { AssignedLinksPanel, GiftSalesPanel } from "./commandCenter/ProfilePanels.jsx";
+import { AssignedLinksPanel, GiftSalesPanel, ShareQr } from "./commandCenter/ProfilePanels.jsx";
 import GiftCommissionPanel from "./commandCenter/GiftCommissionPanel.jsx";
+import CommissionSection from "./commandCenter/CommissionSection.jsx";
+import { subscriptionSummary, activitySummary, linksSummary } from "./commandCenter/commissionSummaries.js";
 import { fundraiserApi } from "../../api/fundraiserApi.js";
 import { isFounder } from "../../utils/accountState.js";
 import AttributionHealthPanel from "./AttributionHealthPanel.jsx";
@@ -78,14 +80,15 @@ function readUser() {
 }
 
 /**
- * The platform default schedule, as percentages. A salesperson with no stored terms earns exactly
- * this, so the form shows it rather than blanks — the founder edits what is true today instead of
- * guessing what the empty state means.
+ * An empty terms form. Founder 2026-10-19: no prefilled or default commission percentage anywhere. A
+ * salesperson with no stored terms shows three BLANK rates, and blank means "terms not configured" -
+ * never 0 and never a fallback rate (new customers of a salesperson without saved terms earn nothing,
+ * A11). The founder must enter and save all three explicitly.
  */
-function defaultCompDraft() {
+function blankCompDraft() {
   return {
-    year_1: "25", year_2: "15", year_3_plus: "10",
-    referrerSalespersonId: "", overrideRateBps: "5", referralStatus: "active",
+    year_1: "", year_2: "", year_3_plus: "",
+    referrerSalespersonId: "", overrideRateBps: "", referralStatus: "active",
   };
 }
 
@@ -94,7 +97,7 @@ function compDraftFrom(sp) {
   const pct = (bps) => (Number.isFinite(bps) ? String(bps / 100) : null);
   const c = sp && sp.compensation;
   const r = sp && sp.referral;
-  const base = defaultCompDraft();
+  const base = blankCompDraft();
   return {
     year_1: (c && pct(c.year_1)) ?? base.year_1,
     year_2: (c && pct(c.year_2)) ?? base.year_2,
@@ -114,6 +117,10 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
   const [message, setMessage] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(null);
+  // The gift panel loads its own terms; it reports the saved one-line summary for its collapsed row here.
+  const [giftSummaryText, setGiftSummaryText] = useState(null);
+  // What the Assigned links panel loaded: the Links section's closed summary and its QR code (drawn after all link areas).
+  const [linksInfo, setLinksInfo] = useState(null);
   const [detailBusy, setDetailBusy] = useState(false);
 
   const [form, setForm] = useState({ salespersonId: "", displayName: "", email: "", linkEmail: "" });
@@ -126,10 +133,9 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
   // `confirm` holds the pending destructive intent: { kind, salespersonId, name }. Nothing acts
   // until it is confirmed, and dismissing it performs no request at all.
   const [slugDraft, setSlugDraft] = useState("");
-  // Percentages as the founder types them. Prefilled from the salesperson's stored terms, or from
-  // the platform default (25 / 15 / 10) when they have none — a legacy salesperson is shown what
-  // they actually earn, not three empty boxes.
-  const [compDraft, setCompDraft] = useState(defaultCompDraft());
+  // Percentages as the founder types them. Prefilled ONLY from the salesperson's stored terms; with
+  // none stored, every rate starts blank (terms not configured).
+  const [compDraft, setCompDraft] = useState(blankCompDraft());
   // No `publicLink` state any more. The link is DERIVED from the server-confirmed slug below, so
   // it updates when a replacement succeeds, disappears when a removal succeeds, and is preserved
   // untouched when either fails — because in each case `detail` is only ever replaced by a real
@@ -305,11 +311,18 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
    */
   async function saveCompensation() {
     if (!detail || busy) return;
+    const isBlank = (v) => String(v ?? "").trim() === "";
     const toBps = (v) => {
+      // Blank is "not configured", never 0: Number("") is 0, so it is refused before any conversion.
+      if (isBlank(v)) return null;
       const n = Number(String(v).trim());
       if (!Number.isFinite(n) || n < 0 || n > 100) return null;
       return Math.round(n * 100);
     };
+    if ([compDraft.year_1, compDraft.year_2, compDraft.year_3_plus].some(isBlank)) {
+      setMessage("Enter all three rates (Year 1, Year 2 and Year 3+) before saving. A blank rate is not saved as 0.");
+      return;
+    }
     const y1 = toBps(compDraft.year_1);
     const y2 = toBps(compDraft.year_2);
     const y3 = toBps(compDraft.year_3_plus);
@@ -319,6 +332,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     }
     let referral = null;
     if (compDraft.referrerSalespersonId) {
+      if (isBlank(compDraft.overrideRateBps)) { setMessage("Enter the override percentage for the referring salesperson."); return; }
       const ovr = toBps(compDraft.overrideRateBps);
       if (ovr === null) { setMessage("The override must be a percentage between 0 and 100."); return; }
       referral = {
@@ -642,194 +656,340 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
 
           {detail ? (
             <div style={{ marginTop: "1.1rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
-            <div style={{ display: "grid", gap: ".9rem", marginBottom: "1rem" }} data-testid="cc-profile-additions">
-              {/* W51: assigned links and gift sales. Read-only panels, each gated by the api (absent read = nothing rendered). */}
-              <AssignedLinksPanel api={api} salespersonId={detail.salespersonId} />
-              <GiftSalesPanel api={api} salespersonId={detail.salespersonId} />
-              <GiftCommissionPanel api={api} salespersonId={detail.salespersonId} />
-            </div>
-              {/* ── VANITY ALIAS ──
-                  Separate from the opaque link by design, and the copy says so: changing or
-                  removing an alias never touches the attribution token. */}
-              <h3 style={{ fontSize: ".92rem", margin: "0 0 .5rem" }}>Vanity URL</h3>
-              <p style={{ margin: "0 0 .6rem", color: "var(--text-secondary)", fontSize: ".82rem" }}>
-                A readable alias. The opaque attribution link is separate and is not changed by
-                editing or removing this.
-              </p>
-              {shareLink ? (
-                <div style={{ margin: "0 0 .7rem" }}>
-                  <p style={{ ...label, margin: "0 0 .25rem" }}>Shareable salesperson link</p>
-                  <p data-testid="fcc-public-link" style={{ ...mono, margin: "0 0 .45rem", wordBreak: "break-all", userSelect: "all" }}>
-                    {shareLink}
+            {/* ── LINKS ── founder 2026-10-19: every link area in one collapsible section; the QR code comes AFTER all of
+                them (same order on desktop and phone). The closed row shows the saved shareable link and account link. */}
+            <div data-testid="fcc-links" style={{ marginBottom: "1rem" }}>
+              <CommissionSection id="links" testPrefix="fcc-section" title="Links" summary={linksSummary(linksInfo, detail)}>
+                <div style={{ display: "grid", gap: "1rem" }}>
+                  {/* W51: assigned links. Read-only, gated by the api (absent read = nothing rendered). */}
+                  <AssignedLinksPanel api={api} salespersonId={detail.salespersonId} separateQr embedded onLinks={setLinksInfo} />
+                  {/* ── VANITY ALIAS ──
+                      Separate from the opaque link by design, and the copy says so: changing or
+                      removing an alias never touches the attribution token. */}
+                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+                  <h3 style={{ fontSize: ".86rem", margin: "0 0 .5rem" }}>Vanity URL</h3>
+                  <p style={{ margin: "0 0 .6rem", color: "var(--text-secondary)", fontSize: ".82rem" }}>
+                    A readable alias. The opaque attribution link is separate and is not changed by
+                    editing or removing this.
                   </p>
-                  <button type="button" className="btn-secondary" data-testid="fcc-copy-share"
-                    style={{ padding: ".3rem .7rem", fontSize: ".78rem" }}
-                    onClick={copyShareLink}>
-                    {shareCopied ? "Copied" : "Copy link"}
-                  </button>
-                </div>
-              ) : null}
-              <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
-                <input data-testid="fcc-slug-input" aria-label="Vanity URL" value={slugDraft}
-                  onChange={(e) => setSlugDraft(e.target.value)} style={{ maxWidth: 260 }} />
-                <button type="button" className="btn-primary" data-testid="fcc-slug-save"
-                  disabled={busy !== null || slugDraft.trim() === ""} onClick={() => saveSlug(false)}>
-                  {detail.referralSlug ? "Replace" : "Assign"}
-                </button>
-                {detail.referralSlug ? (
-                  <button type="button" className="btn-secondary" data-testid="fcc-slug-remove"
-                    disabled={busy !== null} onClick={() => saveSlug(true)}>Remove</button>
-                ) : null}
-              </div>
-
-              {/* ── LINKED GREET-ME ACCOUNT ──
-                  What makes the gift-claim sales-attribution source work: a recipient who claims a
-                  gift sent by THIS account can be attributed to this salesperson. Separate from the
-                  attribution link/vanity URL — this is a second, independent attribution source. */}
-              <div style={{ marginTop: "1.1rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
-                <h3 style={{ fontSize: ".92rem", margin: "0 0 .5rem" }}>Linked Greet-Me account</h3>
-                <p style={{ margin: "0 0 .6rem", color: "var(--text-secondary)", fontSize: ".82rem" }}>
-                  When this salesperson sends a gift from their own Greet-Me account and the
-                  recipient claims it, that claim can also attribute them — even if the recipient
-                  never visited their referral link.
-                </p>
-
-                {detail.linkedUserId ? (
+                  {shareLink ? (
+                    <div style={{ margin: "0 0 .7rem" }}>
+                      <p style={{ ...label, margin: "0 0 .25rem" }}>Shareable salesperson link</p>
+                      <p data-testid="fcc-public-link" style={{ ...mono, margin: "0 0 .45rem", wordBreak: "break-all", userSelect: "all" }}>
+                        {shareLink}
+                      </p>
+                      <button type="button" className="btn-secondary" data-testid="fcc-copy-share"
+                        style={{ padding: ".3rem .7rem", fontSize: ".78rem" }}
+                        onClick={copyShareLink}>
+                        {shareCopied ? "Copied" : "Copy link"}
+                      </button>
+                    </div>
+                  ) : null}
                   <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
-                    <p data-testid="fcc-linked-current" style={{ ...mono, margin: 0 }}>{detail.linkedUserId}</p>
-                    <button type="button" className="btn-secondary" data-testid="fcc-link-remove"
-                      disabled={linkBusy} onClick={unlinkAccount}>Unlink</button>
-                  </div>
-                ) : (
-                  <form onSubmit={resolveLinkAccount} style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
-                    <input data-testid="fcc-link-email" aria-label="Account email" type="email"
-                      value={linkEmail} onChange={(e) => { setLinkEmail(e.target.value); setLink({ state: STATES.EMPTY, account: null }); }}
-                      style={{ maxWidth: 260 }} />
-                    <button type="submit" className="btn-secondary" data-testid="fcc-link-resolve"
-                      disabled={linkBusy || !linkEmail.trim()}>
-                      {link.state === STATES.RESOLVING ? "Resolving…" : "Resolve"}
+                    <input data-testid="fcc-slug-input" aria-label="Vanity URL" value={slugDraft}
+                      onChange={(e) => setSlugDraft(e.target.value)} style={{ maxWidth: 260 }} />
+                    <button type="button" className="btn-primary" data-testid="fcc-slug-save"
+                      disabled={busy !== null || slugDraft.trim() === ""} onClick={() => saveSlug(false)}>
+                      {detail.referralSlug ? "Replace" : "Assign"}
                     </button>
-                  </form>
-                )}
+                    {detail.referralSlug ? (
+                      <button type="button" className="btn-secondary" data-testid="fcc-slug-remove"
+                        disabled={busy !== null} onClick={() => saveSlug(true)}>Remove</button>
+                    ) : null}
+                  </div>
+                  </div>
 
-                {link.state === STATES.RESOLVED && link.account ? (
-                  <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: ".6rem .75rem", marginTop: ".6rem" }} data-testid="fcc-link-resolved">
-                    <p style={{ ...mono, margin: "0 0 .4rem" }}>
-                      {link.account.email} {"·"} {link.account.userId}
-                      {link.account.emailVerified ? "" : " · unverified"}
+                  {/* ── LINKED GREET-ME ACCOUNT ──
+                      What makes the gift-claim sales-attribution source work: a recipient who claims a
+                      gift sent by THIS account can be attributed to this salesperson. Separate from the
+                      attribution link/vanity URL — this is a second, independent attribution source. */}
+                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+                    <h3 style={{ fontSize: ".86rem", margin: "0 0 .5rem" }}>Linked Greet-Me account</h3>
+                    <p style={{ margin: "0 0 .6rem", color: "var(--text-secondary)", fontSize: ".82rem" }}>
+                      When this salesperson sends a gift from their own Greet-Me account and the
+                      recipient claims it, that claim can also attribute them — even if the recipient
+                      never visited their referral link.
                     </p>
-                    <button type="button" className="btn-primary" data-testid="fcc-link-confirm"
-                      disabled={!canLink(link.state, link.account) || linkBusy} onClick={confirmLinkAccount}>
-                      {linkBusy ? "Linking…" : "Link this account"}
-                    </button>
+
+                    {detail.linkedUserId ? (
+                      <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
+                        <p data-testid="fcc-linked-current" style={{ ...mono, margin: 0 }}>{detail.linkedUserId}</p>
+                        <button type="button" className="btn-secondary" data-testid="fcc-link-remove"
+                          disabled={linkBusy} onClick={unlinkAccount}>Unlink</button>
+                      </div>
+                    ) : (
+                      <form onSubmit={resolveLinkAccount} style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
+                        <input data-testid="fcc-link-email" aria-label="Account email" type="email"
+                          value={linkEmail} onChange={(e) => { setLinkEmail(e.target.value); setLink({ state: STATES.EMPTY, account: null }); }}
+                          style={{ maxWidth: 260 }} />
+                        <button type="submit" className="btn-secondary" data-testid="fcc-link-resolve"
+                          disabled={linkBusy || !linkEmail.trim()}>
+                          {link.state === STATES.RESOLVING ? "Resolving…" : "Resolve"}
+                        </button>
+                      </form>
+                    )}
+
+                    {link.state === STATES.RESOLVED && link.account ? (
+                      <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: ".6rem .75rem", marginTop: ".6rem" }} data-testid="fcc-link-resolved">
+                        <p style={{ ...mono, margin: "0 0 .4rem" }}>
+                          {link.account.email} {"·"} {link.account.userId}
+                          {link.account.emailVerified ? "" : " · unverified"}
+                        </p>
+                        <button type="button" className="btn-primary" data-testid="fcc-link-confirm"
+                          disabled={!canLink(link.state, link.account) || linkBusy} onClick={confirmLinkAccount}>
+                          {linkBusy ? "Linking…" : "Link this account"}
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {[STATES.INVALID_EMAIL, STATES.NOT_FOUND, STATES.AMBIGUOUS, STATES.SERVICE_FAILURE].includes(link.state) ? (
+                      <p data-testid="fcc-link-resolve-error" style={{ color: "var(--warning)", fontSize: ".84rem", marginTop: ".5rem" }}>
+                        {link.state === STATES.INVALID_EMAIL ? "Enter a valid email address."
+                          : link.state === STATES.NOT_FOUND ? "No Greet-Me account matches that email address."
+                            : link.state === STATES.AMBIGUOUS ? "That email matches more than one account."
+                              : "Could not reach the account service. Nothing was changed."}
+                      </p>
+                    ) : null}
+
+                    {linkWriteState ? (
+                      <p data-testid="fcc-link-write-message"
+                        style={{ color: linkWriteState.state === LINK_STATES.LINK_FAILED ? "var(--warning)" : "#2f6f4f", fontSize: ".84rem", marginTop: ".5rem" }}>
+                        {linkMessageFor(linkWriteState.state, linkWriteState.reason)}
+                      </p>
+                    ) : null}
                   </div>
-                ) : null}
-
-                {[STATES.INVALID_EMAIL, STATES.NOT_FOUND, STATES.AMBIGUOUS, STATES.SERVICE_FAILURE].includes(link.state) ? (
-                  <p data-testid="fcc-link-resolve-error" style={{ color: "var(--warning)", fontSize: ".84rem", marginTop: ".5rem" }}>
-                    {link.state === STATES.INVALID_EMAIL ? "Enter a valid email address."
-                      : link.state === STATES.NOT_FOUND ? "No Greet-Me account matches that email address."
-                        : link.state === STATES.AMBIGUOUS ? "That email matches more than one account."
-                          : "Could not reach the account service. Nothing was changed."}
-                  </p>
-                ) : null}
-
-                {linkWriteState ? (
-                  <p data-testid="fcc-link-write-message"
-                    style={{ color: linkWriteState.state === LINK_STATES.LINK_FAILED ? "var(--warning)" : "#2f6f4f", fontSize: ".84rem", marginTop: ".5rem" }}>
-                    {linkMessageFor(linkWriteState.state, linkWriteState.reason)}
-                  </p>
-                ) : null}
-              </div>
+                  <div data-testid="fcc-links-qr" style={{ borderTop: "1px solid var(--border)", paddingTop: "1rem", display: "grid", gap: ".4rem" }}>
+                    <h3 style={{ fontSize: ".86rem", margin: 0 }}>QR code</h3>
+                    {linksInfo && linksInfo.vanityUrl && linksInfo.vanityActive ? (
+                      <ShareQr url={linksInfo.vanityUrl} />
+                    ) : linksInfo && linksInfo.vanityUrl ? (
+                      <p data-testid="cc-link-qr-paused" style={{ margin: 0, color: "var(--text-secondary)", fontSize: ".82rem" }}>No QR code is shown while this salesperson is inactive.</p>
+                    ) : linksInfo && (linksInfo.state === "unavailable" || linksInfo.state === "error") ? (
+                      <p data-testid="fcc-links-qr-unavailable" style={{ margin: 0, color: "var(--text-secondary)", fontSize: ".82rem" }}>The QR code is not available right now.</p>
+                    ) : linksInfo && linksInfo.state === "loading" ? (
+                      <p data-testid="fcc-links-qr-loading" style={{ margin: 0, color: "var(--text-secondary)", fontSize: ".82rem" }}>Loading…</p>
+                    ) : (
+                      <p data-testid="fcc-links-qr-none" style={{ margin: 0, color: "var(--text-secondary)", fontSize: ".82rem" }}>No QR code until a shareable link is assigned.</p>
+                    )}
+                  </div>
+                </div>
+              </CommissionSection>
+            </div>
+            <div style={{ display: "grid", gap: ".9rem", marginBottom: "1rem" }} data-testid="cc-profile-additions">
+              <GiftSalesPanel api={api} salespersonId={detail.salespersonId} />
+            </div>
 
               {/* ── COMPENSATION ──
                   FORWARD-ONLY, and the copy says so plainly. Terms are frozen onto each customer
                   when that customer is first originated, so saving here changes what the NEXT
                   originated customer will generate and nothing that already exists. */}
-              <div style={{ marginTop: "1.1rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
-                <h3 style={{ fontSize: ".92rem", margin: "0 0 .5rem" }}>Commission terms</h3>
-                <p style={{ margin: "0 0 .6rem", color: "var(--text-secondary)", fontSize: ".82rem" }}>
-                  Applies to customers originated from now on. Customers who already exist keep the
-                  terms frozen when they were originated, and no past commission is recalculated.
-                  Each customer&rsquo;s year clock runs from their own start date.
-                </p>
+              {/* ── COMMISSIONS ── every commission section in one place, each collapsible. The collapsed row shows
+                  the SAVED terms (never the unsaved draft), so the founder can read what is in force without opening it. */}
+              <div data-testid="fcc-commissions" style={{ marginTop: "1.1rem", borderTop: "1px solid var(--border)", paddingTop: "1rem", display: "grid", gap: ".6rem" }}>
+                <h3 style={{ fontSize: ".92rem", margin: 0 }}>Commissions</h3>
+                <CommissionSection id="subscription" title="Subscription commission"
+                  summary={subscriptionSummary(detail, (id) => (rows.find((r) => r.salespersonId === id) || {}).displayName || id)}>
+                  <p style={{ margin: "0 0 .6rem", color: "var(--text-secondary)", fontSize: ".82rem" }}>
+                    Applies to customers originated from now on. Customers who already exist keep the
+                    terms frozen when they were originated, and no past commission is recalculated.
+                    Each customer&rsquo;s year clock runs from their own start date.
+                  </p>
 
-                <div style={{ display: "flex", gap: ".6rem", flexWrap: "wrap", alignItems: "flex-end" }}>
-                  {[
-                    ["year_1", "Year 1 %", "fcc-rate-y1"],
-                    ["year_2", "Year 2 %", "fcc-rate-y2"],
-                    ["year_3_plus", "Year 3+ %", "fcc-rate-y3"],
-                  ].map(([key, labelText, tid]) => (
-                    <div key={key}>
-                      <p style={{ ...label, margin: "0 0 .25rem" }}>{labelText}</p>
-                      <input data-testid={tid} aria-label={labelText} inputMode="decimal"
-                        value={compDraft[key]}
-                        onChange={(e) => setCompDraft((d) => ({ ...d, [key]: e.target.value }))}
-                        style={{ maxWidth: 92 }} />
-                    </div>
-                  ))}
-                </div>
+                  <div style={{ display: "flex", gap: ".6rem", flexWrap: "wrap", alignItems: "flex-end" }}>
+                    {[
+                      ["year_1", "Year 1 %", "fcc-rate-y1"],
+                      ["year_2", "Year 2 %", "fcc-rate-y2"],
+                      ["year_3_plus", "Year 3+ %", "fcc-rate-y3"],
+                    ].map(([key, labelText, tid]) => (
+                      <div key={key}>
+                        <p style={{ ...label, margin: "0 0 .25rem" }}>{labelText}</p>
+                        <input data-testid={tid} aria-label={labelText} inputMode="decimal"
+                          value={compDraft[key]}
+                          onChange={(e) => setCompDraft((d) => ({ ...d, [key]: e.target.value }))}
+                          style={{ maxWidth: 92 }} />
+                      </div>
+                    ))}
+                  </div>
 
-                <div style={{ display: "flex", gap: ".6rem", flexWrap: "wrap", alignItems: "flex-end", marginTop: ".7rem" }}>
-                  <div>
-                    <p style={{ ...label, margin: "0 0 .25rem" }}>Referring salesperson</p>
-                    {/* Chosen from the existing directory, so the stored value is always a
-                        PERMANENT salesperson id. A vanity URL is never an option here. */}
-                    <select data-testid="fcc-referrer" aria-label="Referring salesperson"
-                      value={compDraft.referrerSalespersonId}
-                      onChange={(e) => setCompDraft((d) => ({ ...d, referrerSalespersonId: e.target.value }))}
-                      style={{ maxWidth: 240 }}>
-                      <option value="">None</option>
-                      {rows
-                        .filter((r) => r.salespersonId !== detail.salespersonId)
-                        .map((r) => (
-                          <option key={r.salespersonId} value={r.salespersonId}>
-                            {r.displayName} ({r.salespersonId})
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                  {/* An override only exists when a referrer does. Showing "5" and "Active" beside
-                      a referrer of None described an override that is not configured and would not
-                      be saved — the reader cannot tell an inert default from a live arrangement.
-                      Both are DERIVED from the selected referrer rather than mirrored into state,
-                      so nothing has to be cleared to make the display honest and re-selecting a
-                      referrer restores the draft the founder was working with. */}
-                  <div>
-                    <p style={{ ...label, margin: "0 0 .25rem" }}>Override %</p>
-                    <input data-testid="fcc-override-rate" aria-label="Override %" inputMode="decimal"
-                      value={hasReferrer ? compDraft.overrideRateBps : ""}
-                      onChange={(e) => setCompDraft((d) => ({ ...d, overrideRateBps: e.target.value }))}
-                      disabled={!hasReferrer}
-                      style={{ maxWidth: 92 }} />
-                  </div>
-                  {hasReferrer ? (
+                  <div style={{ display: "flex", gap: ".6rem", flexWrap: "wrap", alignItems: "flex-end", marginTop: ".7rem" }}>
                     <div>
-                      <p style={{ ...label, margin: "0 0 .25rem" }}>Override status</p>
-                      <select data-testid="fcc-override-status" aria-label="Override status"
-                        value={compDraft.referralStatus}
-                        onChange={(e) => setCompDraft((d) => ({ ...d, referralStatus: e.target.value }))}
-                        style={{ maxWidth: 140 }}>
-                        <option value="active">Active</option>
-                        <option value="ended">Ended</option>
+                      <p style={{ ...label, margin: "0 0 .25rem" }}>Referring salesperson</p>
+                      {/* Chosen from the existing directory, so the stored value is always a
+                          PERMANENT salesperson id. A vanity URL is never an option here. */}
+                      <select data-testid="fcc-referrer" aria-label="Referring salesperson"
+                        value={compDraft.referrerSalespersonId}
+                        onChange={(e) => setCompDraft((d) => ({ ...d, referrerSalespersonId: e.target.value }))}
+                        style={{ maxWidth: 240 }}>
+                        <option value="">None</option>
+                        {rows
+                          .filter((r) => r.salespersonId !== detail.salespersonId)
+                          .map((r) => (
+                            <option key={r.salespersonId} value={r.salespersonId}>
+                              {r.displayName} ({r.salespersonId})
+                            </option>
+                          ))}
                       </select>
                     </div>
-                  ) : null}
-                </div>
+                    {/* An override only exists when a referrer does. Showing "5" and "Active" beside
+                        a referrer of None described an override that is not configured and would not
+                        be saved — the reader cannot tell an inert default from a live arrangement.
+                        Both are DERIVED from the selected referrer rather than mirrored into state,
+                        so nothing has to be cleared to make the display honest and re-selecting a
+                        referrer restores the draft the founder was working with. */}
+                    <div>
+                      <p style={{ ...label, margin: "0 0 .25rem" }}>Override %</p>
+                      <input data-testid="fcc-override-rate" aria-label="Override %" inputMode="decimal"
+                        value={hasReferrer ? compDraft.overrideRateBps : ""}
+                        onChange={(e) => setCompDraft((d) => ({ ...d, overrideRateBps: e.target.value }))}
+                        disabled={!hasReferrer}
+                        style={{ maxWidth: 92 }} />
+                    </div>
+                    {hasReferrer ? (
+                      <div>
+                        <p style={{ ...label, margin: "0 0 .25rem" }}>Override status</p>
+                        <select data-testid="fcc-override-status" aria-label="Override status"
+                          value={compDraft.referralStatus}
+                          onChange={(e) => setCompDraft((d) => ({ ...d, referralStatus: e.target.value }))}
+                          style={{ maxWidth: 140 }}>
+                          <option value="active">Active</option>
+                          <option value="ended">Ended</option>
+                        </select>
+                      </div>
+                    ) : null}
+                  </div>
 
-                <p style={{ margin: ".55rem 0 .6rem", color: "var(--text-secondary)", fontSize: ".8rem" }}>
-                  The override is additive: it is paid on the same base as the direct commission and
-                  comes out of Greet-Me&rsquo;s share, not the salesperson&rsquo;s.
-                </p>
+                  <p style={{ margin: ".55rem 0 .6rem", color: "var(--text-secondary)", fontSize: ".8rem" }}>
+                    The override is additive: it is paid on the same base as the direct commission and
+                    comes out of Greet-Me&rsquo;s share, not the salesperson&rsquo;s.
+                  </p>
 
+                  <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
+                    <button type="button" className="btn-primary" data-testid="fcc-comp-save"
+                      disabled={busy !== null} onClick={saveCompensation}>Save terms</button>
+                  </div>
+                </CommissionSection>
+                {typeof api.giftCommission === "function" && typeof api.setGiftCommission === "function" ? (
+                  <CommissionSection id="gift" title="Gift commission" summary={giftSummaryText || "Loading…"}>
+                    <GiftCommissionPanel api={api} salespersonId={detail.salespersonId} compensation={detail.compensation || null}
+                      embedded onSummary={setGiftSummaryText} />
+                  </CommissionSection>
+                ) : null}
+                {/* B3 - READ-ONLY REPORTING. Nothing below mutates anything, and every figure is
+                    printed exactly as the server stated it. */}
+                {report ? (
+                  <CommissionSection id="activity" title="Commission activity and attribution"
+                    summary={report.summaryError ? "Summary unavailable" : activitySummary(report.summary, (v) => minorUnits(v))}>
+                    <div data-testid="fcc-report">
+
+                {/* W38 - ONE effective status joining the stored status to the platform switches.
+                    Read-only; derived per contracts/T2-w38-effective-status.md. */}
+                {(() => {
+                  const eff = effectiveSalesStatus((report.summary && report.summary.linkStatus) || detail.status, controls);
+                  return (
+                    <p data-testid="fcc-effective-status" data-state={eff.key} style={{ fontSize: ".84rem", margin: "0 0 .8rem" }}>
+                      <strong>Effective status: {eff.label}.</strong>{" "}
+                      <span style={{ color: "var(--text-secondary)" }}>{eff.detail}</span>
+                    </p>
+                  );
+                })()}
+
+                {report.summaryError ? (
+                  <p data-testid="fcc-summary-error" style={{ color: "var(--warning)", fontSize: ".84rem", margin: "0 0 .6rem" }}>{report.summaryError}</p>
+                ) : report.summary ? (
+                  <dl data-testid="fcc-summary" style={{ display: "grid", gridTemplateColumns: "auto minmax(0,1fr)", gap: ".3rem 1rem", margin: "0 0 .9rem" }}>
+                    {[
+                      ["Direct customers", report.summary.originatedDirectCustomers],
+                      ["Fundraiser partners", report.summary.originatedFundraiserPartners],
+                      ["Initial conversions", report.summary.originalPaidConversions],
+                      ["Recurring payments", report.summary.recurringPaidTransactions],
+                      ["Ledger entries", report.summary.entryCount],
+                      ["Eligible revenue", minorUnits(report.summary.eligibleRevenueMinor)],
+                      ["Commission pending", minorUnits(report.summary.pendingCommissionMinor)],
+                      ["Commission approved", minorUnits(report.summary.approvedCommissionMinor)],
+                      ["Commission paid", minorUnits(report.summary.paidCommissionMinor)],
+                      ["Commission reversed", minorUnits(report.summary.reversedCommissionMinor)],
+                      // Founder 2026-10-10: refunds on commission already paid are deducted from the next payouts.
+                      ...(typeof report.summary.outstandingDeductionMinor === "number" ? [
+                        ["Refunds after payment, still to deduct", minorUnits(report.summary.outstandingDeductionMinor)],
+                        ["Refunds after payment, deducted", minorUnits(report.summary.recoveredDeductionMinor)],
+                      ] : []),
+                    ].map(([k, v]) => (
+                      <div key={k} style={{ display: "contents" }}>
+                        <dt style={{ ...label, margin: 0 }}>{k}</dt>
+                        <dd style={{ margin: 0, fontSize: ".85rem" }}>{v === null || v === undefined ? "\u2014" : String(v)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null}
+
+                {report.healthError ? (
+                  <p data-testid="fcc-health-error" style={{ color: "var(--warning)", fontSize: ".84rem", margin: "0 0 .6rem" }}>{report.healthError}</p>
+                ) : report.health ? (
+                  <AttributionHealthPanel health={report.health} />
+                ) : null}
+
+                <h4 style={{ ...label, margin: "0 0 .4rem" }}>Commission ledger</h4>
+                {report.ledgerError ? (
+                  <p data-testid="fcc-ledger-error" style={{ color: "var(--warning)", fontSize: ".84rem" }}>{report.ledgerError}</p>
+                ) : report.entries && report.entries.length === 0 ? (
+                  <p data-testid="fcc-ledger-empty" style={{ color: "var(--text-secondary)", fontSize: ".84rem" }}>
+                    No commission entries yet.
+                  </p>
+                ) : report.entries ? (
+                  <ul data-testid="fcc-ledger" style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: ".4rem" }}>
+                    {report.entries.map((e, i, all) => (
+                      <li key={e.id || e.entryId || i} data-testid={`fcc-ledger-row-${i}`}
+                        style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: ".5rem .65rem" }}>
+                        <span style={{ ...mono, display: "block", color: "var(--text-tertiary)" }}>{e.id || e.entryId || "\u2014"}</span>
+                        <span style={{ fontSize: ".84rem" }}>
+                          {(e.status || "\u2014")} {"\u00b7"} {minorUnits(e.salespersonCommissionMinor, e.currency)}
+                          {e.effectiveAt || e.at ? ` \u00b7 ${e.effectiveAt || e.at}` : ""}
+                        </span>
+                        {e.affiliatePaymentUnverified === true ? (
+                          <span data-testid="fcc-affiliate-unverified" style={{ display: "block", fontSize: ".78rem", color: "var(--text-secondary)" }}>
+                            The florist&rsquo;s affiliate payment is not yet verified.
+                          </span>
+                        ) : null}
+                        {detail ? (
+                          <CommissionPayoutControls api={api} salespersonId={detail.salespersonId} entry={e}
+                            ledgerEntries={all} onDone={adoptPayout} onLedger={adoptLedger} />
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                <h4 style={{ ...label, margin: "1rem 0 .4rem" }}>Pending attribution lookup</h4>
                 <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
-                  <button type="button" className="btn-primary" data-testid="fcc-comp-save"
-                    disabled={busy !== null} onClick={saveCompensation}>Save terms</button>
-                  <button type="button" className="btn-secondary" data-testid="fcc-comp-default"
-                    disabled={busy !== null} onClick={() => setCompDraft(defaultCompDraft())}>
-                    Reset to default (25 / 15 / 10)
-                  </button>
+                  <input data-testid="fcc-pending-input" aria-label="User ID" value={pendingId}
+                    onChange={(ev) => setPendingId(ev.target.value)} style={{ maxWidth: 260 }} />
+                  <button type="button" className="btn-secondary" data-testid="fcc-pending-go"
+                    disabled={busy !== null || pendingId.trim() === ""} onClick={lookupPending}>Look up</button>
                 </div>
+                {pending && pending.error ? (
+                  <p data-testid="fcc-pending-error" style={{ color: "var(--warning)", fontSize: ".84rem", marginTop: ".5rem" }}>{pending.error}</p>
+                ) : pending && pending.value ? (
+                  <p data-testid="fcc-pending-value" style={{ ...mono, marginTop: ".5rem" }}>
+                    {Object.entries(pending.value).map(([k, v]) => `${k}: ${String(v)}`).join(" \u00b7 ")}
+                  </p>
+                ) : pending ? (
+                  <p data-testid="fcc-pending-none" style={{ color: "var(--text-secondary)", fontSize: ".84rem", marginTop: ".5rem" }}>
+                    No pending attribution for that user.
+                  </p>
+                ) : null}
+
+                {controls ? (
+                  <div style={{ marginTop: "1rem" }} data-testid="fcc-controls">
+                    <h4 style={{ ...label, margin: "0 0 .3rem" }}>Sales controls (read-only)</h4>
+                    <p style={{ fontSize: ".84rem", margin: 0, color: "var(--text-secondary)" }}>
+                      Referral link live: <strong>{String(controls.referralPublicLive)}</strong>
+                      {" \u00b7 "}Attribution live: <strong>{String(controls.attributionLive)}</strong>
+                    </p>
+                  </div>
+                ) : null}
+                    </div>
+                  </CommissionSection>
+                ) : null}
               </div>
 
               {/* ── DESTRUCTIVE ACTIONS, deliberately set apart ── */}
@@ -856,120 +1016,6 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
             </div>
           ) : null}
 
-          {/* B3 - READ-ONLY REPORTING. Nothing below mutates anything, and every figure is
-              printed exactly as the server stated it. */}
-          {detail && report ? (
-            <div style={{ marginTop: "1.2rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }} data-testid="fcc-report">
-              <h3 style={{ fontSize: ".92rem", margin: "0 0 .6rem" }}>Attribution and commission</h3>
-
-              {/* W38 - ONE effective status joining the stored status to the platform switches.
-                  Read-only; derived per contracts/T2-w38-effective-status.md. */}
-              {(() => {
-                const eff = effectiveSalesStatus((report.summary && report.summary.linkStatus) || detail.status, controls);
-                return (
-                  <p data-testid="fcc-effective-status" data-state={eff.key} style={{ fontSize: ".84rem", margin: "0 0 .8rem" }}>
-                    <strong>Effective status: {eff.label}.</strong>{" "}
-                    <span style={{ color: "var(--text-secondary)" }}>{eff.detail}</span>
-                  </p>
-                );
-              })()}
-
-              {report.summaryError ? (
-                <p data-testid="fcc-summary-error" style={{ color: "var(--warning)", fontSize: ".84rem", margin: "0 0 .6rem" }}>{report.summaryError}</p>
-              ) : report.summary ? (
-                <dl data-testid="fcc-summary" style={{ display: "grid", gridTemplateColumns: "auto minmax(0,1fr)", gap: ".3rem 1rem", margin: "0 0 .9rem" }}>
-                  {[
-                    ["Direct customers", report.summary.originatedDirectCustomers],
-                    ["Fundraiser partners", report.summary.originatedFundraiserPartners],
-                    ["Initial conversions", report.summary.originalPaidConversions],
-                    ["Recurring payments", report.summary.recurringPaidTransactions],
-                    ["Ledger entries", report.summary.entryCount],
-                    ["Eligible revenue", minorUnits(report.summary.eligibleRevenueMinor)],
-                    ["Commission pending", minorUnits(report.summary.pendingCommissionMinor)],
-                    ["Commission approved", minorUnits(report.summary.approvedCommissionMinor)],
-                    ["Commission paid", minorUnits(report.summary.paidCommissionMinor)],
-                    ["Commission reversed", minorUnits(report.summary.reversedCommissionMinor)],
-                    // Founder 2026-10-10: refunds on commission already paid are deducted from the next payouts.
-                    ...(typeof report.summary.outstandingDeductionMinor === "number" ? [
-                      ["Refunds after payment, still to deduct", minorUnits(report.summary.outstandingDeductionMinor)],
-                      ["Refunds after payment, deducted", minorUnits(report.summary.recoveredDeductionMinor)],
-                    ] : []),
-                  ].map(([k, v]) => (
-                    <div key={k} style={{ display: "contents" }}>
-                      <dt style={{ ...label, margin: 0 }}>{k}</dt>
-                      <dd style={{ margin: 0, fontSize: ".85rem" }}>{v === null || v === undefined ? "\u2014" : String(v)}</dd>
-                    </div>
-                  ))}
-                </dl>
-              ) : null}
-
-              {report.healthError ? (
-                <p data-testid="fcc-health-error" style={{ color: "var(--warning)", fontSize: ".84rem", margin: "0 0 .6rem" }}>{report.healthError}</p>
-              ) : report.health ? (
-                <AttributionHealthPanel health={report.health} />
-              ) : null}
-
-              <h4 style={{ ...label, margin: "0 0 .4rem" }}>Commission ledger</h4>
-              {report.ledgerError ? (
-                <p data-testid="fcc-ledger-error" style={{ color: "var(--warning)", fontSize: ".84rem" }}>{report.ledgerError}</p>
-              ) : report.entries && report.entries.length === 0 ? (
-                <p data-testid="fcc-ledger-empty" style={{ color: "var(--text-secondary)", fontSize: ".84rem" }}>
-                  No commission entries yet.
-                </p>
-              ) : report.entries ? (
-                <ul data-testid="fcc-ledger" style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: ".4rem" }}>
-                  {report.entries.map((e, i, all) => (
-                    <li key={e.id || e.entryId || i} data-testid={`fcc-ledger-row-${i}`}
-                      style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: ".5rem .65rem" }}>
-                      <span style={{ ...mono, display: "block", color: "var(--text-tertiary)" }}>{e.id || e.entryId || "\u2014"}</span>
-                      <span style={{ fontSize: ".84rem" }}>
-                        {(e.status || "\u2014")} {"\u00b7"} {minorUnits(e.salespersonCommissionMinor, e.currency)}
-                        {e.effectiveAt || e.at ? ` \u00b7 ${e.effectiveAt || e.at}` : ""}
-                      </span>
-                      {e.affiliatePaymentUnverified === true ? (
-                        <span data-testid="fcc-affiliate-unverified" style={{ display: "block", fontSize: ".78rem", color: "var(--text-secondary)" }}>
-                          The florist&rsquo;s affiliate payment is not yet verified.
-                        </span>
-                      ) : null}
-                      {detail ? (
-                        <CommissionPayoutControls api={api} salespersonId={detail.salespersonId} entry={e}
-                          ledgerEntries={all} onDone={adoptPayout} onLedger={adoptLedger} />
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-
-              <h4 style={{ ...label, margin: "1rem 0 .4rem" }}>Pending attribution lookup</h4>
-              <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
-                <input data-testid="fcc-pending-input" aria-label="User ID" value={pendingId}
-                  onChange={(ev) => setPendingId(ev.target.value)} style={{ maxWidth: 260 }} />
-                <button type="button" className="btn-secondary" data-testid="fcc-pending-go"
-                  disabled={busy !== null || pendingId.trim() === ""} onClick={lookupPending}>Look up</button>
-              </div>
-              {pending && pending.error ? (
-                <p data-testid="fcc-pending-error" style={{ color: "var(--warning)", fontSize: ".84rem", marginTop: ".5rem" }}>{pending.error}</p>
-              ) : pending && pending.value ? (
-                <p data-testid="fcc-pending-value" style={{ ...mono, marginTop: ".5rem" }}>
-                  {Object.entries(pending.value).map(([k, v]) => `${k}: ${String(v)}`).join(" \u00b7 ")}
-                </p>
-              ) : pending ? (
-                <p data-testid="fcc-pending-none" style={{ color: "var(--text-secondary)", fontSize: ".84rem", marginTop: ".5rem" }}>
-                  No pending attribution for that user.
-                </p>
-              ) : null}
-
-              {controls ? (
-                <div style={{ marginTop: "1rem" }} data-testid="fcc-controls">
-                  <h4 style={{ ...label, margin: "0 0 .3rem" }}>Sales controls (read-only)</h4>
-                  <p style={{ fontSize: ".84rem", margin: 0, color: "var(--text-secondary)" }}>
-                    Referral link live: <strong>{String(controls.referralPublicLive)}</strong>
-                    {" \u00b7 "}Attribution live: <strong>{String(controls.attributionLive)}</strong>
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
         </section>
       ) : null}
 

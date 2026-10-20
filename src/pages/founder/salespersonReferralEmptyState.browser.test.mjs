@@ -133,15 +133,16 @@ test("3 · opening a record with no referrer performs no write request", async (
   assert.equal(a.calls.some((c) => c[0] === "setCompensation"), false);
 });
 
-test("4 · saving with None sends referral: null", async () => {
+test("4 · saving with None sends referral: null (after the founder enters all three rates)", async () => {
   const a = api(person());
   await open(a);
+  setVal(tid("fcc-rate-y1"), "20"); setVal(tid("fcc-rate-y2"), "10"); setVal(tid("fcc-rate-y3"), "10"); await flush();
   await click(tid("fcc-comp-save"));
   const call = a.calls.find((c) => c[0] === "setCompensation");
   assert.ok(call, "a save was attempted");
   assert.equal(call[2].referral, null, "referral is null, so no override can be created");
-  assert.deepEqual(call[2].compensation, { year_1: 2500, year_2: 1500, year_3_plus: 1000 },
-    "and the default schedule is unchanged");
+  assert.deepEqual(call[2].compensation, { year_1: 2000, year_2: 1000, year_3_plus: 1000 },
+    "exactly the three rates the founder entered");
 });
 
 // ══ B · REFERRER SELECTED ══════════════════════════════════════════════════════════════════════
@@ -157,18 +158,21 @@ test("5 · selecting a referrer reveals and enables the override controls", asyn
   assert.equal(tid("fcc-override-status").value, "active");
 });
 
-test("6 · a newly selected referrer keeps the existing 5% default", async () => {
-  const a = api(person());
+test("6 · a newly selected referrer starts with a BLANK override (founder 2026-10-19: no default); blank is refused, 5 saves as 500", async () => {
+  const a = api(person({ compensation: { year_1: 2000, year_2: 1000, year_3_plus: 1000 } }));
   await open(a);
   setVal(tid("fcc-referrer"), "sp-uncle-roo");
   await flush();
-  assert.equal(tid("fcc-override-rate").value, "5", "the established default is preserved");
-
+  assert.equal(tid("fcc-override-rate").value, "", "no prefilled override percentage");
+  await click(tid("fcc-comp-save"));
+  assert.equal(a.calls.some((c) => c[0] === "setCompensation"), false, "a blank override is never saved");
+  assert.match(tid("fcc-detail").textContent + document.body.textContent, /Enter the override percentage/);
+  setVal(tid("fcc-override-rate"), "5"); await flush();
   await click(tid("fcc-comp-save"));
   const call = a.calls.find((c) => c[0] === "setCompensation");
   assert.deepEqual(call[2].referral,
     { referrerSalespersonId: "sp-uncle-roo", overrideRateBps: 500, status: "active" },
-    "and it still serialises as 500 bps");
+    "the entered 5 serialises as 500 bps");
 });
 
 // ══ C · EXISTING CONFIGURED REFERRALS ══════════════════════════════════════════════════════════
@@ -239,26 +243,32 @@ test("9 · saving after removing the referrer sends referral: null", async () =>
 
 // ══ UNCHANGED BEHAVIOUR ════════════════════════════════════════════════════════════════════════
 
-test("10 · the default 25 / 15 / 10 schedule still prefills a record with no terms", async () => {
-  await open(api(person()));
-  assert.equal(tid("fcc-rate-y1").value, "25");
-  assert.equal(tid("fcc-rate-y2").value, "15");
-  assert.equal(tid("fcc-rate-y3").value, "10");
+test("10 · a record with no terms shows three BLANK rates; blank (or partly blank) is refused and nothing is sent - never 0, never a default", async () => {
+  const a = api(person());
+  await open(a);
+  assert.equal(tid("fcc-rate-y1").value, ""); assert.equal(tid("fcc-rate-y2").value, ""); assert.equal(tid("fcc-rate-y3").value, "");
+  await click(tid("fcc-comp-save"));
+  assert.equal(a.calls.some((c) => c[0] === "setCompensation"), false, "all blank: nothing saved");
+  assert.match(document.body.textContent, /Enter all three rates \(Year 1, Year 2 and Year 3\+\) before saving\. A blank rate is not saved as 0\./);
+  setVal(tid("fcc-rate-y1"), "20"); setVal(tid("fcc-rate-y2"), "10"); await flush();
+  await click(tid("fcc-comp-save"));
+  assert.equal(a.calls.some((c) => c[0] === "setCompensation"), false, "Year 3+ still blank: nothing saved");
+  setVal(tid("fcc-rate-y3"), "0"); await flush();
+  await click(tid("fcc-comp-save"));
+  const call = a.calls.find((c) => c[0] === "setCompensation");
+  assert.deepEqual(call[2].compensation, { year_1: 2000, year_2: 1000, year_3_plus: 0 }, "an explicitly typed 0 is a real entry");
 });
 
-test("13 · Reset to default restores 25 / 15 / 10 and clears the referrer", async () => {
+test("13 · there is no Reset to defaults action, and no default schedule is offered anywhere (founder 2026-10-19)", async () => {
   const a = api(person({
     compensation: { year_1: 2000, year_2: 1000, year_3_plus: 1000 },
     referral: { referrerSalespersonId: "sp-uncle-roo", overrideRateBps: 500, status: "active" },
   }));
   await open(a);
-  await click(tid("fcc-comp-default"));
-  assert.equal(tid("fcc-rate-y1").value, "25");
-  assert.equal(tid("fcc-rate-y2").value, "15");
-  assert.equal(tid("fcc-rate-y3").value, "10");
-  assert.equal(tid("fcc-referrer").value, "", "reset also clears the referrer");
-  assert.equal(tid("fcc-override-status"), null, "so the override status is hidden again");
-  assert.equal(tid("fcc-override-rate").value, "", "and the percentage is blank");
+  assert.equal(tid("fcc-comp-default"), null, "the reset button is gone");
+  assert.equal(/reset to default/i.test(tid("fcc-detail").textContent), false);
+  assert.equal(/25 \/ 15 \/ 10/.test(tid("fcc-detail").textContent), false, "no default schedule is shown");
+  assert.equal(tid("fcc-rate-y1").value, "20", "saved terms still prefill from the record");
 });
 
 test("12 · no cutover endpoint or action is reachable from this page", async () => {
@@ -274,7 +284,7 @@ test("12 · no cutover endpoint or action is reachable from this page", async ()
 
 test("14 · the pre-existing salesperson controls are all still present", async () => {
   await open(api(person()));
-  for (const t of ["fcc-slug-input", "fcc-slug-save", "fcc-rotate", "fcc-comp-save", "fcc-comp-default",
+  for (const t of ["fcc-slug-input", "fcc-slug-save", "fcc-rotate", "fcc-comp-save",
     "fcc-rate-y1", "fcc-rate-y2", "fcc-rate-y3", "fcc-referrer", "fcc-override-rate"]) {
     assert.ok(tid(t), `${t} is still rendered`);
   }
