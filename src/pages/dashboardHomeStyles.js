@@ -359,9 +359,12 @@ export const DASHBOARD_HOME_CSS = `
 .gx .whosave { flex:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--p100); justify-content:space-between; }
 .gx .whosave .hint { min-width:0; }
 .gx .rtab { display:inline-flex; align-items:center; border-radius:11px; }
-.gx .rtab > button[role="tab"] { padding-right:6px; }
+.gx .rtab > button[role="tab"] { padding-right:4px; }
+/* The Recipients tab and its caret read as one tab: the selected look sits on the pair. */
+.gx .rtab:has(> button[role="tab"][aria-selected="true"]) { background:#fff; box-shadow:0 1px 3px rgba(44,29,70,.12); }
+.gx .rtab > button[role="tab"][aria-selected="true"] { background:none; box-shadow:none; }
 .gx .rcaret { border:none; background:none; min-height:0; padding:0 8px 0 2px; height:34px; display:grid; place-items:center; color:var(--p700); cursor:pointer; border-radius:9px; }
-.gx .rcaret:hover, .gx .rcaret[aria-expanded="true"] { background:#fff; }
+.gx .rcaret:hover, .gx .rcaret[aria-expanded="true"] { background:var(--p50); }
 .gx .rcaret:focus-visible { outline:3px solid #c9b8f2; outline-offset:1px; }
 .gx .menu-recip { min-width:190px; }
 .gx .g1g1-phone { display:none; }
@@ -450,9 +453,9 @@ export const DASHBOARD_HOME_CSS = `
   .gx .btn-primary { height:48px; }
   .gx .tabcard { padding:12px 10px 14px; }
   .gx .tabbody { height:336px; }
-  .gx .rtab { flex:1 1 0; min-width:0; }
-  .gx .rtab > button[role="tab"] { flex:1 1 auto; min-width:0; padding-right:2px; }
-  .gx .rcaret { padding:0 6px 0 0; height:44px; }
+  .gx .rtab { flex:1.75 1 0; min-width:0; align-self:stretch; }
+  .gx .rtab > button[role="tab"] { flex:1 1 auto; min-width:0; padding:8px 0 8px 6px; }
+  .gx .rcaret { padding:0 6px 0 2px; height:auto; align-self:stretch; min-width:28px; }
   .gx .menu-recip { left:auto; right:auto; }
 }
 `;
