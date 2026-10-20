@@ -110,7 +110,7 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
             <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: ".8rem", color: "var(--text-secondary)" }} data-testid="cc-giftcomm-never">
               {NEVER_EARN.map((n) => <li key={n.id} data-testid={`cc-giftcomm-never-${n.id}`}>{n.label}: never earns</li>)}
               <li data-testid="cc-giftcomm-flowers-note">Flowers: earns on Greet-Me&rsquo;s 20% florist share; florist payment is verified before approval</li>
-              <li data-testid="cc-giftcomm-merch-note">Merch: accrues nothing while the merch mark-up is off</li>
+              <li data-testid="cc-giftcomm-merch-note">Branded Goods: earns on what the customer paid minus Printful&rsquo;s charge (recorded when the order ships), after the card fee and any fundraiser partner&rsquo;s share</li>
             </ul>
             <label style={{ fontSize: ".86rem", fontWeight: 600 }}>
               <input type="checkbox" style={tick} data-testid="cc-giftcomm-f-disable" checked={disableDraft} onChange={(e) => { setDisableDraft(e.target.checked); setSaved(""); }} /> Disable gift commission
@@ -150,7 +150,7 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
             <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: ".8rem", color: "#475569" }} data-testid="cc-giftcomm-never">
               {NEVER_EARN.map((n) => <li key={n.id} data-testid={`cc-giftcomm-never-${n.id}`}>{n.label}: never earns</li>)}
               <li data-testid="cc-giftcomm-flowers-note">Flowers: earns a share of Greet-Me's 20% florist share; florist payment is verified before approval</li>
-              <li data-testid="cc-giftcomm-merch-note">Merch: accrues nothing while the merch mark-up is off</li>
+              <li data-testid="cc-giftcomm-merch-note">Branded Goods: earns on what the customer paid minus Printful&rsquo;s charge (recorded when the order ships), after the card fee and any fundraiser partner&rsquo;s share</li>
             </ul>
           </div>
 

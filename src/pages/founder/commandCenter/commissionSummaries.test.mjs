@@ -27,7 +27,7 @@ test("giftSummary: schedule, fixed, off, unset, loading, error", () => {
   const sched = { year_1: 2000, year_2: 1000, year_3_plus: 1000 };
   assert.equal(giftSummary({ enabled: true, rateSource: "customer_schedule", duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes"] }, sched), "Inherited (Year 1 20% · Year 2 10% · Year 3+ 10%) · ongoing · gift boxes");
   assert.equal(giftSummary({ enabled: true, rateSource: "customer_schedule", duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes"] }, null), "Inherited (no subscription terms saved) · ongoing · gift boxes");
-  assert.equal(giftSummary({ enabled: true, rateBps: 1250, duration: { mode: "months_from_first_gift", months: 6 }, eligibleTypes: ["gift_boxes", "merch", "flowers"] }), "12.5% of margin · 6 months from first gift · gift boxes, merch and flowers");
+  assert.equal(giftSummary({ enabled: true, rateBps: 1250, duration: { mode: "months_from_first_gift", months: 6 }, eligibleTypes: ["gift_boxes", "merch", "flowers"] }), "12.5% of margin · 6 months from first gift · gift boxes, Branded Goods and flowers");
   assert.equal(giftSummary({ enabled: false }), "Disabled: nothing accrues");
   assert.equal(giftSummary(null), "Not set: nothing accrues");
   assert.equal(giftSummary(null, null, "loading"), "Loading…");
@@ -57,4 +57,16 @@ test("linksSummary: status indicators for every link (shareable, private trackin
     "Shareable link: Not assigned · Private tracking link: Paused · QR Cash gift link: Not linked");
   assert.equal(linksSummary({ state: "unavailable" }, { referralSlug: "amir" }), "Vanity URL: amir");
   assert.equal(linksSummary({ state: "error" }, {}), "Links not available right now");
+});
+
+test("interface names Printful store orders 'Branded Goods' (gift types and gift-sales labels)", async () => {
+  const { giftSummary: gs } = await import("./commissionSummaries.js");
+  const { giftTypeLabel, GIFT_SALES_NOTE } = await import("./commandCenterLogic.js");
+  const { GIFT_TYPE_OPTIONS } = await import("./giftCommissionLogic.js");
+  assert.match(gs({ enabled: true, rateBps: 1000, duration: { mode: "ongoing" }, eligibleTypes: ["merch"] }), /Branded Goods$/);
+  assert.equal(giftTypeLabel("merch"), "Branded Goods");
+  assert.equal(giftTypeLabel("gift_boxes"), "Gift Boxes", "other labels unchanged");
+  assert.equal(GIFT_TYPE_OPTIONS.find((o) => o.id === "merch").label, "Branded Goods");
+  assert.doesNotMatch(GIFT_TYPE_OPTIONS.find((o) => o.id === "merch").note, /mark-up is off/);
+  assert.match(GIFT_SALES_NOTE, /Branded Goods/); assert.doesNotMatch(GIFT_SALES_NOTE, /\bmerch\b/);
 });

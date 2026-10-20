@@ -36,7 +36,7 @@ export function subscriptionSummary(sp, nameOf = (id) => id) {
   return `${head} · ${tail}`;
 }
 
-const TYPE_WORDS = { gift_boxes: "gift boxes", merch: "merch", flowers: "flowers" };
+const TYPE_WORDS = { gift_boxes: "gift boxes", merch: "Branded Goods", flowers: "flowers" };
 function typesText(types) {
   const w = (Array.isArray(types) ? types : []).map((t) => TYPE_WORDS[t] || t);
   if (w.length === 0) return "no gift types";

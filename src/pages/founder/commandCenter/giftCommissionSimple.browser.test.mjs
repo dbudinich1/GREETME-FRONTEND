@@ -101,3 +101,10 @@ test("no saved subscription rates: blank inherited boxes and a plain warning", a
   assert.deepEqual(["year_1", "year_2", "year_3_plus"].map((k) => tid(`cc-giftcomm-inherited-${k}`).value), ["", "", ""]);
   assert.match(tid("cc-giftcomm-schedule-missing").textContent, /gifts earn nothing/);
 });
+
+test("Branded Goods wording matches the deployed margin rule (customer payment minus Printful's charge); no 'mark-up is off' claim", async () => {
+  await mountSimple(fakeApi(ON));
+  const note = tid("cc-giftcomm-merch-note").textContent;
+  assert.match(note, /^Branded Goods: earns on what the customer paid minus Printful.s charge \(recorded when the order ships\), after the card fee and any fundraiser partner.s share$/);
+  assert.doesNotMatch(document.body.textContent, /mark-up is off|\bMerch\b/);
+});

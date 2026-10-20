@@ -178,7 +178,7 @@ test("hub pages list their existing destinations and the Sales hub shows the gif
   assert.ok(tid("fcc-card-sales")); assert.ok(tid("cc-card-performance"));
   assert.match(tid("cc-gift-sales-30").textContent, /11 orders \(\$471\.00\)/);
   assert.match(tid("cc-card-gift-sales").textContent, /Gift & store sales/);
-  assert.match(tid("cc-card-gift-sales").textContent, /including merch and marketplace/);
+  assert.match(tid("cc-card-gift-sales").textContent, /including Branded Goods and marketplace/);
   assert.match(tid("cc-card-gift-sales").textContent, /sales only/);
   assert.match(tid("cc-card-gift-sales").textContent, /Commission terms are set per salesperson/);
   assert.doesNotMatch(tid("cc-card-gift-sales").textContent, /no commission/i, "stays true once gift commission is activated");
@@ -216,7 +216,7 @@ test("performance list: sort, filters, rank, gift sales column; detail has tiles
   assert.match(tid("tile-gifts").textContent, /not commission/);
   assert.doesNotMatch(tid("tile-gifts").textContent, /no commission/i);
   assert.match(tid("cc-gift-type-qr_cash").textContent, /QR Cash.*6 \(\$300\.00\)/);
-  assert.match(tid("cc-gift-type-merch").textContent, /Merch.*3 \(\$106\.00\)/);
+  assert.match(tid("cc-gift-type-merch").textContent, /Branded Goods.*3 \(\$106\.00\)/);
   assert.equal(tid("cc-gifts-truncated"), null, "complete figure: no truncation note");
   assert.ok(tid("chart-revenueMinor") && tid("chart-commissionMinor"));
   assert.match(tid("cc-stage-waitingApprovalMinor").textContent, /Waiting for approval.*\$10\.00/);
@@ -290,7 +290,7 @@ test("salesperson profile: assigned links (vanity link + copy + state + destinat
   assert.match(tid("cc-profile-gifts").textContent, /Gift & store sales/);
   assert.match(tid("cc-profile-gifts").textContent, /sales only/);
   assert.doesNotMatch(tid("cc-profile-gifts").textContent, /no commission/i);
-  assert.match(tid("cc-gift-type-merch").textContent, /Merch/);
+  assert.match(tid("cc-gift-type-merch").textContent, /Branded Goods/);
   assert.equal(tid("cc-profile-gifts-truncated"), null);
   await mount(M.GiftSalesPanel, { api, salespersonId: "sp_b" });
   assert.match(tid("cc-profile-gifts-truncated").textContent, /may be incomplete \(200 of 250 customer accounts counted\)/);
