@@ -17,8 +17,8 @@ import { fromCatalogProduct, fromProviderProduct, projectGiftCards } from '../..
 import { toGiftBoxQuoteRequest, parseGiftBoxQuote, giftBoxErrorCopy } from '../providerCheckout/giftBoxRules';
 import { centsToDollarString } from '../../utils/qrCashAmount';
 import {
-  deliveryFromContact, missingDelivery, buildScheduledGiftSetting, scheduledGiftProblems,
-  GIFT_BOX_MAX_QUANTITY, MAX_TOTAL_CENTS_LIMIT,
+  deliveryFromContact, missingDelivery, buildScheduledGiftSetting, scheduledGiftProblems, backupCandidates, backupCapCents,
+  scheduledGiftBackupSentence, GIFT_BOX_MAX_QUANTITY, MAX_TOTAL_CENTS_LIMIT,
 } from '../../utils/scheduledPhysicalGift';
 
 const FIELD_LABELS = { firstName: 'First name', lastName: 'Last name', address1: 'Street address', address2: 'Apt, suite (optional)', city: 'City', state: 'State (2 letters)', postalCode: 'ZIP code' };
@@ -46,11 +46,16 @@ export default function ScheduledGiftPicker({ isOpen, onClose, contact, occasion
   const [maxDollars, setMaxDollarsRaw] = useState(prior ? (prior.maxTotalCents / 100).toFixed(2) : '');
   const [autoGift, setAutoGift] = useState(prior ? prior.autoGift !== false && initial.autoGift !== false : true);
   const [tried, setTried] = useState(false);
+  // Optional backup gift box (gift boxes only): a different box, ordered instead only if the chosen one is unavailable,
+  // capped by the lower of the chosen box's quoted total at save (approvedTotalCents) and the maximum.
+  const [backup, setBackup] = useState(prior && prior.vendor === 'gift_boxes' && prior.backup ? { providerProductId: prior.backup.providerProductId, name: prior.backup.name, imageUrl: prior.backup.imageUrl } : null);
+  const [backupOpen, setBackupOpen] = useState(false);
+  const [approvedCents, setApprovedCents] = useState(prior && prior.backup && Number.isSafeInteger(prior.approvedTotalCents) ? prior.approvedTotalCents : null);
 
   // Any change to what is chosen, where it goes or how many clears a gift-box total already shown.
-  const invalidate = () => { setQuote(null); setQuoteState('idle'); setQuoteError(''); };
-  const setVendor = (v) => { setVendorRaw(v); invalidate(); };
-  const setBoxProduct = (v) => { setBoxProductRaw(v); invalidate(); };
+  const invalidate = () => { setQuote(null); setQuoteState('idle'); setQuoteError(''); setApprovedCents(null); };
+  const setVendor = (v) => { setVendorRaw(v); invalidate(); if (v !== 'gift_boxes') { setBackup(null); setBackupOpen(false); } };
+  const setBoxProduct = (v) => { setBoxProductRaw(v); invalidate(); if (v && backup && String(v.providerProductId) === String(backup.providerProductId)) setBackup(null); };
   const setQuantity = (v) => { setQuantityRaw(v); invalidate(); };
   const setDelivery = (f) => { setDeliveryRaw(f); invalidate(); };
   const setVariantId = (v) => { setVariantIdRaw(v); };
@@ -84,7 +89,10 @@ export default function ScheduledGiftPicker({ isOpen, onClose, contact, occasion
   const selection = vendor === 'gift_boxes'
     ? (boxProduct ? { vendor, providerProductId: boxProduct.providerProductId, variants: [], quantity, name: boxProduct.name, imageUrl: boxProduct.imageUrl } : null)
     : (merchProduct && variant ? { vendor, syncVariantId: variant.syncVariantId, quantity, name: `${merchProduct.name}${variant.label ? ` — ${variant.label}` : ''}`, imageUrl: merchProduct.imageUrl } : null);
-  const setting = selection && Number.isInteger(maxCents) && maxCents > 0 ? buildScheduledGiftSetting(selection, { maxTotalCents: maxCents, delivery }) : null;
+  const backupSel = vendor === 'gift_boxes' && backup ? { ...backup, variants: [], quantity } : null;
+  const setting = selection && Number.isInteger(maxCents) && maxCents > 0 ? buildScheduledGiftSetting(selection, { maxTotalCents: maxCents, delivery, backup: backupSel, approvedTotalCents: approvedCents }) : null;
+  const backupList = vendor === 'gift_boxes' && boxProduct ? backupCandidates(boxes.products, boxProduct.providerProductId) : [];
+  const capCents = setting ? backupCapCents(setting.scheduledGift) : null;
   const problems = setting ? scheduledGiftProblems(setting) : ['product'];
   const belowGuide = Number.isInteger(minCents) && maxCents > 0 && maxCents < minCents;
   const ready = setting && problems.length === 0 && !belowGuide;
@@ -97,7 +105,7 @@ export default function ScheduledGiftPicker({ isOpen, onClose, contact, occasion
       const parsed = parseGiftBoxQuote(res);
       if (!parsed || parsed.failure || !parsed.quote) { setQuoteState('failed'); setQuoteError((parsed && parsed.failure) || giftBoxErrorCopy(res)); return; }
       const q = parsed.quote;
-      setQuote(q); setQuoteState('ready');
+      setQuote(q); setQuoteState('ready'); setApprovedCents(Number.isSafeInteger(q.quotedTotalCents) ? q.quotedTotalCents : null);
       if (!maxDollars) setMaxDollarsRaw((Math.ceil(q.display.totalCents / 100)).toFixed(2));
     } catch (e) { setQuoteState('failed'); setQuoteError(giftBoxErrorCopy(e)); }
   };
@@ -197,6 +205,38 @@ export default function ScheduledGiftPicker({ isOpen, onClose, contact, occasion
           {belowGuide ? <p role="alert" style={{ ...sub, color: '#b45309' }}>Your maximum is below {vendor === 'gift_boxes' ? 'today’s total' : 'the item price'} ({centsToDollarString(minCents)}), so the gift would not be ordered.</p> : null}
         </section>
 
+        {vendor === 'gift_boxes' && boxProduct ? (
+          <section style={box} data-testid="sg-step-backup">
+            <p style={h}>Backup gift (optional)</p>
+            {backup ? (
+              <>
+                <div data-testid="sg-backup-chosen" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+                  {backup.imageUrl ? <img src={backup.imageUrl} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 8 }} /> : null}
+                  <b style={{ fontSize: '0.9rem' }}>Backup: {backup.name}</b>
+                  <button type="button" data-testid="sg-backup-change" style={{ ...btn(false), padding: '0.35rem 0.8rem' }} onClick={() => setBackupOpen(true)}>Change backup</button>
+                  <button type="button" data-testid="sg-backup-remove" style={{ ...btn(false), padding: '0.35rem 0.8rem' }} onClick={() => { setBackup(null); setBackupOpen(false); }}>Remove backup</button>
+                </div>
+                <p data-testid="sg-backup-cap" style={{ ...sub, marginTop: 8 }}>{capCents !== null
+                  ? scheduledGiftBackupSentence({ giftName: boxProduct.name, backupName: backup.name, capCents })
+                  : 'Get today’s total and set your maximum to see the most the backup may cost.'}</p>
+              </>
+            ) : (
+              <>
+                <p style={sub}>If {boxProduct.name} isn’t available on {occasionDateLabel}, we can order a backup gift box instead, for no more than {boxProduct.name}’s total today and your maximum. Same delivery address.</p>
+                {!backupOpen ? <button type="button" data-testid="sg-backup-add" style={{ ...btn(false), marginTop: 8 }} onClick={() => setBackupOpen(true)}>Add a backup gift (optional)</button> : null}
+              </>
+            )}
+            {backupOpen ? (
+              <div data-testid="sg-backup-list" style={{ marginTop: 10 }}>
+                <GiftProductGrid cards={projectGiftCards(backupList, fromProviderProduct)} state={boxes.state} actionLabel="Choose as backup" onRetry={boxes.retry}
+                  selectedId={backup ? String(backup.providerProductId) : null} emptyLabel="Other gift boxes"
+                  onAction={(c) => { const p = backupList.find((x) => String(x.providerProductId) === c.id); if (p) { setBackup({ providerProductId: p.providerProductId, name: p.name, imageUrl: p.imageUrl }); setBackupOpen(false); } }} />
+                <button type="button" data-testid="sg-backup-cancel" style={{ ...btn(false), marginTop: 8 }} onClick={() => setBackupOpen(false)}>{backup ? 'Keep current backup' : 'No backup'}</button>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
         <section style={box} data-testid="sg-step-autogift">
           <p style={h}>4. Auto-Gift</p>
           <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: '0.875rem', lineHeight: 1.5 }}>
@@ -204,7 +244,7 @@ export default function ScheduledGiftPicker({ isOpen, onClose, contact, occasion
             <span>Order it automatically on {occasionDateLabel}: we charge your saved card the full total, up to your maximum, and place the order.</span>
           </label>
           <p style={sub}>{autoGift ? 'You confirm your card and authorize the charge when you save the schedule. Nothing is charged today.' : 'Off: you get a reminder 10 days before to confirm the gift; nothing is ordered or charged automatically.'}</p>
-          {tried && !ready ? <p role="alert" style={{ ...sub, color: '#b45309' }} data-testid="sg-problems">{problems.includes('product') ? 'Choose a gift and its option. ' : ''}{problems.includes('delivery') ? 'Complete the delivery address. ' : ''}{problems.includes('maxTotal') ? 'Set your maximum. ' : ''}{belowGuide ? 'Raise your maximum. ' : ''}</p> : null}
+          {tried && !ready ? <p role="alert" style={{ ...sub, color: '#b45309' }} data-testid="sg-problems">{problems.includes('product') ? 'Choose a gift and its option. ' : ''}{problems.includes('delivery') ? 'Complete the delivery address. ' : ''}{problems.includes('maxTotal') ? 'Set your maximum. ' : ''}{problems.includes('approvedTotal') ? 'Get today’s total to keep the backup gift. ' : ''}{problems.includes('backup') ? 'Choose a different backup gift. ' : ''}{belowGuide ? 'Raise your maximum. ' : ''}</p> : null}
         </section>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>

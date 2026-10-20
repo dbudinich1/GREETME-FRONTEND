@@ -454,7 +454,7 @@ export default function DashboardHome() {
     }
   };
 
-  const sgConsents = (types) => (types && types.length ? scheduledGiftConsentsFor(types) : null);
+  const sgConsents = (types, settings) => (types && types.length ? scheduledGiftConsentsFor(types, settings) : null);
   const hasAutoGiftNeedingCard = (settings) => Object.values(settings || {}).some((g) => g && g.autoGift === true && (g.type === 'qrcash' || g.scheduledGift));
   const dayLabel = (d) => { const t = d ? new Date(`${String(d).slice(0, 10)}T12:00:00`) : null; return t && !Number.isNaN(t.getTime()) ? t.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : 'the occasion date'; };
   // After a save has succeeded (never before): what happens on the date for each scheduled physical gift on Auto-Gift.
@@ -487,7 +487,7 @@ export default function DashboardHome() {
     setAuthForm(toSave); setAuthModal({ plan, card, person, group: true });
   };
   const commitGroupPerson = async (person, toSave, consents = [], sgTypes = []) => {
-    const res = await api.updateContact(person.id, finalizeResolverSave(toSave, consents, sgConsents(sgTypes)));
+    const res = await api.updateContact(person.id, finalizeResolverSave(toSave, consents, sgConsents(sgTypes, toSave.occasionGiftSettings)));
     if (res && res.ok === false) {
       throw new Error(res.networkError ? 'We couldn’t save — check your connection and try again.' : (res.error || res.message || 'We couldn’t save this schedule.'));
     }
@@ -499,7 +499,7 @@ export default function DashboardHome() {
   };
 
   const commitSchedules = async (person, toSave, consents = [], sgTypes = []) => {
-    const res = await api.updateContact(person.id, finalizeResolverSave(toSave, consents, sgConsents(sgTypes)));
+    const res = await api.updateContact(person.id, finalizeResolverSave(toSave, consents, sgConsents(sgTypes, toSave.occasionGiftSettings)));
     if (res && res.ok === false) {
       throw new Error(res.networkError ? 'We couldn’t save — check your connection and try again.' : (res.error || res.message || 'We couldn’t save those schedules. Please try again.'));
     }

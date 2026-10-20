@@ -564,7 +564,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
       ...toSave,
       occasionGiftSettings: normalizeGiftSettingsForSave(toSave.occasionGiftSettings),
       ...(consents.length > 0 ? { occasionGiftConsents: consents } : {}),
-      ...(sgTypes.length > 0 ? { scheduledGiftConsents: scheduledGiftConsentsFor(sgTypes) } : {}),
+      ...(sgTypes.length > 0 ? { scheduledGiftConsents: scheduledGiftConsentsFor(sgTypes, toSave.occasionGiftSettings) } : {}),
     });
     // Clear draft on successful submission
     clearFormDraft();

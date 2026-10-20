@@ -7,7 +7,8 @@
 //     POST /qrcash-card/complete);
 //   * the recipient's mailing address, once, when a shipped gift has none.
 //   * ONE consent block per new or changed scheduled physical gift on Auto-Gift (Report 117 contract v1), with the gift, the
-//     date and the authorised maximum (wording sched-gift-v1).
+//     date and the authorised maximum (wording sched-gift-v1; sched-gift-v2 = v1 + the backup sentence when a backup
+//     gift box is chosen).
 // Its SAVE finishes the same save: onSave(occasionGiftConsents, scheduledGiftConsentOccasions); the parent sends both.
 // Cancel saves nothing and keeps every selection.
 //
@@ -20,7 +21,7 @@ import api from '../../api/api';
 import { stripePromise } from '../../stripe/stripeProvider';
 import { getErrorMessage } from '../../utils/errorMessages';
 import { buildConsentPayload, consentParagraphs, CONSENT_TICK_LABEL, SCHED_QRCASH_WORDING_VERSION } from '../../utils/scheduledQrCashConsent';
-import { scheduledGiftConsentText } from '../../utils/scheduledPhysicalGift';
+import { scheduledGiftConsentText, scheduledGiftBackupSentence, SCHEDULED_GIFT_BACKUP_WORDING_VERSION } from '../../utils/scheduledPhysicalGift';
 import { SCHEDULED_GIFT_WORDING_VERSION } from '../../config/scheduledPhysicalGift';
 
 export const ERROR_COPY = {
@@ -198,12 +199,13 @@ function Inner({ plan, card, formData, setFormData, onSave, onCancel, withStripe
             {sgItems.map((it) => (
               <div key={`sg:${it.key}`} data-testid={`sg-consent-block-${it.key}`} style={{ borderTop: '1px solid var(--border)', marginTop: 10, paddingTop: 8 }}>
                 <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 4 }}>{it.label}{it.name ? ` — ${it.name}` : ''}</div>
-                <p data-testid="sg-consent-text" style={{ fontSize: '0.75rem', lineHeight: 1.5, margin: '0 0 6px' }}>{scheduledGiftConsentText({ dateLabel: it.dateLabel, maxTotalCents: it.maxTotalCents })}</p>
+                <p data-testid="sg-consent-text" style={{ fontSize: '0.75rem', lineHeight: 1.5, margin: '0 0 6px' }}>{scheduledGiftConsentText({ dateLabel: it.dateLabel, maxTotalCents: it.maxTotalCents })}
+                  {it.backupName !== undefined ? <> <span data-testid="sg-consent-backup">{scheduledGiftBackupSentence({ giftName: it.name, backupName: it.backupName, capCents: it.capCents })}</span></> : null}</p>
                 <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}>
                   <input type="checkbox" data-testid="sg-consent-checkbox" style={{ width: 'auto', flex: 'none', margin: 0 }} checked={!!consents[`sg:${it.key}`]} onChange={(e) => { setConsents((c) => ({ ...c, [`sg:${it.key}`]: e.target.checked })); setErrorKeys((x) => ({ ...x, [`sg:${it.key}`]: undefined })); setSetupError(null); }} />
                   I agree to Auto-Gift for this gift
                 </label>
-                <p style={{ ...small, marginTop: 2 }}>Wording version {SCHEDULED_GIFT_WORDING_VERSION} (sent with your confirmation).</p>
+                <p style={{ ...small, marginTop: 2 }}>Wording version {it.backupName !== undefined ? SCHEDULED_GIFT_BACKUP_WORDING_VERSION : SCHEDULED_GIFT_WORDING_VERSION} (sent with your confirmation).</p>
                 {errorKeys[`sg:${it.key}`] && <p role="alert" data-testid="auth-error" style={{ ...bad, fontWeight: 600 }}>{ERROR_COPY[errorKeys[`sg:${it.key}`]]}</p>}
               </div>
             ))}

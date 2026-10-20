@@ -14,7 +14,7 @@
 // WORDING: founder-approved text, version w07-sched-qrcash-v1 (FOUNDER_REPORTS/30_W07_consent_wording..., reward phrase dropped).
 // Changing a word here means a new version string, in step with the backend's accepted list.
 import { qrCashQuote, centsToDollarString } from './qrCashAmount.js';
-import { needsScheduledGiftConsent } from './scheduledPhysicalGift.js';
+import { needsScheduledGiftConsent, backupCapCents } from './scheduledPhysicalGift.js';
 
 export const SCHED_QRCASH_WORDING_VERSION = 'w07-sched-qrcash-v1';
 export const CONSENT_TICK_LABEL = 'I agree';
@@ -112,12 +112,15 @@ export function planAuthorization({ settings, initialSettings, occasions, card, 
     if (!g || !g.scheduledGift || g.autoGift !== true) continue;
     const occ = (occasions || []).find((o) => o && o.type === key) || {};
     const date = typeof occ.date === 'string' ? occ.date.slice(0, 10) : '';
-    sgAll.push({ key, label: (labelFor && labelFor(key)) || key, date, dateLabel: monthDay(date) || DATE_FALLBACK, name: g.scheduledGift.name || '', maxTotalCents: g.scheduledGift.maxTotalCents, changed: needsScheduledGiftConsent(init[key], g, (storedScheduledGiftConsents || {})[key]) });
+    // A backup gift box adds its name and cap (the v2 wording); without one the item is exactly as before.
+    const backup = g.scheduledGift.backup ? { backupName: g.scheduledGift.backup.name || '', capCents: backupCapCents(g.scheduledGift) } : {};
+    sgAll.push({ key, label: (labelFor && labelFor(key)) || key, date, dateLabel: monthDay(date) || DATE_FALLBACK, name: g.scheduledGift.name || '', maxTotalCents: g.scheduledGift.maxTotalCents, ...backup, changed: needsScheduledGiftConsent(init[key], g, (storedScheduledGiftConsents || {})[key]) });
   }
   const dated = [...all, ...sgAll];
   const state = dated.length ? cardStateFor(card, dated.map((i) => i.date)) : 'ok';
   const items = all.filter((i) => state !== 'ok' || i.changed).map(({ changed, ...rest }) => rest);
-  const scheduledGiftItems = sgAll.filter((i) => i.changed).map((i) => ({ key: i.key, label: i.label, date: i.date, dateLabel: i.dateLabel, name: i.name, maxTotalCents: i.maxTotalCents }));
+  const scheduledGiftItems = sgAll.filter((i) => i.changed).map((i) => ({ key: i.key, label: i.label, date: i.date, dateLabel: i.dateLabel, name: i.name, maxTotalCents: i.maxTotalCents,
+    ...(i.backupName !== undefined ? { backupName: i.backupName, capCents: i.capCents } : {}) }));
   return {
     items, scheduledGiftItems, cardState: state,
     need: { card: dated.length > 0 && state !== 'ok', consent: items.length > 0, scheduledGiftConsent: scheduledGiftItems.length > 0, address: addressMissing(formData, settings, requiresDelivery) },
