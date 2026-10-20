@@ -20,7 +20,9 @@ const tick = { width: "auto", padding: 0, margin: "0 6px 0 0", verticalAlign: "m
 // `compensation` is the salesperson's SAVED subscription schedule (bps), shown when the gift rate reuses it. `embedded` drops
 // the panel's own frame and heading when it sits inside a collapsible commission section; `onSummary` reports the saved
 // one-line summary for that section's collapsed row.
-export default function GiftCommissionPanel({ api, salespersonId, now = () => new Date(), compensation = null, embedded = false, onSummary }) {
+// `simple` (founder 2026-10-19): the Control Center shows the gift commission like the Subscription commission section -
+// the inherited Year 1 / 2 / 3+ rates read-only, one "Disable gift commission" checkbox and one Save button.
+export default function GiftCommissionPanel({ api, salespersonId, now = () => new Date(), compensation = null, embedded = false, onSummary, simple = false }) {
   const has = typeof api.giftCommission === "function" && typeof api.setGiftCommission === "function";
   const [state, setState] = useState({ loading: true });
   const [mode, setMode] = useState("view"); // view | edit | confirm
@@ -31,6 +33,7 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [saved, setSaved] = useState("");
+  const [disableDraft, setDisableDraft] = useState(false); // simple mode: the checkbox as the founder has it now
 
   const load = useCallback(async () => {
     const r = await api.giftCommission(salespersonId);
@@ -38,6 +41,8 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
     else setState({ error: giftCommissionErrorMessage(r), forbidden: r.status === 403 });
   }, [api, salespersonId]);
   useEffect(() => { if (has) { setState({ loading: true }); setMode("view"); setSaved(""); load(); } }, [has, load]);
+  // Simple mode: the checkbox starts from what is SAVED (ticked = currently disabled).
+  useEffect(() => { if (state.gc) setDisableDraft(!!(state.gc.current && state.gc.current.enabled !== true)); }, [state.gc]);
 
   const savedSummary = giftSummary(state.gc ? state.gc.current : null, compensation, state.loading ? "loading" : state.error ? "error" : "ready");
   useEffect(() => { if (typeof onSummary === "function") onSummary(has ? savedSummary : null); }, [onSummary, has, savedSummary]);
@@ -63,6 +68,61 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
     setMode("view"); load();
   }
   const startsOn = payload && payload.effectiveFrom ? payload.effectiveFrom.slice(0, 10) : "now";
+
+  if (simple) {
+    const pctOf = (k) => (compensation && Number.isSafeInteger(compensation[k]) ? String(compensation[k] / 100) : "");
+    // Saving ON keeps the gift types already saved (selectable ones); with none saved, every type that can earn.
+    const keptTypes = cur && cur.enabled === true && Array.isArray(cur.eligibleTypes)
+      ? cur.eligibleTypes.filter((t) => GIFT_TYPE_OPTIONS.some((o) => o.id === t && o.selectable)) : [];
+    const types = keptTypes.length ? keptTypes : GIFT_TYPE_OPTIONS.filter((o) => o.selectable).map((o) => o.id);
+    async function saveSimple() {
+      if (busy) return;
+      const body = disableDraft
+        ? { enabled: false }
+        : { enabled: true, rateSource: "customer_schedule", duration: { mode: "ongoing" }, eligibleTypes: types };
+      setBusy(true); setMessage(""); setSaved("");
+      const r = await api.setGiftCommission(salespersonId, body);
+      setBusy(false);
+      if (!r.ok) { setMessage(giftCommissionErrorMessage(r)); return; }
+      setSaved(disableDraft ? "Gift commission disabled. Nothing accrues on future gift sales." : "Gift commission saved. It applies to future gift sales only.");
+      load();
+    }
+    const simpleLabel = { display: "block", fontSize: ".72rem", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--text-tertiary)", margin: "0 0 .25rem" };
+    return (
+      <section data-testid="cc-giftcomm" style={{ display: "grid", gap: ".6rem" }}>
+        <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: ".82rem" }} data-testid="cc-giftcomm-simple-note">
+          Inherits the subscription commission rates, paid on Greet-Me&rsquo;s margin on each gift.
+        </p>
+        {state.loading ? <p style={small} data-testid="cc-giftcomm-loading">Loading gift commission terms...</p> : null}
+        {state.error ? <p role="alert" style={err} data-testid="cc-giftcomm-error">{state.error}</p> : null}
+        {state.gc ? (
+          <>
+            <div style={{ display: "flex", gap: ".6rem", flexWrap: "wrap", alignItems: "flex-end", opacity: disableDraft ? 0.5 : 1 }} data-testid="cc-giftcomm-inherited">
+              {[["year_1", "Year 1 %"], ["year_2", "Year 2 %"], ["year_3_plus", "Year 3+ %"]].map(([k, l]) => (
+                <div key={k}>
+                  <p style={simpleLabel}>{l}</p>
+                  <input data-testid={`cc-giftcomm-inherited-${k}`} aria-label={`Gift ${l} (inherited)`} value={pctOf(k)} readOnly disabled style={{ maxWidth: 92 }} />
+                </div>
+              ))}
+            </div>
+            {!compensation ? <p style={{ ...small, color: "#92400e" }} data-testid="cc-giftcomm-schedule-missing">No subscription commission rates are saved yet, so gifts earn nothing until they are.</p> : null}
+            {/* Founder 2026-10-19: the excluded items stay visible. */}
+            <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: ".8rem", color: "var(--text-secondary)" }} data-testid="cc-giftcomm-never">
+              {NEVER_EARN.map((n) => <li key={n.id} data-testid={`cc-giftcomm-never-${n.id}`}>{n.label}: never earns</li>)}
+              <li data-testid="cc-giftcomm-flowers-note">Flowers: earns on Greet-Me&rsquo;s 20% florist share; florist payment is verified before approval</li>
+              <li data-testid="cc-giftcomm-merch-note">Merch: accrues nothing while the merch mark-up is off</li>
+            </ul>
+            <label style={{ fontSize: ".86rem", fontWeight: 600 }}>
+              <input type="checkbox" style={tick} data-testid="cc-giftcomm-f-disable" checked={disableDraft} onChange={(e) => { setDisableDraft(e.target.checked); setSaved(""); }} /> Disable gift commission
+            </label>
+            <div><button type="button" className="btn-primary" data-testid="cc-giftcomm-save" disabled={busy} onClick={saveSimple}>{busy ? "Saving…" : "Save"}</button></div>
+            {saved ? <p role="status" style={{ ...small, color: "#166534" }} data-testid="cc-giftcomm-saved">{saved}</p> : null}
+            {message ? <p role="alert" style={err} data-testid="cc-giftcomm-form-error">{message}</p> : null}
+          </>
+        ) : null}
+      </section>
+    );
+  }
 
   return (
     <section data-testid="cc-giftcomm" style={embedded ? { ...box, border: "none", padding: 0, background: "transparent" } : box}>

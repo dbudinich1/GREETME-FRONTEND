@@ -78,14 +78,16 @@ export function activitySummary(summary, money) {
   return parts.map(([k, v]) => `${k} ${money(v)}`).join(" · ");
 }
 
-/** Links section, closed row: the saved shareable link and its state, and whether a Greet-Me account is linked. */
+/**
+ * Links section, closed row (founder 2026-10-19): the status indicators of every link - the shareable link, the private
+ * tracking link and the QR Cash gift link - so their states stay visible while their boxes are not shown.
+ */
 export function linksSummary(info, sp) {
-  const account = sp && sp.linkedUserId ? "Account linked" : "No account linked";
-  if (!info || info.state === "loading") return `Loading… · ${account}`;
-  if (info.state === "unavailable") return `${sp && sp.referralSlug ? `Vanity URL: ${sp.referralSlug}` : "No vanity URL yet"} · ${account}`;
-  if (info.state === "error") return `Links not available right now · ${account}`;
-  const link = info.vanityUrl
-    ? `${String(info.vanityUrl).replace(/^https?:\/\//, "")} · ${info.vanityActive ? "Active" : "Paused"}`
-    : "No shareable link yet";
-  return `${link} · ${account}`;
+  if (!info || info.state === "loading") return "Loading…";
+  if (info.state === "unavailable") return sp && sp.referralSlug ? `Vanity URL: ${sp.referralSlug}` : "No vanity URL yet";
+  if (info.state === "error") return "Links not available right now";
+  const parts = [`Shareable link: ${info.vanityUrl ? (info.vanityActive ? "Active" : "Paused") : "Not assigned"}`];
+  if (info.shareStatus) parts.push(`Private tracking link: ${info.shareStatus}`);
+  if (info.claimStatus) parts.push(`QR Cash gift link: ${info.claimStatus}`);
+  return parts.join(" · ");
 }

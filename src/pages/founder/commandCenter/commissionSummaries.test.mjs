@@ -49,11 +49,12 @@ test("no prefilled percentages: re-opening an OFF gift setting (stored rateBps 0
   assert.equal(draftFromCurrent({ enabled: true, rateSource: "customer_schedule", rateBps: null, duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes"] }).ratePercent, "");
 });
 
-test("linksSummary: saved shareable link and state, account link, unavailable and error", async () => {
+test("linksSummary: status indicators for every link (shareable, private tracking, QR Cash gift), unavailable and error", async () => {
   const { linksSummary } = await import("./commissionSummaries.js");
-  assert.equal(linksSummary({ state: "ready", vanityUrl: "https://greet-me.com/amir", vanityActive: true }, { linkedUserId: "u1" }), "greet-me.com/amir · Active · Account linked");
-  assert.equal(linksSummary({ state: "ready", vanityUrl: "https://greet-me.com/amir", vanityActive: false }, {}), "greet-me.com/amir · Paused · No account linked");
-  assert.equal(linksSummary({ state: "ready", vanityUrl: null }, {}), "No shareable link yet · No account linked");
-  assert.equal(linksSummary({ state: "unavailable" }, { referralSlug: "amir" }), "Vanity URL: amir · No account linked");
-  assert.equal(linksSummary({ state: "error" }, { linkedUserId: "u1" }), "Links not available right now · Account linked");
+  assert.equal(linksSummary({ state: "ready", vanityUrl: "https://greet-me.com/amir", vanityActive: true, shareStatus: "Active", claimStatus: "Active" }, {}),
+    "Shareable link: Active · Private tracking link: Active · QR Cash gift link: Active");
+  assert.equal(linksSummary({ state: "ready", vanityUrl: null, vanityActive: false, shareStatus: "Paused", claimStatus: "Not linked" }, {}),
+    "Shareable link: Not assigned · Private tracking link: Paused · QR Cash gift link: Not linked");
+  assert.equal(linksSummary({ state: "unavailable" }, { referralSlug: "amir" }), "Vanity URL: amir");
+  assert.equal(linksSummary({ state: "error" }, {}), "Links not available right now");
 });
