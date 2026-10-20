@@ -25,6 +25,7 @@ export default function ScheduledGiftEntry({ setting, onChoose, onRemove, compac
       <div style={{ minWidth: 0, flex: 1, fontSize: '0.8125rem', lineHeight: 1.45 }}>
         <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{g.name || 'Chosen gift'}{count > 1 ? ` × ${count}` : ''}</div>
         <div style={{ color: 'var(--text-secondary)' }}>To {[d.firstName, d.lastName].filter(Boolean).join(' ')}, {d.city}{d.state ? `, ${d.state}` : ''} · up to {centsToDollarString(g.maxTotalCents)}</div>
+        {g.backup ? <div data-testid="sg-entry-backup" style={{ color: 'var(--text-secondary)' }}>Backup: {g.backup.name || 'Chosen gift box'}</div> : null}
         <div data-testid="sg-entry-status" style={{ color: setting.autoGift ? '#166534' : 'var(--text-secondary)', fontWeight: 600 }}>
           {setting.autoGift ? 'Auto-Gift on — charged and ordered on the date' : 'Reminder only — confirmation required'}
         </div>

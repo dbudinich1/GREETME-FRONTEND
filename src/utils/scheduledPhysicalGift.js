@@ -15,6 +15,11 @@ export const authorizationStepEnabled = (qr = SCHEDULED_QRCASH_AVAILABLE, physic
 export const SCHEDULED_GIFT_TYPES = Object.freeze({ gift_boxes: 'gift_boxes', merch: 'merch' });
 export const GIFT_BOX_MAX_QUANTITY = 10;
 export const MAX_TOTAL_CENTS_LIMIT = 100000; // contract v1: maxTotalCents 1..100000 ($1,000)
+// Backup gift box (founder-approved, gift boxes only): a consent covering a backup is recorded with wording v2; a gift
+// with no backup keeps v1 exactly as before. Kept here (not in config) so the config module's exports are unchanged.
+export const SCHEDULED_GIFT_BACKUP_WORDING_VERSION = 'sched-gift-v2';
+const ACCEPTED_WORDING_VERSIONS = [SCHEDULED_GIFT_WORDING_VERSION, SCHEDULED_GIFT_BACKUP_WORDING_VERSION];
+const dollars = (cents) => `$${(cents / 100).toFixed(2)}`;
 
 // US state names the stored address may carry -> 2-letter code (the contract requires 2 letters).
 const STATES = { alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA', colorado: 'CO', connecticut: 'CT', delaware: 'DE', 'district of columbia': 'DC', florida: 'FL', georgia: 'GA', hawaii: 'HI', idaho: 'ID', illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS', kentucky: 'KY', louisiana: 'LA', maine: 'ME', maryland: 'MD', massachusetts: 'MA', michigan: 'MI', minnesota: 'MN', mississippi: 'MS', missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH', oklahoma: 'OK', oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI', 'south carolina': 'SC', 'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT', vermont: 'VT', virginia: 'VA', washington: 'WA', 'west virginia': 'WV', wisconsin: 'WI', wyoming: 'WY' };
@@ -64,7 +69,7 @@ export function shippingAddressFromDelivery(stored, d) {
  *   Gift box:      { vendor: 'gift_boxes', providerProductId, variants: string[], quantity, name, imageUrl }
  *   Branded Goods: { vendor: 'merch', syncVariantId, quantity, name, imageUrl }   (one items[] entry per unit)
  */
-export function buildScheduledGiftSetting(selection, { maxTotalCents, delivery }) {
+export function buildScheduledGiftSetting(selection, { maxTotalCents, delivery, backup = null, approvedTotalCents = null }) {
   const vendor = selection.vendor;
   const base = { v: 1, vendor, name: s(selection.name), imageUrl: s(selection.imageUrl), maxTotalCents: Math.round(Number(maxTotalCents)), delivery: { ...delivery } };
   if (!base.delivery.phone) delete base.delivery.phone;
@@ -74,6 +79,16 @@ export function buildScheduledGiftSetting(selection, { maxTotalCents, delivery }
   if (vendor === 'gift_boxes') {
     const quantity = Math.max(1, Math.min(GIFT_BOX_MAX_QUANTITY, Math.floor(Number(selection.quantity) || 1)));
     scheduledGift = { ...base, providerProductId: String(selection.providerProductId), variants: (selection.variants || []).map(String), quantity };
+    // Optional backup gift box (gift boxes only): left out entirely when there is none, so a gift without a backup is
+    // exactly the v1 snapshot. Delivery is the original's; the backup has no address of its own.
+    if (backup && backup.providerProductId !== undefined && backup.providerProductId !== null) {
+      scheduledGift.backup = {
+        providerProductId: String(backup.providerProductId), variants: (backup.variants || []).map(String),
+        quantity: Math.max(1, Math.min(GIFT_BOX_MAX_QUANTITY, Math.floor(Number(backup.quantity) || 1))),
+        name: s(backup.name), imageUrl: s(backup.imageUrl),
+      };
+      if (Number.isSafeInteger(approvedTotalCents)) scheduledGift.approvedTotalCents = approvedTotalCents;
+    }
   } else if (vendor === 'merch') {
     const n = Math.max(1, Math.floor(Number(selection.quantity) || 1));
     scheduledGift = { ...base, items: Array.from({ length: n }, () => ({ syncVariantId: Number(selection.syncVariantId) })) };
@@ -91,7 +106,28 @@ export function scheduledGiftProblems(setting) {
   if (g.vendor === 'gift_boxes' ? !g.providerProductId : !(g.items && g.items.length && g.items.every((i) => Number.isInteger(i.syncVariantId) && i.syncVariantId > 0))) out.push('product');
   if (!Number.isInteger(g.maxTotalCents) || g.maxTotalCents < 1 || g.maxTotalCents > MAX_TOTAL_CENTS_LIMIT) out.push('maxTotal');
   if (missingDelivery(g.delivery).length) out.push('delivery');
+  if (g.backup) {
+    // A backup is a different gift box, priced against the original's quoted total (gift boxes only).
+    if (g.vendor !== 'gift_boxes' || !g.backup.providerProductId || String(g.backup.providerProductId) === String(g.providerProductId)) out.push('backup');
+    if (!Number.isSafeInteger(g.approvedTotalCents) || g.approvedTotalCents < 1) out.push('approvedTotal');
+  }
   return out;
+}
+
+/** The gift boxes that can be a backup for `originalId`: every box except the original and boxes needing an option. */
+export function backupCandidates(boxes, originalId) {
+  return (boxes || []).filter((p) => p && p.requiresOptions !== true && String(p.providerProductId) !== String(originalId));
+}
+
+/** The most a backup may cost: the lower of the original's quoted total at save and the sender's maximum. */
+export function backupCapCents(g) {
+  if (!g || !g.backup || !Number.isSafeInteger(g.approvedTotalCents)) return null;
+  return Math.min(g.approvedTotalCents, g.maxTotalCents);
+}
+
+/** The consent wording version for this gift: v2 only when a backup is present, otherwise v1 exactly as before. */
+export function scheduledGiftWordingVersionFor(g) {
+  return g && g.backup ? SCHEDULED_GIFT_BACKUP_WORDING_VERSION : SCHEDULED_GIFT_WORDING_VERSION;
 }
 
 // The selection a consent is bound to, normalised exactly as the server stores it (BE scheduledGiftSnapshot
@@ -113,6 +149,12 @@ export function canonicalSelection(g) {
       ? { providerProductId: String(g.providerProductId), variants: (g.variants || []).map(String), quantity: Number(g.quantity) }
       : { items: (g.items || []).map((i) => ({ syncVariantId: Number(i.syncVariantId) })) }),
     delivery: sorted,
+    // A backup (and the quoted total that caps it) is part of what is consented to. With no backup nothing is added, so
+    // a gift without one compares exactly as before.
+    ...(g.backup ? {
+      backup: { providerProductId: String(g.backup.providerProductId), variants: (g.backup.variants || []).map(String), quantity: Number(g.backup.quantity) },
+      approvedTotalCents: Number.isSafeInteger(g.approvedTotalCents) ? g.approvedTotalCents : null,
+    } : {}),
   });
 }
 
@@ -129,7 +171,9 @@ export function needsScheduledGiftConsent(prev, next, storedConsent) {
   const n = next && next.autoGift === true && next.scheduledGift;
   if (!n) return false;
   const c = storedConsent;
-  if (!c || c.wordingVersion !== SCHEDULED_GIFT_WORDING_VERSION || !Number.isSafeInteger(c.maxTotalCents)) return true;
+  if (!c || !ACCEPTED_WORDING_VERSIONS.includes(c.wordingVersion) || !Number.isSafeInteger(c.maxTotalCents)) return true;
+  // A consent given to the v1 wording never covers a backup.
+  if (n.backup && c.wordingVersion !== SCHEDULED_GIFT_BACKUP_WORDING_VERSION) return true;
   const p = prev && prev.autoGift === true && prev.scheduledGift;
   if (!p) return true;
   if (p.selectionHash && c.selectionHash && p.selectionHash !== c.selectionHash) return true;
@@ -137,13 +181,20 @@ export function needsScheduledGiftConsent(prev, next, storedConsent) {
   return n.maxTotalCents > c.maxTotalCents;
 }
 
-/** The consent request for the occasions the sender has just agreed to. */
-export function scheduledGiftConsentsFor(occasionTypes) {
-  return Object.fromEntries(occasionTypes.map((t) => [t, { accepted: true, wordingVersion: SCHEDULED_GIFT_WORDING_VERSION }]));
+/** The consent request for the occasions the sender has just agreed to. `settings` (occasionGiftSettings) decides the
+ * wording version per occasion: v2 when that gift has a backup, otherwise v1. */
+export function scheduledGiftConsentsFor(occasionTypes, settings = null) {
+  return Object.fromEntries(occasionTypes.map((t) => [t, { accepted: true, wordingVersion: scheduledGiftWordingVersionFor(settings && settings[t] && settings[t].scheduledGift) }]));
+}
+
+/** The founder-approved backup sentence (wording v2), added after the v1 text when a backup is present. */
+export function scheduledGiftBackupSentence({ giftName, backupName, capCents }) {
+  return `If ${giftName || 'the gift'} isn't available, we'll order your backup ${backupName || 'gift'} instead, only if its full total is no more than ${dollars(capCents)}.`;
 }
 
 /** The consent sentence the sender agrees to (draft wording for founder approval; Team 6 contract v1). */
-export function scheduledGiftConsentText({ dateLabel, maxTotalCents }) {
-  const max = `$${(maxTotalCents / 100).toFixed(2)}`;
-  return `Auto-Gift: on ${dateLabel}, we'll check this gift is available and charge your saved card the full total (item, shipping and any fees) up to ${max}, then place the order. Delivery follows after the occasion date. If it's unavailable or costs more, nothing is charged and your greeting is sent without the gift.`;
+export function scheduledGiftConsentText({ dateLabel, maxTotalCents, giftName, backupName, capCents }) {
+  const v1 = `Auto-Gift: on ${dateLabel}, we'll check this gift is available and charge your saved card the full total (item, shipping and any fees) up to ${dollars(maxTotalCents)}, then place the order. Delivery follows after the occasion date. If it's unavailable or costs more, nothing is charged and your greeting is sent without the gift.`;
+  // Wording v2 = v1 + the backup sentence, only when a backup is present.
+  return backupName && Number.isSafeInteger(capCents) ? `${v1} ${scheduledGiftBackupSentence({ giftName, backupName, capCents })}` : v1;
 }
