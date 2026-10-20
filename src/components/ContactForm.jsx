@@ -306,6 +306,12 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
           budgetCap: '',
           giftingMode: 'always',
         },
+        // Address-loss fix (Team 6, 2026-10-19): load the saved address so an edit never saves it blank.
+        // Only when the record carries one (T5 M1): a record without the field (e.g. Business contacts,
+        // whose list never returns it) keeps it absent, so the save omits it and the server keeps the stored value.
+        ...(contact.shippingAddress && typeof contact.shippingAddress === 'object' && !Array.isArray(contact.shippingAddress)
+          ? { shippingAddress: { ...getInitialFormData().shippingAddress, ...contact.shippingAddress } }
+          : {}),
       });
 
       // Extract selected faiths from occasions
