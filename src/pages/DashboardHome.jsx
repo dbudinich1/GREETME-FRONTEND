@@ -48,6 +48,7 @@ import { GROUP_MAX, loadRun, clearRun, runSummary } from '../utils/groupSend';
 import { saveGroupSchedules } from '../utils/occasionResolver';
 import GroupReview from '../components/dashboard/GroupReview';
 import InfoTip from '../components/dashboard/InfoTip';
+import G1G1Badge from '../components/G1G1Badge';
 import { qrCashQuote, centsToDollarString } from '../utils/qrCashAmount';
 import { DASHBOARD_HOME_CSS } from './dashboardHomeStyles';
 import { OCCASION_CHIPS, OCCASION_MENUS } from '../utils/dashboardOccasions';
@@ -94,6 +95,13 @@ const SMARTCARD_UNAVAILABLE_LINE = 'Coming later — not yet available';
 // Occasions: the Recipients page's own list and groups (utils/dashboardOccasions.js — OCCASION_CHIPS, OCCASION_MENUS),
 // plus the send page's Thank You, Congratulations, Just Because and the generic Season's Greetings. GREETING_RULES untouched.
 // Base44 "Send to" segments mapped onto the recipient's existing relationshipCategory (family | friend | professional).
+// The lower card's Recipients filter: the same relationshipCategory values, All by default.
+const RECIPIENT_FILTERS = [
+  { key: 'friend', label: 'Friends', people: 'friends' },
+  { key: 'family', label: 'Family', people: 'family members' },
+  { key: 'professional', label: 'Professional', people: 'professional contacts' },
+  { key: 'all', label: 'All', people: 'recipients' },
+];
 const AUDIENCES = [
   { key: 'one', segment: 'Individuals', label: 'People you choose' },
   { key: 'friend', segment: 'Friends', label: 'All friends', people: 'friends' },
@@ -210,6 +218,8 @@ export default function DashboardHome() {
   const [isNarrow, setIsNarrow] = useState(window.innerWidth <= 768);
   const [term, setTerm] = useState('');
   const [tab, setTab] = useState('recipients');
+  // The lower card's Recipients filter. Display only: it never changes who is chosen in the composer.
+  const [recipFilter, setRecipFilter] = useState('all');
 
   useEffect(() => {
     const onResize = () => setIsNarrow(window.innerWidth <= 768);
@@ -329,6 +339,7 @@ export default function DashboardHome() {
   const goEdit = (id) => { keepChoices(); navigate('/dashboard/contacts', { state: { openEditRecipientId: id, returnTo: 'dashboard' } }); };
   const goScheduler = (contactId, occasionType) => { keepChoices(); navigate(`/dashboard/contacts?contactId=${encodeURIComponent(contactId)}&occasion=${encodeURIComponent(occasionType)}`, { state: { returnTo: 'dashboard' } }); };
   const filtered = useMemo(() => contacts.filter((c) => (c.name || '').toLowerCase().includes(term.toLowerCase()) || (c.relationship || '').toLowerCase().includes(term.toLowerCase())), [contacts, term]);
+  const shownRecipients = recipFilter === 'all' ? filtered : filtered.filter((c) => c.relationshipCategory === recipFilter);
 
   // Selection only changes styling and completion marks: nothing collapses, scrolls, navigates or resizes.
   // Settled rules: one person may get several occasions; several people share ONE occasion; several occasions for
@@ -561,7 +572,7 @@ export default function DashboardHome() {
     setWhoDone(true);
     if (resolverOn) saveSchedules(); else saveGroupSchedulesNow();
   };
-  // Step 2's Done: one clear action. It completes the step and, when the choices are schedules, opens Dates & gifts.
+  // Step 2's Save: one clear action. It confirms who it is for and, when the choices are schedules, opens Dates & gifts.
   const completeWho = () => {
     if (!chosen.length) return;
     setWhoDone(true); setPickerOpen(false);
@@ -641,6 +652,8 @@ export default function DashboardHome() {
             <div className="scriptrow">
               <p className="script">Forget Them Not!™</p>
               <button type="button" className="heroicon" data-testid="gx-hero-icon" aria-label="Greet-Me Hero" onClick={() => navigate('/dashboard/hero')}><Award size={17} /><span className="tip" aria-hidden="true">Greet-Me Hero</span></button>
+              {/* Phones: the header has no room, so the G1G1 control (and its explanation on tap) sits here. */}
+              <span className="g1g1-phone"><G1G1Badge compact /></span>
             </div>
             <div className="acts" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <button type="button" className="btn btn-sm btn-ghost-w" data-testid="gx-add-recipient" onClick={goAddRecipient}><UserPlus size={16} /> Add Recipient</button>
@@ -820,14 +833,15 @@ export default function DashboardHome() {
                       </div>
                     )}
                   </div>
+                  {/* Save: confirms who it is for (nothing is scheduled or sent here). For schedules it opens the
+                      Dates & gifts pop-up, which keeps these choices. */}
+                  <div className="donerow whosave" data-testid="gx-who-donerow">
+                    <span className="hint">{!chosen.length ? 'Select at least one person'
+                      : `${chosen.length} selected · ${resolverOn || groupSchedOn ? 'next, dates & gifts' : 'nothing is sent yet'}`}</span>
+                    <button type="button" className="btn btn-sm btn-primary" style={{ height: 40 }} data-testid="gx-who-done" disabled={!chosen.length} onClick={completeWho}><Check size={15} /> Save</button>
+                  </div>
                 </>
               )}
-            </div>
-
-            <div className="donerow" data-testid="gx-who-donerow">
-              <span className="hint">{chosen.length ? `${chosen.length} selected` : 'Select at least one person'}</span>
-              {resolverOn || groupSchedOn ? <button type="button" className="btn btn-sm btn-line" style={{ height: 40 }} data-testid="gx-dates-open" onClick={() => setDatesOpen(true)}><CalendarDays size={15} /> Dates &amp; gifts</button> : null}
-              <button type="button" className="btn btn-sm btn-primary" style={{ height: 40 }} data-testid="gx-who-done" disabled={!chosen.length} onClick={completeWho}><Check size={15} /> Done</button>
             </div>
           </div>
 
@@ -934,9 +948,27 @@ export default function DashboardHome() {
         <section className="card tabcard" data-testid="gx-lower">
           <div className="tabhead">
             <div className="tabs" role="tablist" aria-label="Your people and occasions">
-              {[['recipients', 'Recipients'], ['upcoming', 'Upcoming Occasions'], ['past', 'Past Occasions']].map(([k, t]) => (
+              {[['recipients', 'Recipients'], ['upcoming', 'Upcoming Occasions'], ['past', 'Past Occasions']].map(([k, t]) => (k === 'recipients' ? (
+                <span key={k} className="relpop rtab" role="presentation">
+                  <button type="button" role="tab" id={`gx-tab-${k}`} aria-selected={tab === k} aria-controls="gx-tabpanel" onClick={() => setTab(k)}>
+                    {recipFilter === 'all' ? t : `${t} · ${RECIPIENT_FILTERS.find((f) => f.key === recipFilter).label}`}
+                  </button>
+                  <button type="button" className="rcaret" data-testid="gx-recip-filter" aria-label="Filter recipients" aria-haspopup="menu" aria-expanded={menuOpen === 'recipfilter'}
+                    onClick={() => { setTab('recipients'); setMenuOpen((v) => (v === 'recipfilter' ? null : 'recipfilter')); }}><ChevronDown size={15} /></button>
+                  {menuOpen === 'recipfilter' ? (
+                    <span className="menu menu-recip" role="menu" aria-label="Show recipients" onKeyDown={(e) => { if (e.key === 'Escape') setMenuOpen(null); }}>
+                      {RECIPIENT_FILTERS.map((f) => (
+                        <button key={f.key} type="button" role="menuitemradio" aria-checked={recipFilter === f.key} data-testid={`gx-recip-filter-${f.key}`}
+                          onClick={() => { setRecipFilter(f.key); setMenuOpen(null); }}>
+                          <span className={`box ${recipFilter === f.key ? 'on' : ''}`}><Check size={12} /></span>{f.label}
+                        </button>
+                      ))}
+                    </span>
+                  ) : null}
+                </span>
+              ) : (
                 <button key={k} type="button" role="tab" id={`gx-tab-${k}`} aria-selected={tab === k} aria-controls="gx-tabpanel" onClick={() => setTab(k)}>{t}</button>
-              ))}
+              )))}
             </div>
             <div className="tabact">
               {tab === 'recipients' ? <button type="button" className="btn btn-sm btn-primary" style={{ height: 38 }} onClick={goAddRecipient}><UserPlus size={15} /> Add Recipient</button>
@@ -956,7 +988,10 @@ export default function DashboardHome() {
               ) : (
                 <>
                   <div className="search" style={{ marginTop: 0 }}><Search size={16} color="#8a8199" /><input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Find someone…" aria-label="Find a recipient" /></div>
-                  {filtered.map((c) => (
+                  {shownRecipients.length === 0 ? (
+                    <p className="rempty" data-testid="gx-recip-filter-empty">{recipFilter === 'all' ? 'No one matches that name yet.' : `No ${RECIPIENT_FILTERS.find((f) => f.key === recipFilter).people} ${term ? 'match that name' : 'yet — set a relationship on a recipient'}.`}</p>
+                  ) : null}
+                  {shownRecipients.map((c) => (
                     <div className="row" key={c.id}>
                       <div className="avatar" style={{ background: avatarBg(c.name) }}>{initials(c.name)}</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
