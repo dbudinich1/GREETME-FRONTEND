@@ -80,14 +80,15 @@ function readUser() {
 }
 
 /**
- * The platform default schedule, as percentages. A salesperson with no stored terms earns exactly
- * this, so the form shows it rather than blanks — the founder edits what is true today instead of
- * guessing what the empty state means.
+ * An empty terms form. Founder 2026-10-19: no prefilled or default commission percentage anywhere. A
+ * salesperson with no stored terms shows three BLANK rates, and blank means "terms not configured" -
+ * never 0 and never a fallback rate (new customers of a salesperson without saved terms earn nothing,
+ * A11). The founder must enter and save all three explicitly.
  */
-function defaultCompDraft() {
+function blankCompDraft() {
   return {
-    year_1: "25", year_2: "15", year_3_plus: "10",
-    referrerSalespersonId: "", overrideRateBps: "5", referralStatus: "active",
+    year_1: "", year_2: "", year_3_plus: "",
+    referrerSalespersonId: "", overrideRateBps: "", referralStatus: "active",
   };
 }
 
@@ -96,7 +97,7 @@ function compDraftFrom(sp) {
   const pct = (bps) => (Number.isFinite(bps) ? String(bps / 100) : null);
   const c = sp && sp.compensation;
   const r = sp && sp.referral;
-  const base = defaultCompDraft();
+  const base = blankCompDraft();
   return {
     year_1: (c && pct(c.year_1)) ?? base.year_1,
     year_2: (c && pct(c.year_2)) ?? base.year_2,
@@ -130,10 +131,9 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
   // `confirm` holds the pending destructive intent: { kind, salespersonId, name }. Nothing acts
   // until it is confirmed, and dismissing it performs no request at all.
   const [slugDraft, setSlugDraft] = useState("");
-  // Percentages as the founder types them. Prefilled from the salesperson's stored terms, or from
-  // the platform default (25 / 15 / 10) when they have none — a legacy salesperson is shown what
-  // they actually earn, not three empty boxes.
-  const [compDraft, setCompDraft] = useState(defaultCompDraft());
+  // Percentages as the founder types them. Prefilled ONLY from the salesperson's stored terms; with
+  // none stored, every rate starts blank (terms not configured).
+  const [compDraft, setCompDraft] = useState(blankCompDraft());
   // No `publicLink` state any more. The link is DERIVED from the server-confirmed slug below, so
   // it updates when a replacement succeeds, disappears when a removal succeeds, and is preserved
   // untouched when either fails — because in each case `detail` is only ever replaced by a real
@@ -309,11 +309,18 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
    */
   async function saveCompensation() {
     if (!detail || busy) return;
+    const isBlank = (v) => String(v ?? "").trim() === "";
     const toBps = (v) => {
+      // Blank is "not configured", never 0: Number("") is 0, so it is refused before any conversion.
+      if (isBlank(v)) return null;
       const n = Number(String(v).trim());
       if (!Number.isFinite(n) || n < 0 || n > 100) return null;
       return Math.round(n * 100);
     };
+    if ([compDraft.year_1, compDraft.year_2, compDraft.year_3_plus].some(isBlank)) {
+      setMessage("Enter all three rates (Year 1, Year 2 and Year 3+) before saving. A blank rate is not saved as 0.");
+      return;
+    }
     const y1 = toBps(compDraft.year_1);
     const y2 = toBps(compDraft.year_2);
     const y3 = toBps(compDraft.year_3_plus);
@@ -323,6 +330,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     }
     let referral = null;
     if (compDraft.referrerSalespersonId) {
+      if (isBlank(compDraft.overrideRateBps)) { setMessage("Enter the override percentage for the referring salesperson."); return; }
       const ovr = toBps(compDraft.overrideRateBps);
       if (ovr === null) { setMessage("The override must be a percentage between 0 and 100."); return; }
       referral = {
@@ -832,10 +840,6 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                   <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
                     <button type="button" className="btn-primary" data-testid="fcc-comp-save"
                       disabled={busy !== null} onClick={saveCompensation}>Save terms</button>
-                    <button type="button" className="btn-secondary" data-testid="fcc-comp-default"
-                      disabled={busy !== null} onClick={() => setCompDraft(defaultCompDraft())}>
-                      Reset to default (25 / 15 / 10)
-                    </button>
                   </div>
                 </CommissionSection>
                 {typeof api.giftCommission === "function" && typeof api.setGiftCommission === "function" ? (

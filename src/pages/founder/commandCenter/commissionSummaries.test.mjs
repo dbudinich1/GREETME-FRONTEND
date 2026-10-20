@@ -40,3 +40,11 @@ test("activitySummary: the server's figures only", () => {
   assert.equal(activitySummary(null, money), "Not loaded");
   assert.equal(activitySummary({}, money), "No figures");
 });
+
+test("no prefilled percentages: re-opening an OFF gift setting (stored rateBps 0 placeholder) shows a blank rate, not 0", async () => {
+  const { draftFromCurrent, blankDraft } = await import("./giftCommissionLogic.js");
+  assert.equal(blankDraft().ratePercent, "");
+  assert.equal(draftFromCurrent({ enabled: false, rateBps: 0, duration: { mode: "ongoing" }, eligibleTypes: [] }).ratePercent, "");
+  assert.equal(draftFromCurrent({ enabled: true, rateBps: 1500, duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes"] }).ratePercent, "15", "a saved ON rate still prefills");
+  assert.equal(draftFromCurrent({ enabled: true, rateSource: "customer_schedule", rateBps: null, duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes"] }).ratePercent, "");
+});

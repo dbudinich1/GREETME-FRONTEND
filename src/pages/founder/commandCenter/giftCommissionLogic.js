@@ -38,7 +38,8 @@ export function draftFromCurrent(cur) {
   return {
     enabled: cur.enabled === true,
     rateSource: cur.rateSource === "customer_schedule" ? "customer_schedule" : "fixed",
-    ratePercent: Number.isFinite(cur.rateBps) ? String(cur.rateBps / 100) : "",
+    // An OFF setting is stored with rateBps 0 as a placeholder; it is not a rate, so the field starts blank (no prefilled 0).
+    ratePercent: cur.enabled === true && Number.isFinite(cur.rateBps) ? String(cur.rateBps / 100) : "",
     mode: cur.duration && cur.duration.mode ? cur.duration.mode : "first_gift_only",
     months: cur.duration && cur.duration.months ? String(cur.duration.months) : "12",
     // Every stored eligible type is pre-selected, so saving without touching the types keeps exactly what is stored.
