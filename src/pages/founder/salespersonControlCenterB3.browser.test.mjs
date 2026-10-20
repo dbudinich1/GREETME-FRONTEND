@@ -325,7 +325,7 @@ test("every commission section sits in ONE Commissions group of collapsible pane
   assert.deepEqual(panels, ["fcc-commission-subscription", "fcc-commission-gift", "fcc-commission-activity"]);
   for (const id of panels) assert.equal(tid(id).open, false, `${id} collapsed by default`);
   assert.equal(tid("fcc-commission-subscription-summary").textContent, "Year 1 / 2 / 3+: 20% / 10% / 10% · No override");
-  assert.equal(tid("fcc-commission-gift-summary").textContent, "Subscription schedule (20% / 10% / 10%) · ongoing · gift boxes");
+  assert.equal(tid("fcc-commission-gift-summary").textContent, "Inherited (Year 1 20% · Year 2 10% · Year 3+ 10%) · ongoing · gift boxes");
   assert.equal(tid("fcc-commission-activity-summary").textContent, "Pending 2,500 (minor units) · Approved 1,000 (minor units) · Paid 750 (minor units)", "same money formatting as the page itself");
   assert.ok(group.querySelector('[data-testid="fcc-rate-y1"]'), "the subscription form lives in its panel");
   assert.ok(group.querySelector('[data-testid="cc-giftcomm"]'), "the gift panel lives in its panel");
@@ -334,4 +334,29 @@ test("every commission section sits in ONE Commissions group of collapsible pane
   // An unsaved draft never leaks into the collapsed row.
   setVal(tid("fcc-rate-y1"), "33"); await flush();
   assert.match(tid("fcc-commission-subscription-summary").textContent, /^Year 1 \/ 2 \/ 3\+: 20%/);
+});
+
+// ══ links section (collapsible; QR code after all link areas) ═══════════════════════════════
+test("Links: one collapsible section holds Assigned links, Vanity URL and Linked account; the QR code comes AFTER all of them", async () => {
+  const saved = { salespersonId: "sp1", displayName: "Rep North", status: "active", referralSlug: "north", linkedUserId: "u-north" };
+  const a = api({
+    read: async () => ({ ok: true, status: 200, data: { ok: true, salesperson: saved } }),
+    assignedLinks: async () => ({ ok: true, status: 200, data: { ok: true, referralPublicEnabled: true, links: [
+      { type: "vanity_alias", assigned: true, url: "https://greet-me.com/north", active: true, destination: "Same hand-off" },
+      { type: "share_link", active: true, tokenVersion: 2, destination: "Landing", note: "" },
+      { type: "gift_claim_attribution", linked: true, active: true, destination: "Claims credit this salesperson" },
+    ] } }),
+  });
+  await open(a); await flush();
+  const sec = tid("fcc-section-links");
+  assert.equal(sec.tagName, "DETAILS"); assert.equal(sec.open, false, "collapsed by default");
+  assert.equal(tid("fcc-section-links-summary").textContent, "greet-me.com/north · Active · Account linked");
+  const order = ["cc-assigned-links", "fcc-slug-input", "fcc-linked-current", "fcc-links-qr"].map((t) => sec.querySelector(`[data-testid="${t}"]`));
+  order.forEach((el, i) => assert.ok(el, `section contains ${["assigned links", "vanity URL", "linked account", "QR"][i]}`));
+  for (let i = 1; i < order.length; i++) {
+    assert.ok(order[i - 1].compareDocumentPosition(order[i]) & window.Node.DOCUMENT_POSITION_FOLLOWING, `item ${i} comes after item ${i - 1}`);
+  }
+  assert.equal(sec.querySelector('[data-testid="cc-link-vanity"] [data-testid="cc-link-qr"]'), null, "the QR is no longer inside the shareable-link box");
+  assert.equal(tid("fcc-links-qr").querySelector('[data-testid="cc-link-qr-svg"]').getAttribute("data-qr-text"), "https://greet-me.com/north", "the QR encodes the shareable link");
+  assert.equal(tid("cc-profile-additions").querySelector('[data-testid="cc-assigned-links"]'), null, "Assigned links left the profile additions");
 });

@@ -26,11 +26,13 @@ export const DURATION_MODES = [
 
 /** Where the rate comes from. "customer_schedule" reuses each customer's subscription schedule and clock (no second rate). */
 export const RATE_SOURCES = [
-  { id: "customer_schedule", label: "Use this salesperson's subscription commission schedule" },
-  { id: "fixed", label: "A fixed percentage" },
+  { id: "customer_schedule", label: "Inherit this salesperson's subscription commission rates" },
+  { id: "fixed", label: "A separate fixed percentage" },
 ];
 
-export const blankDraft = () => ({ enabled: true, rateSource: "fixed", ratePercent: "", mode: "first_gift_only", months: "12", types: [], stored: [], startDate: "" });
+// A new setting INHERITS the subscription commission rates by default (no rate is entered twice); a separate fixed
+// percentage stays available as the second choice.
+export const blankDraft = () => ({ enabled: true, rateSource: "customer_schedule", ratePercent: "", mode: "first_gift_only", months: "12", types: [], stored: [], startDate: "" });
 
 /** Draft from the stored `current` block (or blank when nothing is set). */
 export function draftFromCurrent(cur) {
@@ -124,7 +126,7 @@ export function summaryLine(s, startsOn) {
     const how = dur.mode === "first_gift_only" ? ", on the first gift only"
       : dur.mode === "months_from_first_gift" ? ` for ${dur.months} month${dur.months === 1 ? "" : "s"} from the first gift`
         : ", ongoing";
-    return `Earns each customer's subscription commission rate for their current year (Year 1, Year 2 or Year 3+, counted from the customer's own start date) as a share of Greet-Me's margin on ${typesPhrase(s.eligibleTypes)}${how}${when}.`;
+    return `Earns the inherited subscription commission rate for each customer's current year (Year 1, Year 2 or Year 3+, counted from the customer's own start date) as a share of Greet-Me's margin on ${typesPhrase(s.eligibleTypes)}${how}${when}.`;
   }
   const pct = s.rateBps / 100;
   if (dur.mode === "first_gift_only") return `Earns ${pct}% of Greet-Me's margin on ${typesPhrase(s.eligibleTypes)}, on the first gift only${when}.`;

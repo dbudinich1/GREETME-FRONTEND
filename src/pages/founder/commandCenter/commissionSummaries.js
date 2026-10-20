@@ -11,6 +11,13 @@ export function scheduleText(compensation) {
   return `${pct(c.year_1)} / ${pct(c.year_2)} / ${pct(c.year_3_plus)}`;
 }
 
+/** "Year 1 20% · Year 2 10% · Year 3+ 10%": the inherited gift-rate display, or null when no complete schedule is saved. */
+export function inheritedRatesText(compensation) {
+  const c = compensation;
+  if (!c || !isBps(c.year_1) || !isBps(c.year_2) || !isBps(c.year_3_plus)) return null;
+  return `Year 1 ${pct(c.year_1)} · Year 2 ${pct(c.year_2)} · Year 3+ ${pct(c.year_3_plus)}`;
+}
+
 /**
  * Subscription commission, from the salesperson record. `nameOf(id)` turns a permanent salesperson id into a display name.
  * With no saved schedule, new customers earn nothing until terms are saved (A11, no default rates).
@@ -52,9 +59,9 @@ export function giftSummary(cur, compensation, state = "ready") {
   if (state === "loading") return "Loading…";
   if (state === "error") return "Could not load gift commission terms";
   if (!cur) return "Not set: nothing accrues";
-  if (cur.enabled !== true) return "Off: nothing accrues";
+  if (cur.enabled !== true) return "Disabled: nothing accrues";
   const rate = cur.rateSource === "customer_schedule"
-    ? `Subscription schedule (${scheduleText(compensation) || "no terms saved"})`
+    ? `Inherited (${inheritedRatesText(compensation) || "no subscription terms saved"})`
     : `${pct(cur.rateBps)} of margin`;
   return `${rate} · ${durationText(cur.duration)} · ${typesText(cur.eligibleTypes)}`;
 }
@@ -69,4 +76,16 @@ export function activitySummary(summary, money) {
   ].filter(([, v]) => Number.isSafeInteger(v));
   if (parts.length === 0) return "No figures";
   return parts.map(([k, v]) => `${k} ${money(v)}`).join(" · ");
+}
+
+/** Links section, closed row: the saved shareable link and its state, and whether a Greet-Me account is linked. */
+export function linksSummary(info, sp) {
+  const account = sp && sp.linkedUserId ? "Account linked" : "No account linked";
+  if (!info || info.state === "loading") return `Loading… · ${account}`;
+  if (info.state === "unavailable") return `${sp && sp.referralSlug ? `Vanity URL: ${sp.referralSlug}` : "No vanity URL yet"} · ${account}`;
+  if (info.state === "error") return `Links not available right now · ${account}`;
+  const link = info.vanityUrl
+    ? `${String(info.vanityUrl).replace(/^https?:\/\//, "")} · ${info.vanityActive ? "Active" : "Paused"}`
+    : "No shareable link yet";
+  return `${link} · ${account}`;
 }

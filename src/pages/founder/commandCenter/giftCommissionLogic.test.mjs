@@ -6,7 +6,14 @@ import {
 } from "./giftCommissionLogic.js";
 
 const NOW = new Date("2026-10-03T12:00:00Z");
-const good = (o = {}) => ({ ...blankDraft(), ratePercent: "20", types: ["gift_boxes"], ...o });
+// A fixed-percentage draft (a NEW setting defaults to the inherited subscription rates; see the test below).
+const good = (o = {}) => ({ ...blankDraft(), rateSource: "fixed", ratePercent: "20", types: ["gift_boxes"], ...o });
+
+test("a new setting defaults to INHERITING the subscription commission rates: no percentage, no rateBps sent", () => {
+  assert.equal(blankDraft().rateSource, "customer_schedule");
+  const v = validateDraft({ ...blankDraft(), types: ["gift_boxes"], mode: "ongoing" }, NOW);
+  assert.deepEqual(v.payload, { enabled: true, rateSource: "customer_schedule", duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes"] });
+});
 
 test("valid draft becomes the exact PUT body (percent -> basis points)", () => {
   const v = validateDraft(good({ mode: "months_from_first_gift", months: "12" }), NOW);

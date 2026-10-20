@@ -10,15 +10,16 @@ const chevron = { flex: "0 0 auto", width: "1rem", fontSize: ".8rem", color: "va
 const titleStyle = { fontSize: ".92rem", fontWeight: 700, marginRight: ".4rem" };
 const summaryStyle = { fontSize: ".82rem", color: "var(--text-secondary, #475569)", overflowWrap: "anywhere" };
 
-export default function CommissionSection({ id, title, summary, defaultOpen = false, children }) {
+// `testPrefix` lets the same panel serve other profile sections (e.g. Links) with their own test ids.
+export default function CommissionSection({ id, title, summary, defaultOpen = false, testPrefix = "fcc-commission", children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <details data-testid={`fcc-commission-${id}`} open={defaultOpen} onToggle={(e) => setOpen(e.currentTarget.open)} style={wrap}>
-      <summary data-testid={`fcc-commission-${id}-head`} style={head}>
+    <details data-testid={`${testPrefix}-${id}`} open={defaultOpen} onToggle={(e) => setOpen(e.currentTarget.open)} style={wrap}>
+      <summary data-testid={`${testPrefix}-${id}-head`} style={head}>
         <span aria-hidden="true" style={{ ...chevron, transform: open ? "rotate(90deg)" : "none" }}>{"▶"}</span>
         <span style={{ minWidth: 0, display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: ".2rem 0" }}>
           <span style={titleStyle}>{title}</span>
-          <span data-testid={`fcc-commission-${id}-summary`} style={summaryStyle}>{summary}</span>
+          <span data-testid={`${testPrefix}-${id}-summary`} style={summaryStyle}>{summary}</span>
         </span>
       </summary>
       <div style={{ padding: ".75rem .85rem .85rem", borderTop: "1px solid var(--border, #e5e7eb)" }}>

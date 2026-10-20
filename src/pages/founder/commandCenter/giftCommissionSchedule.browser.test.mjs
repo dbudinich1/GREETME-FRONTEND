@@ -67,9 +67,9 @@ test("collapsed by default; the head shows the SAVED summary; the panel's own he
   await mountInSection(fakeApi({ gc: { current: SCHED_CURRENT, history: [] } }));
   const det = tid("fcc-commission-gift");
   assert.equal(det.tagName, "DETAILS"); assert.equal(det.open, false, "collapsed by default");
-  assert.equal(tid("fcc-commission-gift-summary").textContent, "Subscription schedule (20% / 10% / 10%) · ongoing · gift boxes and flowers");
+  assert.equal(tid("fcc-commission-gift-summary").textContent, "Inherited (Year 1 20% · Year 2 10% · Year 3+ 10%) · ongoing · gift boxes and flowers");
   assert.equal(det.querySelectorAll("h3").length, 0, "embedded: the section title is the only heading");
-  assert.match(tid("cc-giftcomm-rate").textContent, /Each customer's subscription schedule \(new customers: 20% \/ 10% \/ 10%\)/);
+  assert.equal(tid("cc-giftcomm-rate").textContent, "Inherited from subscription commission: Year 1 20% · Year 2 10% · Year 3+ 10%");
   assert.match(tid("cc-giftcomm-summary").textContent, /Year 1, Year 2 or Year 3\+, counted from the customer's own start date/);
 });
 
@@ -77,7 +77,7 @@ test("collapsed summary for fixed / off / unset terms", async () => {
   await mountInSection(fakeApi({ gc: { current: { enabled: true, rateBps: 1500, duration: { mode: "first_gift_only" }, eligibleTypes: ["gift_boxes"], effectiveFrom: "2026-10-01T00:00:00.000Z" }, history: [] } }));
   assert.equal(tid("fcc-commission-gift-summary").textContent, "15% of margin · first gift only · gift boxes");
   await mountInSection(fakeApi({ gc: { current: { enabled: false, rateBps: 0, duration: { mode: "ongoing" }, eligibleTypes: [] }, history: [] } }));
-  assert.equal(tid("fcc-commission-gift-summary").textContent, "Off: nothing accrues");
+  assert.equal(tid("fcc-commission-gift-summary").textContent, "Disabled: nothing accrues");
   await mountInSection(fakeApi());
   assert.equal(tid("fcc-commission-gift-summary").textContent, "Not set: nothing accrues");
 });
@@ -85,17 +85,16 @@ test("collapsed summary for fixed / off / unset terms", async () => {
 test("choosing the subscription schedule: no rate field, saved schedule shown read-only, exact body has no rateBps", async () => {
   const api = fakeApi(); await mountInSection(api);
   await click(tid("cc-giftcomm-edit"));
-  assert.ok(tid("cc-giftcomm-f-rate"), "fixed is the default for a new setting");
-  await click(tid("cc-giftcomm-f-source-customer_schedule"));
+  assert.equal(tid("cc-giftcomm-f-source-customer_schedule").checked, true, "a new setting INHERITS by default");
   assert.equal(tid("cc-giftcomm-f-rate"), null, "no percentage to enter twice");
-  assert.equal(tid("cc-giftcomm-schedule-rates").textContent, "20% / 10% / 10%");
+  assert.equal(tid("cc-giftcomm-schedule-rates").textContent, "Year 1 20% · Year 2 10% · Year 3+ 10%");
   assert.match(tid("cc-giftcomm-schedule-info").textContent, /No override is paid on gifts/);
   assert.ok(tid("cc-giftcomm-schedule-duration-hint"), "hint while the duration is not Ongoing");
   await click(tid("cc-giftcomm-f-mode-ongoing"));
   assert.equal(tid("cc-giftcomm-schedule-duration-hint"), null);
   await click(tid("cc-giftcomm-f-type-gift_boxes"));
   await submit(tid("cc-giftcomm-form"));
-  assert.match(tid("cc-giftcomm-confirm-summary").textContent, /subscription commission rate for their current year/);
+  assert.match(tid("cc-giftcomm-confirm-summary").textContent, /inherited subscription commission rate for each customer's current year/);
   assert.equal(writes(api).length, 0, "nothing written before confirm");
   await click(tid("cc-giftcomm-confirm-go"));
   assert.deepEqual(writes(api), [["PUT", "sp_a", { enabled: true, rateSource: "customer_schedule", duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes"] }]]);
@@ -103,7 +102,7 @@ test("choosing the subscription schedule: no rate field, saved schedule shown re
 
 test("the fixed option's body is unchanged (no rateSource key)", async () => {
   const api = fakeApi(); await mountInSection(api);
-  await click(tid("cc-giftcomm-edit"));
+  await click(tid("cc-giftcomm-edit")); await click(tid("cc-giftcomm-f-source-fixed"));
   await setValue(tid("cc-giftcomm-f-rate"), "15"); await click(tid("cc-giftcomm-f-type-gift_boxes"));
   await submit(tid("cc-giftcomm-form")); await click(tid("cc-giftcomm-confirm-go"));
   assert.deepEqual(writes(api)[0][2], { enabled: true, rateBps: 1500, duration: { mode: "first_gift_only" }, eligibleTypes: ["gift_boxes"] });
@@ -123,4 +122,32 @@ test("editing an existing schedule setting pre-selects the schedule and keeps th
   assert.equal(tid("cc-giftcomm-f-type-flowers").checked, true);
   await submit(tid("cc-giftcomm-form")); await click(tid("cc-giftcomm-confirm-go"));
   assert.deepEqual(writes(api)[0][2], { enabled: true, rateSource: "customer_schedule", duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes", "flowers"] });
+});
+
+test("Disable gift commission: ticking it hides the rate fields, explains, and saves enabled:false", async () => {
+  const api = fakeApi({ gc: { current: SCHED_CURRENT, history: [] } }); await mountInSection(api);
+  await click(tid("cc-giftcomm-edit"));
+  const box = tid("cc-giftcomm-f-disable");
+  assert.equal(box.checked, false, "an ON setting opens with Disable unticked");
+  assert.match(box.parentElement.textContent, /Disable gift commission/);
+  assert.equal(tid("cc-giftcomm-f-enabled"), null, "the old 'on' checkbox is gone");
+  await click(box);
+  assert.ok(tid("cc-giftcomm-disabled-note"));
+  assert.equal(tid("cc-giftcomm-f-source-customer_schedule"), null, "rate, duration and type fields are hidden while disabled");
+  assert.equal(tid("cc-giftcomm-f-type-gift_boxes"), null);
+  await submit(tid("cc-giftcomm-form"));
+  assert.match(tid("cc-giftcomm-confirm-summary").textContent, /off for this salesperson/);
+  await click(tid("cc-giftcomm-confirm-go"));
+  assert.equal(writes(api)[0][2].enabled, false);
+});
+
+test("a DISABLED saved setting: view and closed row say Disabled; unticking Disable brings the fields back", async () => {
+  await mountInSection(fakeApi({ gc: { current: { enabled: false, rateBps: 0, duration: { mode: "ongoing" }, eligibleTypes: [], effectiveFrom: "2026-10-01T00:00:00.000Z" }, history: [] } }));
+  assert.equal(tid("cc-giftcomm-enabled").textContent, "Disabled");
+  assert.equal(tid("cc-giftcomm-rate").textContent, "None while disabled");
+  assert.equal(tid("fcc-commission-gift-summary").textContent, "Disabled: nothing accrues");
+  await click(tid("cc-giftcomm-edit"));
+  assert.equal(tid("cc-giftcomm-f-disable").checked, true);
+  await click(tid("cc-giftcomm-f-disable"));
+  assert.ok(tid("cc-giftcomm-f-source-fixed"), "fields return when re-enabled");
 });

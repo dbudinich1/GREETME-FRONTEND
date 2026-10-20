@@ -17,10 +17,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { salesAdminApi, salesAdminErrorMessage } from "../../api/salesAdmin.js";
-import { AssignedLinksPanel, GiftSalesPanel } from "./commandCenter/ProfilePanels.jsx";
+import { AssignedLinksPanel, GiftSalesPanel, ShareQr } from "./commandCenter/ProfilePanels.jsx";
 import GiftCommissionPanel from "./commandCenter/GiftCommissionPanel.jsx";
 import CommissionSection from "./commandCenter/CommissionSection.jsx";
-import { subscriptionSummary, activitySummary } from "./commandCenter/commissionSummaries.js";
+import { subscriptionSummary, activitySummary, linksSummary } from "./commandCenter/commissionSummaries.js";
 import { fundraiserApi } from "../../api/fundraiserApi.js";
 import { isFounder } from "../../utils/accountState.js";
 import AttributionHealthPanel from "./AttributionHealthPanel.jsx";
@@ -119,6 +119,8 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
   const [detail, setDetail] = useState(null);
   // The gift panel loads its own terms; it reports the saved one-line summary for its collapsed row here.
   const [giftSummaryText, setGiftSummaryText] = useState(null);
+  // What the Assigned links panel loaded: the Links section's closed summary and its QR code (drawn after all link areas).
+  const [linksInfo, setLinksInfo] = useState(null);
   const [detailBusy, setDetailBusy] = useState(false);
 
   const [form, setForm] = useState({ salespersonId: "", displayName: "", email: "", linkEmail: "" });
@@ -654,104 +656,128 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
 
           {detail ? (
             <div style={{ marginTop: "1.1rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+            {/* ── LINKS ── founder 2026-10-19: every link area in one collapsible section; the QR code comes AFTER all of
+                them (same order on desktop and phone). The closed row shows the saved shareable link and account link. */}
+            <div data-testid="fcc-links" style={{ marginBottom: "1rem" }}>
+              <CommissionSection id="links" testPrefix="fcc-section" title="Links" summary={linksSummary(linksInfo, detail)}>
+                <div style={{ display: "grid", gap: "1rem" }}>
+                  {/* W51: assigned links. Read-only, gated by the api (absent read = nothing rendered). */}
+                  <AssignedLinksPanel api={api} salespersonId={detail.salespersonId} separateQr embedded onLinks={setLinksInfo} />
+                  {/* ── VANITY ALIAS ──
+                      Separate from the opaque link by design, and the copy says so: changing or
+                      removing an alias never touches the attribution token. */}
+                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+                  <h3 style={{ fontSize: ".86rem", margin: "0 0 .5rem" }}>Vanity URL</h3>
+                  <p style={{ margin: "0 0 .6rem", color: "var(--text-secondary)", fontSize: ".82rem" }}>
+                    A readable alias. The opaque attribution link is separate and is not changed by
+                    editing or removing this.
+                  </p>
+                  {shareLink ? (
+                    <div style={{ margin: "0 0 .7rem" }}>
+                      <p style={{ ...label, margin: "0 0 .25rem" }}>Shareable salesperson link</p>
+                      <p data-testid="fcc-public-link" style={{ ...mono, margin: "0 0 .45rem", wordBreak: "break-all", userSelect: "all" }}>
+                        {shareLink}
+                      </p>
+                      <button type="button" className="btn-secondary" data-testid="fcc-copy-share"
+                        style={{ padding: ".3rem .7rem", fontSize: ".78rem" }}
+                        onClick={copyShareLink}>
+                        {shareCopied ? "Copied" : "Copy link"}
+                      </button>
+                    </div>
+                  ) : null}
+                  <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
+                    <input data-testid="fcc-slug-input" aria-label="Vanity URL" value={slugDraft}
+                      onChange={(e) => setSlugDraft(e.target.value)} style={{ maxWidth: 260 }} />
+                    <button type="button" className="btn-primary" data-testid="fcc-slug-save"
+                      disabled={busy !== null || slugDraft.trim() === ""} onClick={() => saveSlug(false)}>
+                      {detail.referralSlug ? "Replace" : "Assign"}
+                    </button>
+                    {detail.referralSlug ? (
+                      <button type="button" className="btn-secondary" data-testid="fcc-slug-remove"
+                        disabled={busy !== null} onClick={() => saveSlug(true)}>Remove</button>
+                    ) : null}
+                  </div>
+                  </div>
+
+                  {/* ── LINKED GREET-ME ACCOUNT ──
+                      What makes the gift-claim sales-attribution source work: a recipient who claims a
+                      gift sent by THIS account can be attributed to this salesperson. Separate from the
+                      attribution link/vanity URL — this is a second, independent attribution source. */}
+                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+                    <h3 style={{ fontSize: ".86rem", margin: "0 0 .5rem" }}>Linked Greet-Me account</h3>
+                    <p style={{ margin: "0 0 .6rem", color: "var(--text-secondary)", fontSize: ".82rem" }}>
+                      When this salesperson sends a gift from their own Greet-Me account and the
+                      recipient claims it, that claim can also attribute them — even if the recipient
+                      never visited their referral link.
+                    </p>
+
+                    {detail.linkedUserId ? (
+                      <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
+                        <p data-testid="fcc-linked-current" style={{ ...mono, margin: 0 }}>{detail.linkedUserId}</p>
+                        <button type="button" className="btn-secondary" data-testid="fcc-link-remove"
+                          disabled={linkBusy} onClick={unlinkAccount}>Unlink</button>
+                      </div>
+                    ) : (
+                      <form onSubmit={resolveLinkAccount} style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
+                        <input data-testid="fcc-link-email" aria-label="Account email" type="email"
+                          value={linkEmail} onChange={(e) => { setLinkEmail(e.target.value); setLink({ state: STATES.EMPTY, account: null }); }}
+                          style={{ maxWidth: 260 }} />
+                        <button type="submit" className="btn-secondary" data-testid="fcc-link-resolve"
+                          disabled={linkBusy || !linkEmail.trim()}>
+                          {link.state === STATES.RESOLVING ? "Resolving…" : "Resolve"}
+                        </button>
+                      </form>
+                    )}
+
+                    {link.state === STATES.RESOLVED && link.account ? (
+                      <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: ".6rem .75rem", marginTop: ".6rem" }} data-testid="fcc-link-resolved">
+                        <p style={{ ...mono, margin: "0 0 .4rem" }}>
+                          {link.account.email} {"·"} {link.account.userId}
+                          {link.account.emailVerified ? "" : " · unverified"}
+                        </p>
+                        <button type="button" className="btn-primary" data-testid="fcc-link-confirm"
+                          disabled={!canLink(link.state, link.account) || linkBusy} onClick={confirmLinkAccount}>
+                          {linkBusy ? "Linking…" : "Link this account"}
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {[STATES.INVALID_EMAIL, STATES.NOT_FOUND, STATES.AMBIGUOUS, STATES.SERVICE_FAILURE].includes(link.state) ? (
+                      <p data-testid="fcc-link-resolve-error" style={{ color: "var(--warning)", fontSize: ".84rem", marginTop: ".5rem" }}>
+                        {link.state === STATES.INVALID_EMAIL ? "Enter a valid email address."
+                          : link.state === STATES.NOT_FOUND ? "No Greet-Me account matches that email address."
+                            : link.state === STATES.AMBIGUOUS ? "That email matches more than one account."
+                              : "Could not reach the account service. Nothing was changed."}
+                      </p>
+                    ) : null}
+
+                    {linkWriteState ? (
+                      <p data-testid="fcc-link-write-message"
+                        style={{ color: linkWriteState.state === LINK_STATES.LINK_FAILED ? "var(--warning)" : "#2f6f4f", fontSize: ".84rem", marginTop: ".5rem" }}>
+                        {linkMessageFor(linkWriteState.state, linkWriteState.reason)}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div data-testid="fcc-links-qr" style={{ borderTop: "1px solid var(--border)", paddingTop: "1rem", display: "grid", gap: ".4rem" }}>
+                    <h3 style={{ fontSize: ".86rem", margin: 0 }}>QR code</h3>
+                    {linksInfo && linksInfo.vanityUrl && linksInfo.vanityActive ? (
+                      <ShareQr url={linksInfo.vanityUrl} />
+                    ) : linksInfo && linksInfo.vanityUrl ? (
+                      <p data-testid="cc-link-qr-paused" style={{ margin: 0, color: "var(--text-secondary)", fontSize: ".82rem" }}>No QR code is shown while this salesperson is inactive.</p>
+                    ) : linksInfo && (linksInfo.state === "unavailable" || linksInfo.state === "error") ? (
+                      <p data-testid="fcc-links-qr-unavailable" style={{ margin: 0, color: "var(--text-secondary)", fontSize: ".82rem" }}>The QR code is not available right now.</p>
+                    ) : linksInfo && linksInfo.state === "loading" ? (
+                      <p data-testid="fcc-links-qr-loading" style={{ margin: 0, color: "var(--text-secondary)", fontSize: ".82rem" }}>Loading…</p>
+                    ) : (
+                      <p data-testid="fcc-links-qr-none" style={{ margin: 0, color: "var(--text-secondary)", fontSize: ".82rem" }}>No QR code until a shareable link is assigned.</p>
+                    )}
+                  </div>
+                </div>
+              </CommissionSection>
+            </div>
             <div style={{ display: "grid", gap: ".9rem", marginBottom: "1rem" }} data-testid="cc-profile-additions">
-              {/* W51: assigned links and gift sales. Read-only panels, each gated by the api (absent read = nothing rendered). */}
-              <AssignedLinksPanel api={api} salespersonId={detail.salespersonId} />
               <GiftSalesPanel api={api} salespersonId={detail.salespersonId} />
             </div>
-              {/* ── VANITY ALIAS ──
-                  Separate from the opaque link by design, and the copy says so: changing or
-                  removing an alias never touches the attribution token. */}
-              <h3 style={{ fontSize: ".92rem", margin: "0 0 .5rem" }}>Vanity URL</h3>
-              <p style={{ margin: "0 0 .6rem", color: "var(--text-secondary)", fontSize: ".82rem" }}>
-                A readable alias. The opaque attribution link is separate and is not changed by
-                editing or removing this.
-              </p>
-              {shareLink ? (
-                <div style={{ margin: "0 0 .7rem" }}>
-                  <p style={{ ...label, margin: "0 0 .25rem" }}>Shareable salesperson link</p>
-                  <p data-testid="fcc-public-link" style={{ ...mono, margin: "0 0 .45rem", wordBreak: "break-all", userSelect: "all" }}>
-                    {shareLink}
-                  </p>
-                  <button type="button" className="btn-secondary" data-testid="fcc-copy-share"
-                    style={{ padding: ".3rem .7rem", fontSize: ".78rem" }}
-                    onClick={copyShareLink}>
-                    {shareCopied ? "Copied" : "Copy link"}
-                  </button>
-                </div>
-              ) : null}
-              <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
-                <input data-testid="fcc-slug-input" aria-label="Vanity URL" value={slugDraft}
-                  onChange={(e) => setSlugDraft(e.target.value)} style={{ maxWidth: 260 }} />
-                <button type="button" className="btn-primary" data-testid="fcc-slug-save"
-                  disabled={busy !== null || slugDraft.trim() === ""} onClick={() => saveSlug(false)}>
-                  {detail.referralSlug ? "Replace" : "Assign"}
-                </button>
-                {detail.referralSlug ? (
-                  <button type="button" className="btn-secondary" data-testid="fcc-slug-remove"
-                    disabled={busy !== null} onClick={() => saveSlug(true)}>Remove</button>
-                ) : null}
-              </div>
-
-              {/* ── LINKED GREET-ME ACCOUNT ──
-                  What makes the gift-claim sales-attribution source work: a recipient who claims a
-                  gift sent by THIS account can be attributed to this salesperson. Separate from the
-                  attribution link/vanity URL — this is a second, independent attribution source. */}
-              <div style={{ marginTop: "1.1rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
-                <h3 style={{ fontSize: ".92rem", margin: "0 0 .5rem" }}>Linked Greet-Me account</h3>
-                <p style={{ margin: "0 0 .6rem", color: "var(--text-secondary)", fontSize: ".82rem" }}>
-                  When this salesperson sends a gift from their own Greet-Me account and the
-                  recipient claims it, that claim can also attribute them — even if the recipient
-                  never visited their referral link.
-                </p>
-
-                {detail.linkedUserId ? (
-                  <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
-                    <p data-testid="fcc-linked-current" style={{ ...mono, margin: 0 }}>{detail.linkedUserId}</p>
-                    <button type="button" className="btn-secondary" data-testid="fcc-link-remove"
-                      disabled={linkBusy} onClick={unlinkAccount}>Unlink</button>
-                  </div>
-                ) : (
-                  <form onSubmit={resolveLinkAccount} style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
-                    <input data-testid="fcc-link-email" aria-label="Account email" type="email"
-                      value={linkEmail} onChange={(e) => { setLinkEmail(e.target.value); setLink({ state: STATES.EMPTY, account: null }); }}
-                      style={{ maxWidth: 260 }} />
-                    <button type="submit" className="btn-secondary" data-testid="fcc-link-resolve"
-                      disabled={linkBusy || !linkEmail.trim()}>
-                      {link.state === STATES.RESOLVING ? "Resolving…" : "Resolve"}
-                    </button>
-                  </form>
-                )}
-
-                {link.state === STATES.RESOLVED && link.account ? (
-                  <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: ".6rem .75rem", marginTop: ".6rem" }} data-testid="fcc-link-resolved">
-                    <p style={{ ...mono, margin: "0 0 .4rem" }}>
-                      {link.account.email} {"·"} {link.account.userId}
-                      {link.account.emailVerified ? "" : " · unverified"}
-                    </p>
-                    <button type="button" className="btn-primary" data-testid="fcc-link-confirm"
-                      disabled={!canLink(link.state, link.account) || linkBusy} onClick={confirmLinkAccount}>
-                      {linkBusy ? "Linking…" : "Link this account"}
-                    </button>
-                  </div>
-                ) : null}
-
-                {[STATES.INVALID_EMAIL, STATES.NOT_FOUND, STATES.AMBIGUOUS, STATES.SERVICE_FAILURE].includes(link.state) ? (
-                  <p data-testid="fcc-link-resolve-error" style={{ color: "var(--warning)", fontSize: ".84rem", marginTop: ".5rem" }}>
-                    {link.state === STATES.INVALID_EMAIL ? "Enter a valid email address."
-                      : link.state === STATES.NOT_FOUND ? "No Greet-Me account matches that email address."
-                        : link.state === STATES.AMBIGUOUS ? "That email matches more than one account."
-                          : "Could not reach the account service. Nothing was changed."}
-                  </p>
-                ) : null}
-
-                {linkWriteState ? (
-                  <p data-testid="fcc-link-write-message"
-                    style={{ color: linkWriteState.state === LINK_STATES.LINK_FAILED ? "var(--warning)" : "#2f6f4f", fontSize: ".84rem", marginTop: ".5rem" }}>
-                    {linkMessageFor(linkWriteState.state, linkWriteState.reason)}
-                  </p>
-                ) : null}
-              </div>
 
               {/* ── COMPENSATION ──
                   FORWARD-ONLY, and the copy says so plainly. Terms are frozen onto each customer

@@ -25,10 +25,10 @@ test("subscriptionSummary: saved schedule + override state; no saved terms says 
 
 test("giftSummary: schedule, fixed, off, unset, loading, error", () => {
   const sched = { year_1: 2000, year_2: 1000, year_3_plus: 1000 };
-  assert.equal(giftSummary({ enabled: true, rateSource: "customer_schedule", duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes"] }, sched), "Subscription schedule (20% / 10% / 10%) · ongoing · gift boxes");
-  assert.equal(giftSummary({ enabled: true, rateSource: "customer_schedule", duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes"] }, null), "Subscription schedule (no terms saved) · ongoing · gift boxes");
+  assert.equal(giftSummary({ enabled: true, rateSource: "customer_schedule", duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes"] }, sched), "Inherited (Year 1 20% · Year 2 10% · Year 3+ 10%) · ongoing · gift boxes");
+  assert.equal(giftSummary({ enabled: true, rateSource: "customer_schedule", duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes"] }, null), "Inherited (no subscription terms saved) · ongoing · gift boxes");
   assert.equal(giftSummary({ enabled: true, rateBps: 1250, duration: { mode: "months_from_first_gift", months: 6 }, eligibleTypes: ["gift_boxes", "merch", "flowers"] }), "12.5% of margin · 6 months from first gift · gift boxes, merch and flowers");
-  assert.equal(giftSummary({ enabled: false }), "Off: nothing accrues");
+  assert.equal(giftSummary({ enabled: false }), "Disabled: nothing accrues");
   assert.equal(giftSummary(null), "Not set: nothing accrues");
   assert.equal(giftSummary(null, null, "loading"), "Loading…");
   assert.equal(giftSummary(null, null, "error"), "Could not load gift commission terms");
@@ -47,4 +47,13 @@ test("no prefilled percentages: re-opening an OFF gift setting (stored rateBps 0
   assert.equal(draftFromCurrent({ enabled: false, rateBps: 0, duration: { mode: "ongoing" }, eligibleTypes: [] }).ratePercent, "");
   assert.equal(draftFromCurrent({ enabled: true, rateBps: 1500, duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes"] }).ratePercent, "15", "a saved ON rate still prefills");
   assert.equal(draftFromCurrent({ enabled: true, rateSource: "customer_schedule", rateBps: null, duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes"] }).ratePercent, "");
+});
+
+test("linksSummary: saved shareable link and state, account link, unavailable and error", async () => {
+  const { linksSummary } = await import("./commissionSummaries.js");
+  assert.equal(linksSummary({ state: "ready", vanityUrl: "https://greet-me.com/amir", vanityActive: true }, { linkedUserId: "u1" }), "greet-me.com/amir · Active · Account linked");
+  assert.equal(linksSummary({ state: "ready", vanityUrl: "https://greet-me.com/amir", vanityActive: false }, {}), "greet-me.com/amir · Paused · No account linked");
+  assert.equal(linksSummary({ state: "ready", vanityUrl: null }, {}), "No shareable link yet · No account linked");
+  assert.equal(linksSummary({ state: "unavailable" }, { referralSlug: "amir" }), "Vanity URL: amir · No account linked");
+  assert.equal(linksSummary({ state: "error" }, { linkedUserId: "u1" }), "Links not available right now · Account linked");
 });
