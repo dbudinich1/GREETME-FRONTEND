@@ -36,7 +36,6 @@ import { requiresDeliveryAddress } from '../components/ContactForm';
 import { relationshipErrors, sanitizeRelationshipForSave } from '../components/contactFormValidation.js';
 import SaveAuthorizationModal from '../components/w07Auth/SaveAuthorizationModal';
 import { planAuthorization } from '../utils/scheduledQrCashConsent';
-import { SCHEDULED_QRCASH_AVAILABLE } from '../config/scheduledQrCash';
 import { normalizeGiftSettingsForSave } from '../utils/occasionGiftSave';
 import {
   SCHEDULER_OCCASION_TYPES, isSchedulerOccasion, prefillRow, chooseGift, rowComplete, buildResolverContact, finalizeResolverSave,
@@ -51,6 +50,11 @@ import InfoTip from '../components/dashboard/InfoTip';
 import { qrCashQuote, centsToDollarString } from '../utils/qrCashAmount';
 import { DASHBOARD_HOME_CSS } from './dashboardHomeStyles';
 import { OCCASION_CHIPS, OCCASION_MENUS } from '../utils/dashboardOccasions';
+import ScheduledGiftPicker from '../components/scheduledGift/ScheduledGiftPicker';
+import ScheduledGiftEntry from '../components/scheduledGift/ScheduledGiftEntry';
+import { SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from '../config/scheduledPhysicalGift';
+import { scheduledGiftConsentsFor, authorizationStepEnabled } from '../utils/scheduledPhysicalGift';
+import { SCHEDULED_QRCASH_AVAILABLE } from '../config/scheduledQrCash';
 import { saveLauncherState, readLauncherState, clearLauncherState } from '../utils/dashboardLauncherState';
 import giftLuxuryBox from '../assets/gifts/gift-luxury-box.png';
 import giftBouquet from '../assets/gifts/gift-bouquet.png';
@@ -288,6 +292,9 @@ export default function DashboardHome() {
   const [giftNote, setGiftNote] = useState('');
   const [rows, setRows] = useState(K('rows', {}));
   const [datesOpen, setDatesOpen] = useState(K('datesOpen', false));
+  // Scheduled physical gift (Report 117 U1): the row whose product picker is open. Its card and consent are collected
+  // at the final confirmation (Save schedules -> the scheduler's own authorisation step), never in the picker.
+  const [sgPick, setSgPick] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
   const [authModal, setAuthModal] = useState(null);
@@ -417,12 +424,12 @@ export default function DashboardHome() {
     try {
       const people = chosen.slice();
       let card; // fetched once, only if a QR Cash Auto-Gift is involved
-      const plan = SCHEDULED_QRCASH_AVAILABLE ? async (person, toSave) => {
+      const plan = authorizationStepEnabled(SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_PHYSICAL_GIFT_AVAILABLE) ? async (person, toSave) => {
         const settings = normalizeGiftSettingsForSave(toSave.occasionGiftSettings);
-        if (card === undefined && Object.values(settings || {}).some((g) => g && g.type === 'qrcash' && g.autoGift === true)) {
+        if (card === undefined && hasAutoGiftNeedingCard(settings)) {
           try { const r = await api.getQrCashCardStatus(); card = (r && r.card) || null; } catch { card = null; }
         }
-        return planAuthorization({ settings, initialSettings: person.occasionGiftSettings, occasions: toSave.occasions, card: card || null, formData: toSave, labelFor: labelForType, requiresDelivery: requiresDeliveryAddress }).need;
+        return planAuthorization({ settings, initialSettings: person.occasionGiftSettings, occasions: toSave.occasions, card: card || null, formData: toSave, labelFor: labelForType, requiresDelivery: requiresDeliveryAddress, storedScheduledGiftConsents: person.scheduledGiftConsents }).need;
       } : null;
       const results = await saveGroupSchedules({
         people, rowFor: (p) => groupRowOf(p), api, sanitize: sanitizeRelationshipForSave, plan,
@@ -435,6 +442,15 @@ export default function DashboardHome() {
       setSaving(false);
     }
   };
+
+  const sgConsents = (types) => (types && types.length ? scheduledGiftConsentsFor(types) : null);
+  const hasAutoGiftNeedingCard = (settings) => Object.values(settings || {}).some((g) => g && g.autoGift === true && (g.type === 'qrcash' || g.scheduledGift));
+  const dayLabel = (d) => { const t = d ? new Date(`${String(d).slice(0, 10)}T12:00:00`) : null; return t && !Number.isNaN(t.getTime()) ? t.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : 'the occasion date'; };
+  // After a save has succeeded (never before): what happens on the date for each scheduled physical gift on Auto-Gift.
+  const sgAfterSave = (toSave) => Object.entries(toSave.occasionGiftSettings || {}).filter(([, g]) => g && g.scheduledGift && g.autoGift === true)
+    .map(([t, g]) => ` On ${dayLabel(((toSave.occasions || []).find((o) => o.type === t) || {}).date)}, the greeting is sent and ${g.scheduledGift.name || 'the gift'} is charged to your saved card and ordered; delivery follows after that date.`).join('');
+  // Physical gift types whose exact product can be chosen for the date (Goody gift box, Printful Branded Goods).
+  const sgChoosable = (g) => SCHEDULED_PHYSICAL_GIFT_AVAILABLE && g && ['merch', 'marketplace', 'gift_boxes'].includes(g.type);
 
   const groupSaveMsg = (results) => {
     const saved = results.filter((x) => x.status === 'saved').length;
@@ -452,33 +468,33 @@ export default function DashboardHome() {
     const toSave = sanitizeRelationshipForSave(built);
     const settings = normalizeGiftSettingsForSave(toSave.occasionGiftSettings);
     let card = null;
-    if (Object.values(settings || {}).some((g) => g && g.type === 'qrcash' && g.autoGift === true)) {
+    if (hasAutoGiftNeedingCard(settings)) {
       try { const r = await api.getQrCashCardStatus(); card = (r && r.card) || null; }
       catch { setSaveMsg({ ok: false, text: 'We couldn’t check the card on file just now. Please try again.' }); return; }
     }
-    const plan = planAuthorization({ settings, initialSettings: person.occasionGiftSettings, occasions: toSave.occasions, card, formData: toSave, labelFor: labelForType, requiresDelivery: requiresDeliveryAddress });
+    const plan = planAuthorization({ settings, initialSettings: person.occasionGiftSettings, occasions: toSave.occasions, card, formData: toSave, labelFor: labelForType, requiresDelivery: requiresDeliveryAddress, storedScheduledGiftConsents: person.scheduledGiftConsents });
     setAuthForm(toSave); setAuthModal({ plan, card, person, group: true });
   };
-  const commitGroupPerson = async (person, toSave, consents = []) => {
-    const res = await api.updateContact(person.id, finalizeResolverSave(toSave, consents));
+  const commitGroupPerson = async (person, toSave, consents = [], sgTypes = []) => {
+    const res = await api.updateContact(person.id, finalizeResolverSave(toSave, consents, sgConsents(sgTypes)));
     if (res && res.ok === false) {
       throw new Error(res.networkError ? 'We couldn’t save — check your connection and try again.' : (res.error || res.message || 'We couldn’t save this schedule.'));
     }
     const next = { ...groupResults, [person.id]: { id: person.id, status: 'saved' } };
     setGroupResults(next);
     setSaveMsg(groupSaveMsg(chosen.map((p) => next[p.id] || { id: p.id, status: 'failed' })));
-    showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
+    showManualToast('Saved ✓', sgAfterSave(toSave).trim() || 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
     fetchDashboardData();
   };
 
-  const commitSchedules = async (person, toSave, consents = []) => {
-    const res = await api.updateContact(person.id, finalizeResolverSave(toSave, consents));
+  const commitSchedules = async (person, toSave, consents = [], sgTypes = []) => {
+    const res = await api.updateContact(person.id, finalizeResolverSave(toSave, consents, sgConsents(sgTypes)));
     if (res && res.ok === false) {
       throw new Error(res.networkError ? 'We couldn’t save — check your connection and try again.' : (res.error || res.message || 'We couldn’t save those schedules. Please try again.'));
     }
     const n = occasions.length;
-    setSaveMsg({ ok: true, text: `Saved: ${n} scheduled Greet-Me${n === 1 ? '' : 's'} for ${first(person.name)}, each on its own date. You’ll find ${n === 1 ? 'it' : 'them'} in their Occasion Scheduler and under Upcoming Occasions.` });
-    showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
+    setSaveMsg({ ok: true, text: `Saved: ${n} scheduled Greet-Me${n === 1 ? '' : 's'} for ${first(person.name)}, each on its own date. You’ll find ${n === 1 ? 'it' : 'them'} in their Occasion Scheduler and under Upcoming Occasions.${sgAfterSave(toSave)}` });
+    showManualToast('Saved ✓', sgAfterSave(toSave).trim() || 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
     fetchDashboardData();
   };
 
@@ -494,19 +510,19 @@ export default function DashboardHome() {
       }
       const toSave = sanitizeRelationshipForSave(built);
       const settings = normalizeGiftSettingsForSave(toSave.occasionGiftSettings);
-      if (SCHEDULED_QRCASH_AVAILABLE) {
+      if (authorizationStepEnabled(SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_PHYSICAL_GIFT_AVAILABLE)) {
         // The scheduler's own SAVE-time authorisation: consent for a new or changed QR Cash Auto-Gift, a card when
         // none usable is on file, the mailing address of a shipped gift. Nothing is requested when none applies.
         let card = null;
-        if (Object.values(settings || {}).some((g) => g && g.type === 'qrcash' && g.autoGift === true)) {
+        if (hasAutoGiftNeedingCard(settings)) {
           try { const res = await api.getQrCashCardStatus(); card = (res && res.card) || null; }
           catch { setSaveMsg({ ok: false, text: 'We couldn’t check the card on file just now. Please try again.' }); return; }
         }
         const plan = planAuthorization({
           settings, initialSettings: person.occasionGiftSettings, occasions: toSave.occasions, card, formData: toSave,
-          labelFor: labelForType, requiresDelivery: requiresDeliveryAddress,
+          labelFor: labelForType, requiresDelivery: requiresDeliveryAddress, storedScheduledGiftConsents: person.scheduledGiftConsents,
         });
-        if (plan.need.consent || plan.need.address) { setAuthForm(toSave); setAuthModal({ plan, card, person }); return; }
+        if (plan.need.consent || plan.need.address || plan.need.scheduledGiftConsent || plan.need.card) { setAuthForm(toSave); setAuthModal({ plan, card, person }); return; }
       }
       await commitSchedules(person, toSave);
     } catch (error) {
@@ -1035,7 +1051,13 @@ export default function DashboardHome() {
         {/* Dates & gifts: one scheduled Greet-Me per occasion (or per person), saved through each recipient's own Occasion
             Scheduler. Close keeps every choice; Save schedules saves. It steps aside while the scheduler's own
             authorisation step (consent, card, address) is open. */}
-        {datesOpen && (resolverOn || groupSchedOn) && !authModal ? (
+        {SCHEDULED_PHYSICAL_GIFT_AVAILABLE && sgPick ? (
+          <ScheduledGiftPicker isOpen contact={sgPick.person} occasionLabel={sgPick.occasion}
+            occasionDateLabel={sgPick.date ? new Date(`${String(sgPick.date).slice(0, 10)}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : 'the occasion date'}
+            initial={sgPick.initial} onClose={() => setSgPick(null)}
+            onSave={(setting) => { sgPick.apply(setting); setSgPick(null); }} />
+        ) : null}
+        {datesOpen && (resolverOn || groupSchedOn) && !authModal && !sgPick ? (
           <div className="grv-backdrop" role="dialog" aria-modal="true" aria-labelledby="gx-dates-title" data-testid="gx-dates-modal" onKeyDown={(e) => { if (e.key === 'Escape') setDatesOpen(false); }}>
             <div className="grv">
               <div className="grv-head">
@@ -1062,8 +1084,10 @@ export default function DashboardHome() {
                         <input type="date" aria-label={`${o} date`} value={r.date || ''} onChange={(e) => setRow(o, { date: e.target.value })} className="rdate" />
                         <select aria-label={`${o} gift`} value={r.gift ? r.gift.type : ''} onChange={(e) => setRow(o, { gift: chooseGift(r, e.target.value) })} className="rgift">
                           {RESOLVER_GIFT_OPTIONS.map(([v, t]) => <option key={v} value={v} disabled={v === ''}>{t}</option>)}
+                          {r.gift && r.gift.type === 'gift_boxes' ? <option value="gift_boxes">Gift box</option> : null}
                         </select>
                         <span className="rline"><ScheduledGiftLine gift={r.gift} />{r.gift && r.gift.type !== 'none' ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(resolvePerson.id, r.type)}>Gift details in their Occasion Scheduler</button></> : null}</span>
+                        {sgChoosable(r.gift) ? <div style={{ gridColumn: '1 / -1' }}><ScheduledGiftEntry compact setting={r.gift} onChoose={() => setSgPick({ person: resolvePerson, occasion: o, type: r.type, date: r.date, initial: r.gift, apply: (g) => setRow(o, { gift: g }) })} onRemove={() => setRow(o, { gift: { type: 'none', autoGift: false } })} /></div> : null}
                       </div>
                     );
                   })}
@@ -1091,9 +1115,11 @@ export default function DashboardHome() {
                             <select aria-label={`${p.name} gift`} value={raw.chosen ? raw.chosen.type : 'default'} onChange={(e) => setGroupRow(p, { chosen: e.target.value === 'default' ? null : chooseGift({ gift: raw.gift }, e.target.value) })} className="rgift">
                               <option value="default">{raw.gift ? `Keep their saved gift (${(RESOLVER_GIFT_OPTIONS.find(([v]) => v === raw.gift.type) || [null, raw.gift.type])[1]})` : groupDefaultGift ? 'Same as everyone' : 'Choose a gift…'}</option>
                               {RESOLVER_GIFT_OPTIONS.filter(([v]) => v !== '').map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                              {raw.chosen && raw.chosen.type === 'gift_boxes' ? <option value="gift_boxes">Gift box</option> : null}
                             </select>
                             <span className="rline">{res && res.status === 'failed' ? res.message : null}{res && res.status === 'needs_scheduler' ? (res.need && res.need.relationship ? 'Their relationship details need finishing in their Occasion Scheduler. '
-                              : <>{res.need && res.need.address && !res.need.consent && !res.need.card ? 'Their delivery address is needed. ' : res.need && (res.need.consent || res.need.card) && !res.need.address ? 'Your Auto-Gift authorization is needed. ' : 'Their delivery address and your Auto-Gift authorization are needed. '}<button type="button" className="btn btn-xs btn-primary" style={{ height: 30 }} data-testid="gx-group-finish" onClick={() => finishGroupPerson(p)}>Add missing details</button> </>) : null}{!res || res.status !== 'failed' ? <ScheduledGiftLine gift={r.gift} /> : null}{r.gift && r.gift.type !== 'none' || (res && res.status === 'needs_scheduler') ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(p.id, SCHEDULER_TYPE_OF(occasions[0]))}>Gift details in their Occasion Scheduler</button></> : null}</span>
+                              : <>{res.need && res.need.address && !res.need.consent && !res.need.card ? 'Their delivery address is needed. ' : res.need && (res.need.consent || res.need.card || res.need.scheduledGiftConsent) && !res.need.address ? 'Your Auto-Gift authorization is needed. ' : 'Their delivery address and your Auto-Gift authorization are needed. '}<button type="button" className="btn btn-xs btn-primary" style={{ height: 30 }} data-testid="gx-group-finish" onClick={() => finishGroupPerson(p)}>Add missing details</button> </>) : null}{!res || res.status !== 'failed' ? <ScheduledGiftLine gift={r.gift} /> : null}{r.gift && r.gift.type !== 'none' || (res && res.status === 'needs_scheduler') ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(p.id, SCHEDULER_TYPE_OF(occasions[0]))}>Gift details in their Occasion Scheduler</button></> : null}</span>
+                            {sgChoosable(r.gift) ? <div style={{ gridColumn: '1 / -1' }}><ScheduledGiftEntry compact setting={r.gift} onChoose={() => setSgPick({ person: p, occasion: occasions[0], type: SCHEDULER_TYPE_OF(occasions[0]), date: r.date, initial: r.gift, apply: (g) => setGroupRow(p, { chosen: g }) })} onRemove={() => setGroupRow(p, { chosen: { type: 'none', autoGift: false } })} /></div> : null}
                           </div>
                         );
                       })}
@@ -1148,14 +1174,14 @@ export default function DashboardHome() {
       </div>
 
       {/* W07 SAVE-time authorization for the inline resolver — the scheduler's own modal, shown only when needed. */}
-      {SCHEDULED_QRCASH_AVAILABLE && authModal && authForm && (
+      {authorizationStepEnabled(SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_PHYSICAL_GIFT_AVAILABLE) && authModal && authForm && (
         <SaveAuthorizationModal
           plan={authModal.plan} card={authModal.card}
           formData={authForm} setFormData={setAuthForm}
           onCancel={() => { setAuthModal(null); setAuthForm(null); }}
-          onSave={async (consents) => {
-            if (authModal.group) await commitGroupPerson(authModal.person, sanitizeRelationshipForSave(authForm), consents);
-            else await commitSchedules(authModal.person, sanitizeRelationshipForSave(authForm), consents);
+          onSave={async (consents, sgTypes = []) => {
+            if (authModal.group) await commitGroupPerson(authModal.person, sanitizeRelationshipForSave(authForm), consents, sgTypes);
+            else await commitSchedules(authModal.person, sanitizeRelationshipForSave(authForm), consents, sgTypes);
             setAuthModal(null); setAuthForm(null);
           }}
         />

@@ -74,3 +74,32 @@ test("projectGiftCards drops a Prezzee item from a mixed list without dropping i
   );
   assert.deepEqual(cards.map((c) => c.id), ["a", "c"]);
 });
+
+// Gift boxes whose provider REQUIRES an option (BE 519928c sets requiresOptions: true only then). Strictly === true:
+// a product that merely lists options carries no flag and stays selectable.
+import { fromProviderProduct, requiresOptions, withOptionsNote, OPTIONS_UNAVAILABLE_NOTE } from "./giftPlaceViewModel.js";
+
+test("requiresOptions is true only for the flag === true, never for an option list or a truthy non-boolean", () => {
+  assert.equal(requiresOptions({ requiresOptions: true }), true);
+  for (const p of [null, undefined, {}, { requiresOptions: false }, { requiresOptions: "true" }, { requiresOptions: 1 },
+    { variants: [{ id: "blk" }, { id: "wht" }] }, { options: ["Black"] }]) assert.equal(requiresOptions(p), false, JSON.stringify(p));
+});
+
+test("fromProviderProduct: a flagged box carries the note; a listed-options box does not", () => {
+  const req = fromProviderProduct({ providerProductId: "a", name: "Speaker", priceMinor: 5999, currency: "USD", requiresOptions: true });
+  const listed = fromProviderProduct({ providerProductId: "b", name: "Charger", priceMinor: 4499, currency: "USD", variants: [{ id: "blk" }] });
+  assert.equal(req.unavailableNote, OPTIONS_UNAVAILABLE_NOTE);
+  assert.equal(OPTIONS_UNAVAILABLE_NOTE, "Options can't be chosen here yet");
+  assert.equal("unavailableNote" in listed, false);
+});
+
+test("withOptionsNote marks only the curated cards whose provider product is flagged; unchanged input when none is", () => {
+  const cards = [{ id: "c1", providerProductId: "a" }, { id: "c2", providerProductId: "b" }, { id: "c3" }];
+  const out = withOptionsNote(cards, [{ providerProductId: "a", requiresOptions: true }, { providerProductId: "b", variants: [{ id: "x" }] }]);
+  assert.equal(out[0].unavailableNote, OPTIONS_UNAVAILABLE_NOTE);
+  assert.equal("unavailableNote" in out[1], false);
+  assert.equal("unavailableNote" in out[2], false);
+  const none = withOptionsNote(cards, [{ providerProductId: "b" }]);
+  assert.equal(none, cards);
+  assert.equal(withOptionsNote(cards, undefined), cards);
+});

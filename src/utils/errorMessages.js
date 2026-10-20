@@ -1,6 +1,9 @@
 import { recipientLimitMessage } from './sendGating.js';
 
 const ERROR_MESSAGES = {
+  // Scheduled physical gift (Report 117 contract v1): the server refuses Auto-Gift without a current consent or a saved card.
+  CONSENT_REQUIRED: 'Please confirm Auto-Gift for this gift again: choose “Change” on the gift and tick the consent. The gift, its delivery or its maximum changed.',
+  CARD_REQUIRED: 'Auto-Gift needs a saved card. Add one in the gift’s Auto-Gift step, or keep the gift as a reminder.',
   RATE_LIMIT_LOGIN: 'Too many login attempts. Please wait 15 minutes before trying again.',
   RATE_LIMIT_SIGNUP: 'Too many signup attempts. Please try again later.',
   RATE_LIMIT_RESET: 'Too many password reset requests. Please check your email or try again later.',

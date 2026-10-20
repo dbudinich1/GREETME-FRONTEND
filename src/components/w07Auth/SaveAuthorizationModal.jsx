@@ -6,7 +6,10 @@
 //   * a card for future charges when none usable is on file (existing Team 2 steps: POST /qrcash-card/setup, Stripe confirmCardSetup,
 //     POST /qrcash-card/complete);
 //   * the recipient's mailing address, once, when a shipped gift has none.
-// Its SAVE finishes the same save (the parent sends the `occasionGiftConsents` it returns). Cancel saves nothing.
+//   * ONE consent block per new or changed scheduled physical gift on Auto-Gift (Report 117 contract v1), with the gift, the
+//     date and the authorised maximum (wording sched-gift-v1).
+// Its SAVE finishes the same save: onSave(occasionGiftConsents, scheduledGiftConsentOccasions); the parent sends both.
+// Cancel saves nothing and keeps every selection.
 //
 // DORMANT: ContactForm renders this only when SCHEDULED_QRCASH_AVAILABLE is true. Nothing is charged here: saving a card only
 // authorizes the charges described in the consent text.
@@ -17,6 +20,8 @@ import api from '../../api/api';
 import { stripePromise } from '../../stripe/stripeProvider';
 import { getErrorMessage } from '../../utils/errorMessages';
 import { buildConsentPayload, consentParagraphs, CONSENT_TICK_LABEL, SCHED_QRCASH_WORDING_VERSION } from '../../utils/scheduledQrCashConsent';
+import { scheduledGiftConsentText } from '../../utils/scheduledPhysicalGift';
+import { SCHEDULED_GIFT_WORDING_VERSION } from '../../config/scheduledPhysicalGift';
 
 export const ERROR_COPY = {
   'consent-missing': 'Please tick the box to authorize future charges.',
@@ -51,6 +56,8 @@ function CardField({ onReady, onChange }) {
 
 function Inner({ plan, card, formData, setFormData, onSave, onCancel, withStripe }) {
   const { items, need } = plan;
+  const sgItems = plan.scheduledGiftItems || [];
+  const paymentNeeded = need.consent || need.scheduledGiftConsent || need.card;
   const [consents, setConsents] = useState({});
   const [errors, setErrors] = useState({});
   const [errorKeys, setErrorKeys] = useState({});
@@ -77,6 +84,7 @@ function Inner({ plan, card, formData, setFormData, onSave, onCancel, withStripe
     }
     const missing = {};
     if (need.consent) for (const it of items) if (!consents[it.key]) missing[it.key] = 'consent-missing';
+    if (need.scheduledGiftConsent) for (const it of sgItems) if (!consents[`sg:${it.key}`]) missing[`sg:${it.key}`] = 'consent-missing';
     let setup = null;
     const needCardNow = need.card && !cardDone.current;
     if (needCardNow && !Object.keys(missing).length) {
@@ -100,7 +108,7 @@ function Inner({ plan, card, formData, setFormData, onSave, onCancel, withStripe
         cardDone.current = true; // the card is on file now; a retry of the save must not set it up again
       }
       try {
-        await onSave(buildConsentPayload(items));
+        await onSave(buildConsentPayload(items), sgItems.map((i) => i.key));
       } catch (err) {
         setSubmitError(getErrorMessage(err));
       }
@@ -125,7 +133,10 @@ function Inner({ plan, card, formData, setFormData, onSave, onCancel, withStripe
       <div role="dialog" aria-modal="true" aria-label="Finish saving" data-testid="save-modal" style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: '#fff', borderRadius: 14, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', zIndex: 1000, width: '94%', maxWidth: 520, maxHeight: '92vh', overflow: 'auto', padding: '1.1rem 1.25rem' }}>
         <h2 style={{ margin: '0 0 4px', fontSize: '1.15rem' }}>Almost done</h2>
         <p style={{ margin: '0 0 12px', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-          {need.card && need.address ? 'We need a payment method for Auto-Gift and the mailing address for this gift before we save.'
+          {need.scheduledGiftConsent && need.consent && !need.card ? 'Please confirm your authorization for each Auto-Gift below before we save.'
+            : need.scheduledGiftConsent && need.card ? 'Auto-Gift orders this gift on the occasion date, so we need a card for that charge and your authorization before we save.'
+            : need.scheduledGiftConsent ? (sgItems.length > 1 ? 'Please confirm Auto-Gift for each gift below before we save.' : 'Please confirm Auto-Gift for this gift before we save.')
+            : need.card && need.address ? 'We need a payment method for Auto-Gift and the mailing address for this gift before we save.'
             : need.card ? 'Auto-Gift needs a valid payment method on file before we save.'
             : need.consent && need.address ? 'Please confirm your Auto-Gift authorization and give the mailing address for this gift before we save.'
             : need.consent ? (items.length > 1 ? 'Please confirm your authorization for each Auto-Gift below before we save.' : 'You changed this Auto-Gift, so please confirm your authorization before we save.')
@@ -150,7 +161,7 @@ function Inner({ plan, card, formData, setFormData, onSave, onCancel, withStripe
           </section>
         )}
 
-        {need.consent && (
+        {paymentNeeded && (
           <div data-testid="qrcash-authorization">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: '0.9375rem' }}>
               <ShieldCheck size={18} style={{ color: 'var(--primary-dark)' }} /> Payment for Auto-Gift
@@ -177,11 +188,23 @@ function Inner({ plan, card, formData, setFormData, onSave, onCancel, withStripe
                   {consentParagraphs(it).map((p, i) => <p key={i} style={{ margin: '0 0 6px' }}>{p}</p>)}
                 </div>
                 <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}>
-                  <input type="checkbox" data-testid="consent-checkbox" checked={!!consents[it.key]} onChange={(e) => { setConsents((c) => ({ ...c, [it.key]: e.target.checked })); setErrorKeys((x) => ({ ...x, [it.key]: undefined })); setSetupError(null); }} />
+                  <input type="checkbox" data-testid="consent-checkbox" style={{ width: 'auto', flex: 'none', margin: 0 }} checked={!!consents[it.key]} onChange={(e) => { setConsents((c) => ({ ...c, [it.key]: e.target.checked })); setErrorKeys((x) => ({ ...x, [it.key]: undefined })); setSetupError(null); }} />
                   {CONSENT_TICK_LABEL}
                 </label>
                 <p style={{ ...small, marginTop: 2 }}>Wording version {SCHED_QRCASH_WORDING_VERSION} (sent with your confirmation).</p>
                 {errorKeys[it.key] && <p role="alert" data-testid="auth-error" style={{ ...bad, fontWeight: 600 }}>{ERROR_COPY[errorKeys[it.key]]}</p>}
+              </div>
+            ))}
+            {sgItems.map((it) => (
+              <div key={`sg:${it.key}`} data-testid={`sg-consent-block-${it.key}`} style={{ borderTop: '1px solid var(--border)', marginTop: 10, paddingTop: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 4 }}>{it.label}{it.name ? ` — ${it.name}` : ''}</div>
+                <p data-testid="sg-consent-text" style={{ fontSize: '0.75rem', lineHeight: 1.5, margin: '0 0 6px' }}>{scheduledGiftConsentText({ dateLabel: it.dateLabel, maxTotalCents: it.maxTotalCents })}</p>
+                <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}>
+                  <input type="checkbox" data-testid="sg-consent-checkbox" style={{ width: 'auto', flex: 'none', margin: 0 }} checked={!!consents[`sg:${it.key}`]} onChange={(e) => { setConsents((c) => ({ ...c, [`sg:${it.key}`]: e.target.checked })); setErrorKeys((x) => ({ ...x, [`sg:${it.key}`]: undefined })); setSetupError(null); }} />
+                  I agree to Auto-Gift for this gift
+                </label>
+                <p style={{ ...small, marginTop: 2 }}>Wording version {SCHEDULED_GIFT_WORDING_VERSION} (sent with your confirmation).</p>
+                {errorKeys[`sg:${it.key}`] && <p role="alert" data-testid="auth-error" style={{ ...bad, fontWeight: 600 }}>{ERROR_COPY[errorKeys[`sg:${it.key}`]]}</p>}
               </div>
             ))}
             {setupError && <p role="alert" data-testid="auth-error" style={{ ...bad, fontWeight: 600 }}>{ERROR_COPY[setupError]}</p>}

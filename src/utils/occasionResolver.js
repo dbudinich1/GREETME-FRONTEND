@@ -10,6 +10,7 @@ import { occasionTypes, calculateVaryingOccasionDate } from './helpers';
 import { RECIPIENT_OCCASIONS } from './dashboardOccasions.js';
 import { normalizeGiftSettingsForSave, QRCASH_DEFAULT_DOLLARS } from './occasionGiftSave';
 import { SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_QRCASH_UNAVAILABLE_COPY } from '../config/scheduledQrCash';
+import { SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from '../config/scheduledPhysicalGift.js';
 
 // Dashboard occasion label -> Occasion Scheduler type: every occasion on the Recipients page's list (utils/helpers.js
 // occasionTypes) that the backend scheduler auto-sends. Graduation and Get Well are one-time occasions the scheduler
@@ -37,9 +38,13 @@ export const RESOLVER_GIFT_OPTIONS = Object.freeze([
  * other gift — including other types on Auto-Gift — gets the scheduler's 10-day reminder and is not charged
  * automatically.
  */
-export function resolverGiftStatus(gift, scheduledQrCashAvailable = SCHEDULED_QRCASH_AVAILABLE) {
+export function resolverGiftStatus(gift, scheduledQrCashAvailable = SCHEDULED_QRCASH_AVAILABLE, scheduledPhysicalAvailable = SCHEDULED_PHYSICAL_GIFT_AVAILABLE) {
   if (!gift) return { label: '', detail: '' };
   if (gift.type === 'none') return { label: 'No gift', detail: 'The greeting is scheduled with no gift.' };
+  // A chosen product with Auto-Gift consented (Report 117 contract v1), only while scheduled physical gifts are live.
+  if (gift.scheduledGift && gift.autoGift === true && scheduledPhysicalAvailable) {
+    return { label: 'Auto-Gift on', detail: 'On the occasion date we check the gift is available and the full total is within your maximum, then charge your saved card and place the order. Delivery follows after the occasion date. If it is unavailable or costs more, nothing is charged and the greeting is sent without the gift.' };
+  }
   if (gift.type === 'qrcash' && !scheduledQrCashAvailable) return { label: 'Reminder only \u2014 confirmation required', detail: SCHEDULED_QRCASH_UNAVAILABLE_COPY };
   if (gift.type === 'qrcash' && gift.autoGift === true) {
     return { label: 'Auto-Gift on', detail: 'Sent automatically on the occasion date and charged to your saved card. You can turn Auto-Gift off in their Occasion Scheduler.' };
@@ -137,11 +142,13 @@ export function buildResolverContact(contact, rows) {
 }
 
 /** The final body, normalised exactly like ContactForm's commitSave. */
-export function finalizeResolverSave(toSave, consents = []) {
+export function finalizeResolverSave(toSave, consents = [], scheduledGiftConsents = null) {
   return {
     ...toSave,
     occasionGiftSettings: normalizeGiftSettingsForSave(toSave.occasionGiftSettings),
     ...(consents.length > 0 ? { occasionGiftConsents: consents } : {}),
+    // Scheduled physical gift consents the sender gave in its picker (Report 117 contract v1), only where newly needed.
+    ...(scheduledGiftConsents && Object.keys(scheduledGiftConsents).length > 0 ? { scheduledGiftConsents } : {}),
   };
 }
 
@@ -163,7 +170,7 @@ export function finalizeResolverSave(toSave, consents = []) {
  * @param {(results) => void} [p.onProgress]
  * @returns {Promise<Array<{id:string,status:'saved'|'needs_scheduler'|'failed',message?:string,need?:object}>>}
  */
-export async function saveGroupSchedules({ people, rowFor, api, sanitize, plan, validate, onProgress = () => {} }) {
+export async function saveGroupSchedules({ people, rowFor, api, sanitize, plan, validate, scheduledGiftConsentsFor = () => null, onProgress = () => {} }) {
   const results = [];
   for (const person of people) {
     try {
@@ -173,8 +180,8 @@ export async function saveGroupSchedules({ people, rowFor, api, sanitize, plan, 
       if (validate && !validate(built)) { results.push({ id: person.id, status: 'needs_scheduler', need: { relationship: true } }); onProgress(results.slice()); continue; }
       const toSave = sanitize(built);
       const need = plan ? await plan(person, toSave) : null;
-      if (need && (need.consent || need.address)) { results.push({ id: person.id, status: 'needs_scheduler', need }); onProgress(results.slice()); continue; }
-      const res = await api.updateContact(person.id, finalizeResolverSave(toSave));
+      if (need && (need.consent || need.address || need.scheduledGiftConsent || need.card)) { results.push({ id: person.id, status: 'needs_scheduler', need }); onProgress(results.slice()); continue; }
+      const res = await api.updateContact(person.id, finalizeResolverSave(toSave, [], scheduledGiftConsentsFor(person, toSave)));
       if (res && res.ok === false) {
         throw new Error(res.networkError ? 'We couldn’t save — check your connection and try again.' : (res.error || res.message || 'We couldn’t save this schedule.'));
       }

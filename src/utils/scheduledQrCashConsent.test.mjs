@@ -42,7 +42,7 @@ test("planAuthorization: unchanged occasions with a good card ask for nothing; A
   const settings = { birthday: qr(25), christmas: qr(50), anniversary: qr(25, false), easter: { type: "curated", amount: 40, autoGift: true } };
   const p = plan({ settings, initialSettings: settings });
   assert.deepEqual(p.items, []);
-  assert.deepEqual(p.need, { card: false, consent: false, address: false });
+  assert.deepEqual(p.need, { card: false, consent: false, scheduledGiftConsent: false, address: false });
 });
 
 test("planAuthorization: ONE item per changed or newly enabled QR Cash Auto-Gift occasion, for 1, 2, 3 and 4+ occasions", () => {
@@ -63,7 +63,7 @@ test("planAuthorization: with no usable card EVERY QR Cash Auto-Gift occasion ge
   for (const card of [null, { present: false }, { present: true, expired: true, expMonth: 1, expYear: 2020 }]) {
     const p = plan({ settings, initialSettings: settings, card });
     assert.deepEqual(p.items.map((i) => i.key).sort(), ["birthday", "christmas"]);
-    assert.deepEqual(p.need, { card: true, consent: true, address: false });
+    assert.deepEqual(p.need, { card: true, consent: true, scheduledGiftConsent: false, address: false });
   }
   const before = plan({ settings, initialSettings: settings, card: { present: true, expired: false, expMonth: 11, expYear: 2026 } });
   assert.equal(before.cardState, "expires-before", "a card expiring before an occasion date is not usable");
@@ -74,7 +74,7 @@ test("planAuthorization: a shipped gift never creates a consent item; it only cr
   const settings = { easter: { type: "curated", amount: 40, autoGift: true }, birthday: qr(25, false) };
   const p = plan({ settings, initialSettings: settings, formData: {} });
   assert.deepEqual(p.items, []);
-  assert.deepEqual(p.need, { card: false, consent: false, address: true });
+  assert.deepEqual(p.need, { card: false, consent: false, scheduledGiftConsent: false, address: true });
   assert.equal(addressMissing({ firstName: "A", shippingAddress: { line1: "1", city: "c", state: "s", zip: "z" } }, settings, requiresDelivery), false);
   assert.equal(addressMissing({}, { birthday: qr(25) }, requiresDelivery), false, "no shipped gift: no address needed");
 });
@@ -190,4 +190,34 @@ t("an unchanged occasion needs no entry: the server keeps it (the form omits it)
   assert.equal(res.ok, true, JSON.stringify(res));
   assert.deepEqual(Object.keys(res.snapshots).sort(), ["birthday", "christmas"]);
   assert.equal(res.snapshots.birthday.acceptedAt, "2026-01-01T00:00:00.000Z", "the earlier consent is untouched");
+});
+
+test("addressMissing: a scheduled physical gift with its own complete delivery snapshot never asks for the stored address; a plain shipped gift still does", async () => {
+  const { addressMissing } = await import("./scheduledQrCashConsent.js");
+  const req = (t) => ["curated", "flowers", "gift_boxes"].includes(t);
+  const sched = { christmas: { type: "gift_boxes", autoGift: true, scheduledGift: { v: 1, vendor: "goody", delivery: { firstName: "J", lastName: "R", address1: "12 Harbor Way", city: "Portland", state: "OR", postalCode: "97201", country: "US" } } } };
+  assert.equal(addressMissing({ firstName: "", shippingAddress: {} }, sched, req), false);
+  assert.equal(addressMissing({ firstName: "", shippingAddress: {} }, { christmas: { type: "curated", autoGift: false } }, req), true);
+});
+
+test("planAuthorization: a scheduled physical gift on Auto-Gift asks for its consent when new or changed, a card when none usable, and nothing when unchanged with a good card", async () => {
+  const { planAuthorization } = await import("./scheduledQrCashConsent.js");
+  const card = { present: true, expMonth: 12, expYear: 2030 };
+  const d = { firstName: "A", address1: "1 Main", city: "T", state: "NJ", postalCode: "07000", country: "US" };
+  const g = { type: "gift_boxes", autoGift: true, scheduledGift: { v: 1, vendor: "gift_boxes", providerProductId: "p", variants: [], quantity: 1, name: "Cookie Box", maxTotalCents: 4600, delivery: d } };
+  const base = { occasions: [{ type: "christmas", date: "2026-12-25" }], formData: { firstName: "A" }, labelFor: () => "Christmas", requiresDelivery: (t) => ["curated", "gift_boxes"].includes(t) };
+  const fresh = planAuthorization({ ...base, settings: { christmas: g }, initialSettings: {}, card });
+  assert.deepEqual(fresh.need, { card: false, consent: false, scheduledGiftConsent: true, address: false });
+  assert.deepEqual(fresh.scheduledGiftItems, [{ key: "christmas", label: "Christmas", date: "2026-12-25", dateLabel: "December 25", name: "Cookie Box", maxTotalCents: 4600 }]);
+  const noCard = planAuthorization({ ...base, settings: { christmas: g }, initialSettings: {}, card: null });
+  assert.equal(noCard.need.card, true, "no usable card: the card step is needed");
+  const stored = { christmas: { wordingVersion: "sched-gift-v1", maxTotalCents: 4600 } };
+  const unchanged = planAuthorization({ ...base, settings: { christmas: g }, initialSettings: { christmas: g }, card, storedScheduledGiftConsents: stored });
+  assert.deepEqual(unchanged.need, { card: false, consent: false, scheduledGiftConsent: false, address: false }, "reuse: nothing asked again");
+  const noStored = planAuthorization({ ...base, settings: { christmas: g }, initialSettings: { christmas: g }, card });
+  assert.equal(noStored.need.scheduledGiftConsent, true, "a stored Auto-Gift with no stored consent is asked (server parity)");
+  const lower = planAuthorization({ ...base, settings: { christmas: { ...g, scheduledGift: { ...g.scheduledGift, maxTotalCents: 4000 } } }, initialSettings: { christmas: g }, card, storedScheduledGiftConsents: stored });
+  assert.equal(lower.need.scheduledGiftConsent, false, "a lower maximum keeps the consent");
+  const reminder = planAuthorization({ ...base, settings: { christmas: { ...g, autoGift: false } }, initialSettings: {}, card: null });
+  assert.deepEqual(reminder.need, { card: false, consent: false, scheduledGiftConsent: false, address: false }, "a reminder needs no card and no consent");
 });

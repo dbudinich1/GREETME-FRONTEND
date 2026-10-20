@@ -39,7 +39,7 @@ import ManageCatalogModal from '../components/founderCatalog/ManageCatalogModal'
 // a second grid.
 import { GiftProductGrid } from '../components/giftPlace/GiftProductCard';
 import {
-  actionLabelFor, fromCatalogProduct, fromCuratedProduct, giftTypeForSelector, GIFT_SOURCES,
+  actionLabelFor, fromCatalogProduct, fromCuratedProduct, giftTypeForSelector, GIFT_SOURCES, withOptionsNote, requiresOptions, OPTIONS_UNAVAILABLE_NOTE,
   projectGiftCards,
 } from './giftPlaceViewModel';
 // The posture gate and the four proven catalogue states, in a hook so they stay assertable by
@@ -291,9 +291,9 @@ export default function Merch() {
   // in the same shape. This is the line that makes Flowers and Americana the same page.
   const cards = useMemo(() => (
     isCuratedSelection
-      ? projectGiftCards(visibleProducts, fromCuratedProduct)
+      ? withOptionsNote(projectGiftCards(visibleProducts, fromCuratedProduct), giftBasketsProviderProducts)
       : projectGiftCards(visibleProducts, fromCatalogProduct)
-  ), [isCuratedSelection, visibleProducts]);
+  ), [isCuratedSelection, visibleProducts, giftBasketsProviderProducts]);
 
   // The grid's state, from whichever source is feeding it.
   const gridState = isCuratedSelection
@@ -340,6 +340,7 @@ export default function Merch() {
       alert('This item is still loading. Please try again in a moment.');
       return;
     }
+    if (requiresOptions(chosen)) { alert(`${OPTIONS_UNAVAILABLE_NOTE}. Please choose another gift.`); return; }
     let saved = {};
     try {
       saved = JSON.parse(sessionStorage.getItem('sendGreetingState') || '{}');
@@ -406,6 +407,7 @@ export default function Merch() {
       alert('This item is still loading. Please try again in a moment.');
       return;
     }
+    if (requiresOptions(chosen)) { alert(`${OPTIONS_UNAVAILABLE_NOTE}. Please choose another gift.`); return; }
     setPickerProduct(null);
     // Held for the checkout the shopper may or may not go on to open. Choosing a different
     // arrangement replaces it, exactly as a second merch selection replaces the first.

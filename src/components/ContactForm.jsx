@@ -18,6 +18,10 @@ import api from '../api/api';
 import { SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_QRCASH_UNAVAILABLE_COPY } from '../config/scheduledQrCash';
 // W07 SAVE-time authorization (DORMANT: every use below is behind SCHEDULED_QRCASH_AVAILABLE, which is false until activation).
 import SaveAuthorizationModal from './w07Auth/SaveAuthorizationModal';
+import ScheduledGiftPicker from './scheduledGift/ScheduledGiftPicker';
+import ScheduledGiftEntry from './scheduledGift/ScheduledGiftEntry';
+import { SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from '../config/scheduledPhysicalGift';
+import { scheduledGiftConsentsFor, authorizationStepEnabled } from '../utils/scheduledPhysicalGift';
 import PaymentInfoTriangle from './w07Auth/PaymentInfoTriangle';
 import { planAuthorization } from '../utils/scheduledQrCashConsent';
 import { QRCASH_DEFAULT_DOLLARS, normalizeGiftSettingsForSave } from '../utils/occasionGiftSave';
@@ -392,6 +396,21 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
     return formData.occasionGiftSettings?.[occasionValue] || { type: 'none', autoGift: false };
   };
 
+  // Scheduled physical gift (Report 117 U1): the occasion whose picker is open. Its card and consent are collected at
+  // SAVE, in the scheduler's own authorisation step, never in the picker.
+  const [sgPicker, setSgPicker] = useState(null);
+  const sgDateLabel = (occ) => {
+    const d = ((formData.occasions || []).find((o) => o.type === occ) || {}).date;
+    const t = d ? new Date(`${String(d).slice(0, 10)}T12:00:00`) : null;
+    return t && !Number.isNaN(t.getTime()) ? t.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : 'the occasion date';
+  };
+  // Only for the physical gift types whose exact product can be chosen (as in the dashboard): never under QR Cash or
+  // "Let Greet-Me select a gift" (Team 6 Christmas-journey finding).
+  const renderScheduledGift = (occ) => (SCHEDULED_PHYSICAL_GIFT_AVAILABLE && ['merch', 'marketplace', 'gift_boxes'].includes(getOccasionGiftSetting(occ).type) ? (
+    <ScheduledGiftEntry setting={getOccasionGiftSetting(occ)} onChoose={() => setSgPicker(occ)}
+      onRemove={() => { setFormData((prev) => ({ ...prev, occasionGiftSettings: { ...prev.occasionGiftSettings, [occ]: { type: 'none', autoGift: false } } })); }} />
+  ) : null);
+
   const isAddGiftChecked = (occ) => (addGiftOn[occ] !== undefined ? addGiftOn[occ] : getOccasionGiftSetting(occ).type !== 'none');
   // Unticking == choosing "None" in the old dropdown: the very same handleOccasionGiftChange(type, 'none').
   const handleAddGiftToggle = (occ, on) => {
@@ -431,8 +450,10 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
             <option value="merch">Branded Goods</option>
             <option value="curated">Let Greet-Me select a gift</option>
             <option value="marketplace">Browse Marketplace</option>
+            {gs.type === 'gift_boxes' ? <option value="gift_boxes">Gift box</option> : null}
           </select>
         </div>
+        {checked ? renderScheduledGift(occ) : null}
       </div>
     );
   };
@@ -444,6 +465,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
     setFormData(prev => {
       const current = getOccasionGiftSetting(occasionValue);
       const next = { ...current, [field]: value };
+      if (field === 'type' && current.scheduledGift) { delete next.scheduledGift; next.autoGift = false; }
       if (field === 'type' && value === 'qrcash' && (next.amount === undefined || next.amount === null)) {
         next.amount = QRCASH_DEFAULT_DOLLARS;
       }
@@ -537,16 +559,20 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
   };
 
   // The one place a recipient is actually handed to the parent. `consents` is the W07 occasionGiftConsents array (empty otherwise).
-  const commitSave = async (toSave, consents = []) => {
+  const commitSave = async (toSave, consents = [], sgTypes = []) => {
     await onSubmit({
       ...toSave,
       occasionGiftSettings: normalizeGiftSettingsForSave(toSave.occasionGiftSettings),
       ...(consents.length > 0 ? { occasionGiftConsents: consents } : {}),
+      ...(sgTypes.length > 0 ? { scheduledGiftConsents: scheduledGiftConsentsFor(sgTypes) } : {}),
     });
     // Clear draft on successful submission
     clearFormDraft();
-    // Show saved toast
-    showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
+    // Show saved toast — only now, after the save succeeded. A scheduled physical gift on Auto-Gift says what happens on its date.
+    const sgAuto = Object.entries(toSave.occasionGiftSettings || {}).filter(([, g]) => g && g.scheduledGift && g.autoGift === true);
+    showManualToast('Saved ✓', sgAuto.length
+      ? sgAuto.map(([t, g]) => `On ${sgDateLabel(t)}, the greeting is sent and ${g.scheduledGift.name || 'the gift'} is charged to your saved card and ordered; delivery follows after that date.`).join(' ')
+      : 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
   };
 
   const handleSubmit = async (e) => {
@@ -558,11 +584,11 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
     try {
       const toSave = sanitizeRelationshipForSave(formData);
       const settings = normalizeGiftSettingsForSave(toSave.occasionGiftSettings);
-      if (SCHEDULED_QRCASH_AVAILABLE) {
+      if (authorizationStepEnabled(SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_PHYSICAL_GIFT_AVAILABLE)) {
         // W07: before saving, work out what the sender still has to give us (consent per new or changed QR Cash Auto-Gift, a card
         // when none usable is on file, the mailing address of a shipped gift). Nothing is requested when no QR Cash Auto-Gift exists.
         let card = null;
-        if (Object.values(settings || {}).some((g) => g && g.type === 'qrcash' && g.autoGift === true)) {
+        if (Object.values(settings || {}).some((g) => g && g.autoGift === true && (g.type === 'qrcash' || g.scheduledGift))) {
           try {
             const res = await api.getQrCashCardStatus();
             card = (res && res.card) || null;
@@ -573,10 +599,11 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
         }
         const plan = planAuthorization({
           settings, initialSettings: contact && contact.occasionGiftSettings, occasions: toSave.occasions, card, formData: toSave,
+          storedScheduledGiftConsents: contact && contact.scheduledGiftConsents,
           labelFor: (type) => (occasionTypes.find((o) => o.value === type) || {}).label,
           requiresDelivery: requiresDeliveryAddress,
         });
-        if (plan.need.consent || plan.need.address) { setAuthModal({ plan, card }); return; }
+        if (plan.need.consent || plan.need.address || plan.need.scheduledGiftConsent || plan.need.card) { setAuthModal({ plan, card }); return; }
       }
       await commitSave(toSave);
     } catch (error) {
@@ -1589,7 +1616,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                         )}
 
                         {/* Choose Item button for merch/subscription */}
-                        {(giftSetting.type === 'merch' || giftSetting.type === 'marketplace' || giftSetting.type === 'subscription') && (
+                        {(giftSetting.type === 'merch' || giftSetting.type === 'marketplace' || giftSetting.type === 'subscription') && !giftSetting.scheduledGift && (
                           <button
                             type="button"
                             onClick={() => {
@@ -1622,7 +1649,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                       </div>
 
                       {/* Auto-Gift toggle with badge - only when gift is selected */}
-                      {giftSetting.type !== 'none' && (
+                      {giftSetting.type !== 'none' && !giftSetting.scheduledGift && (
                         <div style={{ marginTop: '0.625rem' }}>
                           <div style={{
                             display: 'flex',
@@ -2106,7 +2133,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                         )}
 
                         {/* Choose Item button for merch/subscription */}
-                        {(giftSetting.type === 'merch' || giftSetting.type === 'marketplace' || giftSetting.type === 'subscription') && (
+                        {(giftSetting.type === 'merch' || giftSetting.type === 'marketplace' || giftSetting.type === 'subscription') && !giftSetting.scheduledGift && (
                           <button
                             type="button"
                             onClick={() => {
@@ -2139,7 +2166,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                       </div>
 
                       {/* Auto-Gift toggle with badge - only when gift is selected */}
-                      {giftSetting.type !== 'none' && (
+                      {giftSetting.type !== 'none' && !giftSetting.scheduledGift && (
                         <div style={{ marginTop: '0.625rem' }}>
                           <div style={{
                             display: 'flex',
@@ -2606,8 +2633,10 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                             <option value="merch">Branded Goods</option>
                             <option value="curated">Let Greet-Me select a gift</option>
                             <option value="marketplace">Browse Marketplace</option>
+                            {giftSetting.type === 'gift_boxes' ? <option value="gift_boxes">Gift box</option> : null}
                           </select>
                         </div>
+                        {giftSetting.type !== 'none' ? renderScheduledGift(occ.type) : null}
 
                         {/* Curated gift max spend selector */}
                         {giftSetting.type === 'curated' && (
@@ -2681,7 +2710,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                         )}
 
                         {/* Choose Item button for merch/marketplace/subscription */}
-                        {(giftSetting.type === 'merch' || giftSetting.type === 'marketplace' || giftSetting.type === 'subscription') && (
+                        {(giftSetting.type === 'merch' || giftSetting.type === 'marketplace' || giftSetting.type === 'subscription') && !giftSetting.scheduledGift && (
                           <button
                             type="button"
                             onClick={() => {
@@ -2711,7 +2740,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                       </div>
 
                       {/* Auto-Gift toggle with badge - only when gift is selected */}
-                      {giftSetting.type !== 'none' && (
+                      {giftSetting.type !== 'none' && !giftSetting.scheduledGift && (
                         <div style={{ marginTop: '0.625rem' }}>
                           <div style={{
                             display: 'flex',
@@ -3013,14 +3042,28 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
       </div>
     </form>
 
+      {SCHEDULED_PHYSICAL_GIFT_AVAILABLE && sgPicker ? (
+        <ScheduledGiftPicker isOpen
+          contact={{ ...formData, shippingAddress: formData.shippingAddress || (contact && contact.shippingAddress) }}
+          occasionLabel={(occasionTypes.find((o) => o.value === sgPicker) || {}).label || sgPicker}
+          occasionDateLabel={sgDateLabel(sgPicker)}
+          initial={getOccasionGiftSetting(sgPicker)}
+          onClose={() => setSgPicker(null)}
+          onSave={(setting) => {
+            setFormData((prev) => ({ ...prev, occasionGiftSettings: { ...prev.occasionGiftSettings, [sgPicker]: setting } }));
+            setAddGiftOn((prev) => ({ ...prev, [sgPicker]: true }));
+            setSgPicker(null);
+          }} />
+      ) : null}
+
       {/* W07 SAVE-time authorization (dormant: authModal is only ever set when SCHEDULED_QRCASH_AVAILABLE) */}
-      {SCHEDULED_QRCASH_AVAILABLE && authModal && (
+      {authorizationStepEnabled(SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_PHYSICAL_GIFT_AVAILABLE) && authModal && (
         <SaveAuthorizationModal
           plan={authModal.plan} card={authModal.card}
           formData={formData} setFormData={setFormData}
           onCancel={() => setAuthModal(null)}
-          onSave={async (consents) => {
-            await commitSave(sanitizeRelationshipForSave(formData), consents);
+          onSave={async (consents, sgTypes = []) => {
+            await commitSave(sanitizeRelationshipForSave(formData), consents, sgTypes);
             setAuthModal(null);
           }}
         />
