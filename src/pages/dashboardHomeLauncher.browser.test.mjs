@@ -189,7 +189,7 @@ async function mount({ contacts = CONTACTS(), upcoming = UPCOMING(), sent = SENT
   return root;
 }
 
-test("renders the sections; occasions are the Recipients page's list and groups plus the send page's own; no Quick Gift; Upcoming asks for 60 days", async () => {
+test("renders the sections; occasions are the Recipients page's list and groups plus the send page's own; Quick Gift only in the welcome banner; Upcoming asks for 60 days", async () => {
   await mount();
   for (const id of ["gx-hero", "gx-modes", "gx-step-1", "gx-step-2", "gx-step-3", "gx-step-4", "gx-footbar", "gx-lower", "gx-install"]) {
     assert.ok($(`[data-testid=${id}]`), id);
@@ -206,8 +206,8 @@ test("renders the sections; occasions are the Recipients page's list and groups 
   assert.deepEqual(menuItems(), ["Christmas", "Easter", "Rosh Hashanah", "Hanukkah", "Passover", "Eid al-Fitr", "Eid al-Adha", "Ramadan"]);
   const occasionChoices = [...chips, ...holidays, ...menuItems()];
   for (const absent of ["Engagement", "Sympathy", "Wedding", "Baby", "Get Well"]) assert.equal(occasionChoices.includes(absent), false, `${absent} is not on the Recipients list`);
-  assert.equal($("[data-testid=gx-quick-hero]"), null); assert.equal($("[data-testid=gx-quick-banner]"), null);
-  assert.equal(document.body.textContent.includes("Quick Gift"), false, "Quick Gift is removed from the dashboard");
+  assert.ok($("[data-testid=gx-hero] [data-testid=gx-quick-hero]"), "Quick Gift is in the welcome banner (founder 2026-10-20)"); assert.equal($("[data-testid=gx-quick-banner]"), null, "never in the gift carousel");
+  assert.equal($("[data-testid=gx-step-4]").textContent.includes("Quick Gift"), false, "Quick Gift is not in the gift carousel");
   // N-6 (founder 2026-10-18): a recorded voice is required for group sending; words and memory photos stay optional
   assert.equal($("[data-testid=gx-step-3]").textContent.includes("Personalize — optional"), false);
   const step3 = $("[data-testid=gx-step-3]").textContent;
@@ -472,7 +472,7 @@ test("resolver save: PUT /api/contacts/:id with the FULL record; other data unto
   assert.deepEqual(body.occasionGiftSettings.anniversary, { type: "merch", autoGift: false });
   assert.match($("[data-testid=gx-fine]").textContent, /Saved: 2 scheduled Greet-Mes for Theresa/);
   assert.equal($("[data-testid=gx-dates-modal]"), null, "Dates & gifts closes after the save");
-  await click($("[data-testid=gx-dates-open]"));
+  await click($("[data-testid=gx-who-done]"));
   assert.match($$("[data-testid=gx-resolver-row]")[0].textContent, /QR Cash \$50/, "the saved QR Cash amount is shown");
   assert.deepEqual(globalThis.__toasts, ["Saved ✓"]);
   assert.equal(globalThis.__nav.length, 0, "the screen stays put");
@@ -784,14 +784,16 @@ test("N-6: with no recorded voice, Personalize says the voice is required for gr
   assert.match(step3, /A few words from you \(optional\)/); assert.match(step3, /Memory photos \(optional\)/);
 });
 
-test("Step 2 Done: one clear action — under the people, the picker's Done completes the step too; for a send it opens nothing", async () => {
+test("Step 2 Save: one clear action — inside the people box, the picker's Done completes the step too; for a send it opens nothing", async () => {
   await mount();
   await click(byText(".mode", "Send Now"));
   await click(occ("Birthday"));
   assert.equal($("[data-testid=gx-who-done]").disabled, true, "nobody chosen yet");
   await pickPerson("Theresa");
   const step2 = $("[data-testid=gx-step-2]");
-  assert.ok(step2.contains($("[data-testid=gx-who-donerow]")), "Done sits in Step 2, right after the people");
+  assert.ok($("[data-testid=gx-whobox]").contains($("[data-testid=gx-who-donerow]")), "Save sits inside 'Who is it for?', beneath the people");
+  assert.equal($("[data-testid=gx-who-done]").textContent.trim(), "Save");
+  assert.match($("[data-testid=gx-who-donerow] .hint").textContent, /^1 selected · nothing is sent yet$/, "it never says anything was sent or scheduled");
   await click($("[data-testid=gx-picker-done]"));
   assert.equal($("[data-testid=gx-picker]"), null, "the picker closes");
   assert.ok(step2.querySelector(".step-label .num.done"), "Step 2 is complete");
@@ -812,7 +814,7 @@ test("Dates & gifts modal: Close keeps every choice; Escape closes; Save schedul
   await click($("[data-testid=gx-dates-close]"));
   assert.equal($("[data-testid=gx-dates-modal]"), null, "Close closes");
   assert.equal(globalThis.__saves.length, 0, "Close saves nothing");
-  await click($("[data-testid=gx-dates-open]"));
+  await click($("[data-testid=gx-who-done]"));
   const r = $$("[data-testid=gx-resolver-row]")[1];
   assert.equal(r.querySelector("input").value, "2026-06-20", "the date is kept");
   assert.equal(r.querySelector("select").value, "none", "the gift choice is kept");
@@ -938,7 +940,7 @@ test("scheduled group, physical gift with a missing address: the others save; 'A
   assert.deepEqual(m.occasionGiftSettings.birthday, { type: "curated", autoGift: false });
   assert.match($("[data-testid=gx-fine]").textContent, /Saved 2 of 2 scheduled Greet-Mes for Birthday/);
   assert.equal($("[data-testid=gx-dates-modal]"), null, "everyone saved: Dates & gifts closes, as after any complete save");
-  await click($("[data-testid=gx-dates-open]"));
+  await click($("[data-testid=gx-who-done]"));
   assert.match(rowOf("Margaret").querySelector("[data-testid=gx-group-row-status]").textContent, /Saved/);
 });
 
@@ -949,4 +951,73 @@ test("F-C2: restored choices are kept only when this page offers them (a hand-ed
   assert.deepEqual(state().occ, ["Birthday"], "only offered occasions are restored");
   assert.equal($(".track button[aria-pressed=true]").textContent.trim(), "Individuals", "an unknown audience falls back");
   assert.doesNotMatch($("[data-testid=gx-summary]").textContent, /gift/, "an unknown gift is dropped");
+});
+
+// ---- Revision 2026-10-20 (founder) ----
+
+test("Save in 'Who is it for?': for schedules it opens Dates & gifts with every choice kept; no other Dates & gifts control in the composer", async () => {
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday")); await click(occ("Anniversary"));
+  await pickPerson("Theresa");
+  await click($("[data-testid=gx-picker-done]"));
+  await click($("[data-testid=gx-dates-close]"));
+  assert.equal($("[data-testid=gx-dates-modal]"), null);
+  assert.match($("[data-testid=gx-who-donerow] .hint").textContent, /^1 selected · next, dates & gifts$/);
+  assert.equal($$("[data-testid=gx-flow] button").filter((b) => /Dates/.test(b.textContent)).length, 0, "no inline Dates & gifts control");
+  assert.equal($("[data-testid=gx-resolver]"), null, "no inline Dates & gifts section");
+  await click($("[data-testid=gx-who-done]"));
+  assert.ok($("[data-testid=gx-dates-modal]"), "Save opens the pop-up");
+  assert.equal($$("[data-testid=gx-resolver-row]").length, 2, "both occasions are still there");
+  assert.deepEqual(state().picks, ["TMTheresa Morgan"], "the selection is kept");
+  assert.equal(globalThis.__saves.length, 0, "Save in Step 2 saves no schedule");
+});
+
+test("Recipients tab filter: All by default; Friends / Family / Professional filter the list; search and edit stay; the composer's choices never change", async () => {
+  await mount();
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await pickPerson("Margaret");
+  await click($("[data-testid=gx-picker-done]"));
+  const names = () => $$("[data-testid=gx-tabbody] .row .name").map((e) => e.textContent);
+  assert.deepEqual(names(), ["Theresa Morgan", "Margaret Rivera", "Daniel Okafor"], "All by default");
+  assert.equal($("#gx-tab-recipients").textContent, "Recipients");
+  await click($("[data-testid=gx-recip-filter]"));
+  assert.deepEqual($$(".menu-recip button").map((b) => b.textContent.trim()), ["Friends", "Family", "Professional", "All"]);
+  assert.equal($("[data-testid=gx-recip-filter-all]").getAttribute("aria-checked"), "true");
+  await click($("[data-testid=gx-recip-filter-friend]"));
+  assert.equal($(".menu-recip"), null, "the menu closes");
+  assert.deepEqual(names(), ["Theresa Morgan"]);
+  assert.equal($("#gx-tab-recipients").textContent, "Recipients · Friends");
+  assert.equal($$("[data-testid=gx-tabbody] [data-testid=gx-edit-recipient]").length, 1, "edit stays on each row");
+  await click($("[data-testid=gx-recip-filter]")); await click($("[data-testid=gx-recip-filter-professional]"));
+  assert.deepEqual(names(), ["Daniel Okafor"]);
+  await setValue($("[data-testid=gx-tabbody] input"), "zz");
+  assert.deepEqual(names(), []);
+  assert.match($("[data-testid=gx-recip-filter-empty]").textContent, /No professional contacts match that name/);
+  await setValue($("[data-testid=gx-tabbody] input"), "");
+  await click($("[data-testid=gx-recip-filter]")); await click($("[data-testid=gx-recip-filter-all]"));
+  assert.equal(names().length, 3);
+  assert.deepEqual(state().picks, ["MRMargaret Rivera"], "the composer's choice is unchanged by the filter");
+});
+
+test("composer heading is centred; the compact presentation keeps body text at its approved sizes", async () => {
+  const { DASHBOARD_HOME_CSS } = await import(pathToFileURL(join(__dirname, "dashboardHomeStyles.js")).href);
+  assert.match(DASHBOARD_HOME_CSS, /\.gx \.flow-head \{ flex-direction:column; align-items:center; text-align:center;/);
+  assert.equal(/font(-size)?:[^;]*\b(9|10|11)px/.test(DASHBOARD_HOME_CSS.slice(DASHBOARD_HOME_CSS.indexOf("Revision 2026-10-20"))), false, "the revision sets no text below 11.5px");
+});
+
+test("adjustments: no gold 'Send a Greet-Me' label; Quick Gift in the welcome headline goes to the Gift Place; Add a gift is gold, last in the gift card", async () => {
+  await mount();
+  assert.equal($("[data-testid=gx-flow] .flow-head .eyebrow"), null);
+  assert.equal(/Send a Greet-Me/i.test($("[data-testid=gx-flow] .flow-head").textContent), false);
+  const q = $("[data-testid=gx-hero] h1 [data-testid=gx-quick-hero]");
+  assert.ok(q, "inside the welcome headline, where it was");
+  assert.match(q.textContent, /Quick Gift/);
+  await click(q);
+  assert.deepEqual(globalThis.__nav.at(-1), { to: "/dashboard/gifts", opts: undefined });
+  assert.equal($("[data-testid=gx-carousel] [data-testid=gx-quick-banner]"), null);
+  const add = $("[data-testid=gx-add-gift]") || $("[data-testid=gx-add-qr]");
+  assert.ok(add.classList.contains("btn-gold"), "gold");
+  assert.equal(add.parentElement.lastElementChild, add, "the last control in the card's action column (lower right)");
 });

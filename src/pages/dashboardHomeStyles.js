@@ -352,4 +352,119 @@ export const DASHBOARD_HOME_CSS = `
   .gx .tile h3 { font-size:20px; }
   .gx .scroll { max-height:252px; }
 }
+/* ---- Revision 2026-10-20 (founder): denser home, centred composer heading, Save in "Who is it for?",
+   Recipients filter. Appended so the approved rules above stay as they were; these override them. ---- */
+.gx .flow-head { flex-direction:column; align-items:center; text-align:center; gap:4px; }
+.gx .flow-head p { max-width:36rem; }
+.gx .whosave { flex:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--p100); justify-content:space-between; }
+.gx .whosave .hint { min-width:0; }
+.gx .rtab { display:inline-flex; align-items:center; border-radius:11px; }
+.gx .rtab > button[role="tab"] { padding-right:4px; }
+/* The Recipients tab and its caret read as one tab: the selected look sits on the pair. */
+.gx .rtab:has(> button[role="tab"][aria-selected="true"]) { background:#fff; box-shadow:0 1px 3px rgba(44,29,70,.12); }
+.gx .rtab > button[role="tab"][aria-selected="true"] { background:none; box-shadow:none; }
+.gx .rcaret { border:none; background:none; min-height:0; padding:0 8px 0 2px; height:34px; display:grid; place-items:center; color:var(--p700); cursor:pointer; border-radius:9px; }
+.gx .rcaret:hover, .gx .rcaret[aria-expanded="true"] { background:var(--p50); }
+.gx .rcaret:focus-visible { outline:3px solid #c9b8f2; outline-offset:1px; }
+.gx .menu-recip { min-width:190px; }
+.gx .g1g1-phone { display:none; }
+@media (max-width: 767px) { .gx .g1g1-phone { display:inline-flex; margin-left:auto; } .gx .scriptrow { width:100%; } }
+.gx .rempty { margin:4px 0 8px; }
+/* Denser presentation (about 20% less height). Text stays at its approved sizes except the large serif headings;
+   fixed-size areas keep fixed sizes (smaller), so choices never resize the page. */
+.gx { padding:16px; gap:12px; }
+.gx .hero { padding:20px 28px 22px; border-radius:26px; }
+.gx .script { font-size:25px; }
+.gx .hero h1 { font-size:31px; margin-top:8px; }
+.gx .hero .lede { margin-top:6px; font-size:15px; }
+.gx .people-label { margin-top:12px; }
+.gx .people { margin-top:8px; gap:8px; }
+.gx .pick { padding:4px 14px 4px 4px; }
+.gx .pick .av { width:30px; height:30px; font-size:12px; }
+.gx .flow { padding:18px 24px 0; }
+.gx .flow-head h2 { font-size:24px; margin-top:4px; }
+.gx .modes.top { margin-top:12px; }
+.gx .mode { padding:11px 14px; gap:12px; border-radius:18px; }
+.gx .mode .ico { width:36px; height:36px; border-radius:12px; }
+.gx .mode .t { font-size:18px; margin-top:2px; }
+.gx .mode .b { margin-top:2px; }
+.gx .step { padding:12px 0; }
+.gx .chips { margin-top:9px; gap:7px; }
+.gx .chip-btn { padding:6px 12px; }
+.gx .rule { margin-top:7px; }
+.gx .whobox { margin-top:9px; height:308px; padding:11px; }
+.gx .cap { margin-top:7px; padding-top:7px; min-height:36px; }
+.gx .ptiles { margin-top:9px; gap:10px; }
+.gx .ptile { padding:10px 12px; gap:10px; }
+.gx .ptile .ic { width:38px; height:38px; }
+.gx .ptile .acts2 { margin-top:7px; }
+.gx .words { margin-top:10px; }
+.gx .words textarea { height:66px; padding:9px 12px; }
+.gx .moments { height:94px; padding:12px; }
+.gx .donerow { margin-top:9px; }
+.gx .giftband { padding:12px 24px 16px; }
+.gx .carousel { margin-top:9px; padding:10px 18px 10px 10px; gap:18px; grid-template-columns:120px 1fr auto; }
+.gx .art { height:88px; }
+.gx .carousel > div:nth-child(2) { min-height:78px; }
+.gx .slide-t { font-size:18px; }
+.gx .dots { margin-top:7px; }
+.gx .footbar { margin:0 -24px; padding:11px 24px; }
+.gx .footbar .fine { min-height:2.6em; }
+.gx .btn-primary { height:46px; padding:0 24px; }
+.gx .tabcard { padding:14px 18px 16px; }
+.gx .tabhead { min-height:40px; }
+.gx .tabs button { padding:7px 14px; }
+.gx .tabbody { margin-top:10px; height:324px; }
+.gx .row { padding:8px 0; }
+.gx .avatar { width:36px; height:36px; font-size:13px; }
+.gx .search { height:38px; margin:10px 0 2px; }
+@media (max-width: 640px) {
+  .gx { padding:10px; gap:10px; }
+  .gx .hero { padding:14px 12px 16px; border-radius:22px; }
+  .gx .pick .av { width:28px; height:28px; }
+  .gx .chips { gap:6px; }
+  .gx .chip-btn { padding:6px 11px; }
+  .gx .ptiles { gap:8px; }
+  .gx .ptile { padding:10px; }
+  .gx .ptile .ic { width:34px; height:34px; }
+  .gx .words textarea { height:60px; }
+  .gx .fieldlabel { font-size:13.5px; }
+  .gx .script { font-size:22px; }
+  .gx .hero h1 { font-size:22px; margin-top:6px; }
+  .gx .hero .lede { font-size:14.5px; }
+  .gx .hero-top .acts .btn { height:40px; }
+  .gx .flow { padding:14px 12px 0; }
+  .gx .flow-head h2 { font-size:21px; }
+  .gx .flow-head p { font-size:13.5px; }
+  .gx .mode { padding:10px; gap:6px; }
+  .gx .mode .ico { width:30px; height:30px; }
+  .gx .mode .t { font-size:16px; }
+  .gx .step { padding:10px 0; }
+  .gx .rule { min-height:3.2em; }
+  .gx .whobox { height:312px; padding:10px; }
+  .gx .cap { min-height:52px; }
+  .gx .giftband { margin:4px -12px 0; padding:12px 12px 16px; }
+  .gx .carousel { grid-template-columns:84px 1fr; gap:12px; padding:9px; }
+  .gx .art { height:76px; }
+  .gx .carousel > div:nth-child(2) { min-height:112px; }
+  .gx .moments { height:96px; }
+  .gx .footbar { margin:0 -12px; padding:11px 12px; }
+  .gx .footbar .fine { min-height:4.6em; }
+  .gx .btn-primary { height:48px; }
+  .gx .tabcard { padding:12px 10px 14px; }
+  .gx .tabbody { height:336px; }
+  .gx .rtab { flex:1.75 1 0; min-width:0; align-self:stretch; }
+  .gx .rtab > button[role="tab"] { flex:1 1 auto; min-width:0; padding:8px 0 8px 6px; }
+  .gx .rcaret { padding:0 6px 0 2px; height:auto; align-self:stretch; min-width:28px; }
+  .gx .menu-recip { left:auto; right:auto; }
+}
+/* Adjustments 2026-10-20 (founder): Add a gift is gold, at the lower right of the gift card. */
+.gx .carousel .cta-col { align-self:stretch; display:flex; flex-direction:column; justify-content:flex-end; align-items:flex-end; gap:6px; }
+.gx .carousel .cta-col .btn-gold { box-shadow:0 12px 26px -16px rgba(44,29,70,.55); }
+/* Quick Gift sits at the end of the headline, as on the live dashboard (the denser headline needs a little more width). */
+.gx .hero h1 { max-width:54rem; }
+@media (max-width: 640px) {
+  .gx .carousel .cta-col { grid-column:1 / -1; flex-direction:row; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:6px 14px; }
+  .gx .carousel .cta-col .link { grid-column:auto; justify-self:auto; }
+}
 `;
