@@ -15,7 +15,7 @@
 // else — no storage, no URL, no logging. Navigating away or refreshing loses them, which is the
 // intended behaviour and is asserted in test.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { salesAdminApi, salesAdminErrorMessage } from "../../api/salesAdmin.js";
 import { AssignedLinksPanel, GiftSalesPanel, ShareQr } from "./commandCenter/ProfilePanels.jsx";
 import GiftCommissionPanel from "./commandCenter/GiftCommissionPanel.jsx";
@@ -133,6 +133,9 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
   // Active | Inactive list view (default Active); search applies within the selected view.
   const [statusView, setStatusView] = useState("active");
   const [search, setSearch] = useState("");
+  // Founder 2026-10-21: the Salespeople card is the same height as "Add a salesperson" and its list scrolls inside it.
+  const createCardRef = useRef(null);
+  const [listCardHeight, setListCardHeight] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
@@ -456,6 +459,29 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     setRows(Array.isArray(res.data && res.data.salespeople) ? res.data.salespeople : []);
   }
 
+  // Founder 2026-10-21: the selected salesperson opens in a pop-up. Closing it returns to the list; nothing is saved by closing.
+  function closeDetail() { setSelectedId(null); setDetail(null); }
+
+  useEffect(() => {
+    const el = createCardRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(() => setListCardHeight(Math.round(el.getBoundingClientRect().height)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [founder, loading]);
+
+  useEffect(() => {
+    if (!selectedId) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden"; // the page behind the pop-up does not scroll
+    const onKey = (e) => {
+      // Escape closes the pop-up, unless a confirmation dialog is open (it closes itself first).
+      if (e.key === "Escape" && !document.querySelector('[data-testid="fcc-confirm"], [data-testid="acc-confirm"]')) closeDetail();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
+  }, [selectedId]);
+
   const visibleRows = useMemo(() => salespersonView(rows, statusView, search), [rows, statusView, search]);
 
   const canCreate = useMemo(
@@ -583,7 +609,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
       {/* Two columns on wide screens; stacked on a phone (founder 2026-10-21 preview: the list was squeezed at 390px). */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: "1.25rem", alignItems: "start" }}>
         {/* ── CREATE ── */}
-        <section style={card}>
+        <section style={card} ref={createCardRef}>
           <h2 style={{ fontSize: "1rem", margin: "0 0 .75rem" }}>Add a salesperson</h2>
           <form onSubmit={submitCreate} data-testid="fcc-create-form">
             <div style={{ marginBottom: ".75rem" }}>
@@ -618,8 +644,8 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
           </form>
         </section>
 
-        {/* ── LIST ── */}
-        <section style={card}>
+        {/* ── LIST ── fixed to the height of "Add a salesperson"; the rows scroll inside it. */}
+        <section style={{ ...card, display: "flex", flexDirection: "column", minHeight: 0, ...(listCardHeight ? { height: listCardHeight } : {}) }} data-testid="fcc-list-card">
           <h2 style={{ fontSize: "1rem", margin: "0 0 .75rem" }}>Salespeople</h2>
           <div role="tablist" aria-label="Salesperson status" style={{ display: "inline-flex", flexWrap: "wrap", maxWidth: "100%", border: "1px solid var(--border)", borderRadius: 999, padding: 2, marginBottom: ".6rem" }}>
             {STATUS_VIEWS.map((v) => {
@@ -648,7 +674,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
               {search.trim() ? `No ${statusView} salespeople match “${search.trim()}”.` : `No ${statusView} salespeople.`}
             </p>
           ) : (
-            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: ".4rem" }}>
+            <ul data-testid="fcc-list-scroll" style={{ listStyle: "none", margin: 0, padding: "2px 4px 2px 2px", display: "flex", flexDirection: "column", gap: ".4rem", flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
               {visibleRows.map((sp) => (
                 <li key={sp.salespersonId}>
                   <button type="button" data-testid={`fcc-row-${sp.salespersonId}`}
@@ -674,8 +700,19 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
 
       {/* ── DETAIL ── */}
       {selectedId ? (
-        <section style={{ ...card, marginTop: "1.25rem" }} data-testid="fcc-detail">
-          <h2 style={{ fontSize: "1rem", margin: "0 0 .75rem" }}>Details</h2>
+        <div data-testid="fcc-detail-modal" role="dialog" aria-modal="true" aria-labelledby="fcc-detail-title"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) closeDetail(); }}
+          style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "2.5vh 1rem", zIndex: 40, overflowY: "auto" }}>
+        <section style={{ ...card, width: "100%", maxWidth: 980, margin: "0 auto", position: "relative" }} data-testid="fcc-detail">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: ".75rem", margin: "0 0 .75rem" }}>
+            <h2 id="fcc-detail-title" style={{ fontSize: "1rem", margin: 0, minWidth: 0, overflowWrap: "anywhere" }}>
+              {detail && detail.displayName ? detail.displayName : "Details"}
+            </h2>
+            <button type="button" data-testid="fcc-detail-close" aria-label="Close" onClick={closeDetail}
+              style={{ flex: "0 0 auto", width: 36, height: 36, minWidth: 36, minHeight: 36, maxHeight: 36, padding: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 999, border: "1px solid var(--border)", background: "var(--surface, #fff)", color: "var(--text-secondary)", fontSize: "1.25rem", lineHeight: 1, cursor: "pointer" }}>
+              ×
+            </button>
+          </div>
           {detailBusy ? (
             <p data-testid="fcc-detail-loading" style={{ color: "var(--text-secondary)", fontSize: ".88rem" }}>Loading…</p>
           ) : detail ? (
@@ -1068,6 +1105,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
           ) : null}
 
         </section>
+        </div>
       ) : null}
 
       {/* ── DESTRUCTIVE CONFIRMATION ──

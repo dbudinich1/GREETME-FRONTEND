@@ -77,6 +77,7 @@ function api(over = {}) {
 let root;
 const flush = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 0)); }); };
 async function mount(a) {
+  if (root) await act(async () => { root.unmount(); }); // a real page change unmounts; effects (e.g. the scroll lock) clean up
   document.body.innerHTML = "";
   const host = document.createElement("div"); document.body.appendChild(host);
   root = createRoot(host);
@@ -249,4 +250,38 @@ test("audit rows read in plain words with before → after", async () => {
   const rows = [...document.querySelectorAll('[data-testid="acc-audit-row"]')].map((r) => r.textContent);
   assert.match(rows[0], /Oct 21, 2026.*Recipient limit plan \(3\) → 10 · by founder account …abc123/);
   assert.match(rows[1], /Granted 10 one-time sends \(one-time sends total 45 → 55\)/);
+});
+
+// ══ Founder 2026-10-21: details open in a closable pop-up; the list scrolls inside a fixed-height card ════════════
+test("selected salesperson opens in a pop-up that closes with ×, Escape and a click outside", async () => {
+  const a = api(); await mount(a);
+  assert.equal(tid("fcc-detail-modal"), null, "nothing open until a salesperson is chosen");
+  assert.ok(tid("fcc-list-scroll"), "rows sit in their own scrolling list");
+  assert.equal(tid("fcc-list-scroll").style.overflowY, "auto");
+  await click(tid("fcc-row-amir-yates"));
+  const modal = tid("fcc-detail-modal");
+  assert.ok(modal); assert.equal(modal.getAttribute("role"), "dialog");
+  assert.ok(modal.contains(tid("fcc-detail")), "the details are inside the pop-up");
+  assert.match(tid("fcc-detail").querySelector("h2").textContent, /Amir Yates/);
+  assert.equal(document.body.style.overflow, "hidden", "the page behind does not scroll");
+  await click(tid("fcc-detail-close"));
+  assert.equal(tid("fcc-detail-modal"), null, "× closes");
+  assert.equal(document.body.style.overflow, "");
+  await click(tid("fcc-row-amir-yates"));
+  await act(async () => { window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape" })); }); await flush();
+  assert.equal(tid("fcc-detail-modal"), null, "Escape closes");
+  await click(tid("fcc-row-amir-yates"));
+  await act(async () => { tid("fcc-detail-modal").dispatchEvent(new window.MouseEvent("mousedown", { bubbles: true })); }); await flush();
+  assert.equal(tid("fcc-detail-modal"), null, "a click outside closes");
+  assert.equal(writes(a).length, 0, "closing saves nothing");
+});
+
+test("Escape while a confirmation is open leaves the pop-up open", async () => {
+  const a = api(); await mount(a);
+  await click(tid("fcc-row-amir-yates"));
+  await click(tid("fcc-disable"));
+  assert.ok(tid("fcc-confirm"));
+  await act(async () => { window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape" })); }); await flush();
+  assert.ok(tid("fcc-detail-modal"), "the pop-up stays");
+  assert.equal(writes(a).length, 0);
 });
