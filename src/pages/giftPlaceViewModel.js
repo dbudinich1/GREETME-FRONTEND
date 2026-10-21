@@ -136,6 +136,41 @@ export function withOptionsNote(cards, providerProducts) {
   return cards.map((c) => (c && c.providerProductId && flagged.has(String(c.providerProductId)) ? Object.freeze({ ...c, unavailableNote: OPTIONS_UNAVAILABLE_NOTE }) : c));
 }
 
+// LIVE AVAILABILITY (founder-approved 2026-10-21). A stored (curated) card is resolved to the provider's LIVE product
+// when it is chosen. It used to fail open: shown as selectable whatever the live list said, and refused only at checkout.
+// Now, until the live list confirms it, it stays VISIBLE (the grid never reflows) but cannot be chosen:
+//   loading -> "Checking availability…"; the live read failed -> "Availability unavailable. Try again." (with a retry);
+//   live, but the provider no longer lists it -> AVAILABILITY_MISSING_NOTE.
+export const AVAILABILITY_CHECKING_NOTE = 'Checking availability…';
+export const AVAILABILITY_FAILED_LEAD = 'Availability unavailable.';
+export const AVAILABILITY_RETRY_LABEL = 'Try again.';
+export const AVAILABILITY_FAILED_NOTE = `${AVAILABILITY_FAILED_LEAD} ${AVAILABILITY_RETRY_LABEL}`;
+export const AVAILABILITY_MISSING_NOTE = 'Not available right now';
+/** The provider whose live list confirms a curated card, by its stored `source`. Unknown -> every live list. */
+export const VENDOR_SOURCE_TO_GIFT_TYPE = Object.freeze({ goody: 'gift_boxes', florist_one: 'flowers' });
+
+/**
+ * @param cards  projected cards (curated ones carry providerProductId + vendorSource)
+ * @param live   { [giftType]: { state: 'loading'|'ready'|'failed'|'idle', products: [] } }
+ * Cards with no provider product (Branded Goods, a curated card with none) are returned untouched; so is a card the
+ * live list confirms. Never hides a card.
+ */
+export function withLiveAvailability(cards, live) {
+  const lists = live && typeof live === 'object' ? live : {};
+  return (cards || []).map((c) => {
+    if (!c || c.source !== GIFT_SOURCES.CURATED || !c.providerProductId) return c;
+    const own = VENDOR_SOURCE_TO_GIFT_TYPE[c.vendorSource];
+    const relevant = (own ? [lists[own]] : Object.values(lists)).filter(Boolean);
+    const id = String(c.providerProductId);
+    const found = relevant.some((l) => l.state === 'ready' && (l.products || []).some((p) => p && String(p.providerProductId) === id));
+    if (found) return c;
+    const availability = !relevant.length || relevant.some((l) => l.state === 'loading' || l.state === 'idle') ? 'checking'
+      : relevant.some((l) => l.state === 'failed') ? 'failed' : 'missing';
+    const note = availability === 'checking' ? AVAILABILITY_CHECKING_NOTE : availability === 'failed' ? AVAILABILITY_FAILED_NOTE : AVAILABILITY_MISSING_NOTE;
+    return Object.freeze({ ...c, unavailableNote: note, availability });
+  });
+}
+
 export function fromProviderProduct(p) {
   if (!p) return null;
   return Object.freeze({

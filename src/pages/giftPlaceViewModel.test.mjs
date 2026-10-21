@@ -103,3 +103,60 @@ test("withOptionsNote marks only the curated cards whose provider product is fla
   assert.equal(none, cards);
   assert.equal(withOptionsNote(cards, undefined), cards);
 });
+
+// Live availability (founder-approved 2026-10-21): a stored (curated) card is resolved to the provider's LIVE product at
+// selection. While that live information is loading the card is visible but cannot be chosen ("Checking availability…");
+// when it could not be read, the card is visible, cannot be chosen and offers a retry ("Availability unavailable. Try
+// again."). Before this, stored cards failed open at display and were refused only at checkout.
+import { withLiveAvailability, AVAILABILITY_CHECKING_NOTE, AVAILABILITY_FAILED_NOTE, AVAILABILITY_MISSING_NOTE } from "./giftPlaceViewModel.js";
+
+const LIVE_CARDS = [
+  { id: "g1", source: "curated", providerProductId: "BOX-1", vendorSource: "goody" },
+  { id: "f1", source: "curated", providerProductId: "FL-1", vendorSource: "florist_one" },
+  { id: "s1", source: "curated", providerProductId: "BOX-1", vendorSource: "sample" },
+  { id: "x1", source: "curated", providerProductId: null, vendorSource: null },
+  { id: "m1", source: "catalog" },
+];
+const live = (boxes, flowers) => ({ gift_boxes: boxes, flowers });
+
+test("exact wording of the two approved availability notes", () => {
+  assert.equal(AVAILABILITY_CHECKING_NOTE, "Checking availability…");
+  assert.equal(AVAILABILITY_FAILED_NOTE, "Availability unavailable. Try again.");
+});
+
+test("while the live catalogue loads, every provider-backed card is visible but unselectable with 'Checking availability…'", () => {
+  const out = withLiveAvailability(LIVE_CARDS, live({ state: "loading", products: [] }, { state: "loading", products: [] }));
+  assert.equal(out.length, LIVE_CARDS.length, "nothing is hidden");
+  for (const id of ["g1", "f1", "s1"]) {
+    const c = out.find((x) => x.id === id);
+    assert.equal(c.unavailableNote, AVAILABILITY_CHECKING_NOTE, id);
+    assert.equal(c.availability, "checking", id);
+  }
+  assert.equal("unavailableNote" in out.find((x) => x.id === "x1"), false, "a card with no provider product is not provider-backed");
+  assert.equal("unavailableNote" in out.find((x) => x.id === "m1"), false, "catalogue (Branded Goods) cards are untouched");
+});
+
+test("a failed live read: unselectable with 'Availability unavailable. Try again.' (availability 'failed', so the card offers a retry)", () => {
+  const out = withLiveAvailability(LIVE_CARDS, live({ state: "failed", products: [] }, { state: "failed", products: [] }));
+  for (const id of ["g1", "f1", "s1"]) {
+    const c = out.find((x) => x.id === id);
+    assert.equal(c.unavailableNote, AVAILABILITY_FAILED_NOTE, id);
+    assert.equal(c.availability, "failed", id);
+  }
+});
+
+test("live and present: selectable, unchanged; live but absent from the provider's list: unselectable, never failing open", () => {
+  const out = withLiveAvailability(LIVE_CARDS, live({ state: "ready", products: [{ providerProductId: "BOX-1" }] }, { state: "ready", products: [] }));
+  assert.equal(out.find((x) => x.id === "g1"), LIVE_CARDS[0], "same object: nothing added");
+  assert.equal(out.find((x) => x.id === "s1"), LIVE_CARDS[2], "an unknown vendor is looked up in every live list");
+  const f = out.find((x) => x.id === "f1");
+  assert.equal(f.unavailableNote, AVAILABILITY_MISSING_NOTE);
+  assert.equal(f.availability, "missing");
+});
+
+test("a card is judged only against its own provider: a gift box is not held up by a slow or failed flowers list", () => {
+  const out = withLiveAvailability(LIVE_CARDS, live({ state: "ready", products: [{ providerProductId: "BOX-1" }] }, { state: "failed", products: [] }));
+  assert.equal(out.find((x) => x.id === "g1"), LIVE_CARDS[0]);
+  assert.equal(out.find((x) => x.id === "s1"), LIVE_CARDS[2], "found in a ready list wins for an unknown vendor");
+  assert.equal(out.find((x) => x.id === "f1").availability, "failed");
+});

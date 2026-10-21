@@ -39,7 +39,7 @@ import ManageCatalogModal from '../components/founderCatalog/ManageCatalogModal'
 // a second grid.
 import { GiftProductGrid } from '../components/giftPlace/GiftProductCard';
 import {
-  actionLabelFor, fromCatalogProduct, fromCuratedProduct, giftTypeForSelector, GIFT_SOURCES, withOptionsNote, requiresOptions, OPTIONS_UNAVAILABLE_NOTE,
+  actionLabelFor, fromCatalogProduct, fromCuratedProduct, giftTypeForSelector, GIFT_SOURCES, withOptionsNote, withLiveAvailability, requiresOptions, OPTIONS_UNAVAILABLE_NOTE,
   projectGiftCards,
 } from './giftPlaceViewModel';
 // The posture gate and the four proven catalogue states, in a hook so they stay assertable by
@@ -168,8 +168,12 @@ export default function Merch() {
   // ANY category — Tech and Americana as well as Flowers and Gift Baskets — can be resolved to
   // its live provider product the moment it is selected. Same endpoint, same hook, same posture
   // gate as before checkout preservation requires; only WHEN it is called has changed.
-  const { products: flowersProviderProducts } = useProviderCatalogue('flowers');
-  const { products: giftBasketsProviderProducts } = useProviderCatalogue('gift_boxes');
+  const flowersLive = useProviderCatalogue('flowers');
+  const giftBasketsLive = useProviderCatalogue('gift_boxes');
+  const flowersProviderProducts = flowersLive.products;
+  const giftBasketsProviderProducts = giftBasketsLive.products;
+  // Re-read both live lists (the retry under "Availability unavailable. Try again.").
+  const retryLiveAvailability = () => { flowersLive.retry(); giftBasketsLive.retry(); };
   // TAGGED BY ITS OWN CATEGORY, at the one point the two lists are merged. Once concatenated, a
   // Goody gift box and a Florist One arrangement are otherwise indistinguishable — both project
   // through the same six-field shape — so without this tag every provider-fulfilled selection
@@ -291,9 +295,14 @@ export default function Merch() {
   // in the same shape. This is the line that makes Flowers and Americana the same page.
   const cards = useMemo(() => (
     isCuratedSelection
-      ? withOptionsNote(projectGiftCards(visibleProducts, fromCuratedProduct), giftBasketsProviderProducts)
+      // A stored card is choosable only once the LIVE provider list confirms it (withLiveAvailability): while that list
+      // loads, or when it failed, the card stays visible but cannot be chosen. Never fails open.
+      ? withOptionsNote(withLiveAvailability(projectGiftCards(visibleProducts, fromCuratedProduct), {
+        flowers: { state: flowersLive.liveState, products: flowersProviderProducts },
+        gift_boxes: { state: giftBasketsLive.liveState, products: giftBasketsProviderProducts },
+      }), giftBasketsProviderProducts)
       : projectGiftCards(visibleProducts, fromCatalogProduct)
-  ), [isCuratedSelection, visibleProducts, giftBasketsProviderProducts]);
+  ), [isCuratedSelection, visibleProducts, flowersLive.liveState, flowersProviderProducts, giftBasketsLive.liveState, giftBasketsProviderProducts]);
 
   // The grid's state, from whichever source is feeding it.
   const gridState = isCuratedSelection
@@ -1129,6 +1138,7 @@ export default function Merch() {
           actionLabel={giftActionLabel}
           onAction={handleGiftCardAction}
           onRetry={isCuratedSelection ? retryCuratedCatalogue : null}
+          onRetryAvailability={isCuratedSelection ? retryLiveAvailability : null}
           isNarrow={isNarrow}
           emptyLabel={selectedCategoryLabel}
         />

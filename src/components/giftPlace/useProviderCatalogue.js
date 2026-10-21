@@ -29,25 +29,34 @@ export function useProviderCatalogue(giftType, deps = {}) {
   const readCatalogue = deps.fetchProviderCatalog || fetchProviderCatalog;
 
   const [availableFor, setAvailableFor] = useState(null);
+  // The posture question answered "no" or could not be asked, for this gift type. Only `liveState` reads it (the Gift
+  // Place's availability notes); `state` is unchanged for every other caller.
+  const [postureFailedFor, setPostureFailedFor] = useState(null);
   const [products, setProducts] = useState([]);
   // 'idle' | 'loading' | 'ready' | 'failed' — the catalogue's PROVEN state, never assumed.
   const [state, setState] = useState('idle');
   // A counter rather than a boolean, so a SECOND failure still re-runs the effect.
   const [attempt, setAttempt] = useState(0);
+  const [postureAttempt, setPostureAttempt] = useState(0);
 
   useEffect(() => {
     if (!giftType) return undefined;
     let cancelled = false;
+    setPostureFailedFor(null);
     (async () => {
       try {
         const posture = await askAvailability(giftType);
-        if (!cancelled && posture?.available === true) setAvailableFor(giftType);
+        if (cancelled) return;
+        if (posture?.available === true) setAvailableFor(giftType);
+        else setPostureFailedFor(giftType);
       } catch {
         // Fail closed. The gate stays shut and no catalogue read follows.
+        if (!cancelled) setPostureFailedFor(giftType);
       }
     })();
     return () => { cancelled = true; };
-  }, [giftType, askAvailability]);
+    // `postureAttempt` re-asks only after a failed posture answer (see retry), so a working gate is not re-asked.
+  }, [giftType, askAvailability, postureAttempt]);
 
   useEffect(() => {
     if (!giftType || availableFor !== giftType) return undefined;
@@ -72,13 +81,19 @@ export function useProviderCatalogue(giftType, deps = {}) {
     return () => { cancelled = true; };
   }, [giftType, availableFor, attempt, readCatalogue]);
 
-  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+  const retry = useCallback(() => {
+    setAttempt((n) => n + 1);
+    if (postureFailedFor) setPostureAttempt((n) => n + 1);
+  }, [postureFailedFor]);
 
   return {
     products,
     // Before the posture answer arrives there is nothing to show and nothing has failed, so the
     // honest state is "loading" rather than an empty collection.
     state: giftType && availableFor !== giftType ? 'loading' : state,
+    // The same, except that a posture question answered "no" (or not at all) is 'failed' rather than 'loading': the
+    // Gift Place uses it to say "Availability unavailable. Try again." instead of checking forever.
+    liveState: !giftType ? 'idle' : postureFailedFor === giftType ? 'failed' : availableFor !== giftType ? 'loading' : state,
     retry,
   };
 }

@@ -20,6 +20,7 @@
 // provider payload — that is what stops a vendor's field names reaching the layout.
 
 import { Check, ShoppingCart, Gift } from 'lucide-react';
+import { AVAILABILITY_FAILED_LEAD, AVAILABILITY_RETRY_LABEL } from '../../pages/giftPlaceViewModel';
 
 /** One fixed image ratio for every source, so a grid row cannot go ragged. */
 const IMAGE_HEIGHT = { narrow: 150, wide: 240 };
@@ -48,7 +49,7 @@ const IMAGE_FIT = {
   backgroundColor: 'var(--bg-secondary, #f8fafc)',
 };
 
-export function GiftProductCard({ card, actionLabel, onAction, selected = false, isNarrow = false, disabled: disabledProp = false }) {
+export function GiftProductCard({ card, actionLabel, onAction, selected = false, isNarrow = false, disabled: disabledProp = false, onRetryAvailability = null }) {
   if (!card) return null;
   // A card that cannot be chosen here (e.g. a gift box whose provider requires options) says why and cannot be acted on.
   const disabled = disabledProp || Boolean(card.unavailableNote);
@@ -130,7 +131,13 @@ export function GiftProductCard({ card, actionLabel, onAction, selected = false,
             overflow: 'hidden',
           }}
         >
-          {card.unavailableNote ? <span data-testid="gift-card-unavailable" style={{ color: '#b45309', fontWeight: 600 }}>{card.unavailableNote}</span> : (card.description || ' ')}
+          {card.availability === 'failed' && onRetryAvailability
+            // "Availability unavailable. Try again." — the "Try again." is the retry control itself, so the note reads
+            // exactly as approved and stays in the same slot (no reflow).
+            ? <span data-testid="gift-card-unavailable" style={{ color: '#b45309', fontWeight: 600 }}>{AVAILABILITY_FAILED_LEAD}{' '}
+                <button type="button" data-testid={`gift-card-availability-retry-${card.id}`} onClick={(e) => { e.stopPropagation(); onRetryAvailability(); }}
+                  style={{ padding: 0, margin: 0, border: 'none', background: 'none', color: 'var(--primary)', font: 'inherit', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}>{AVAILABILITY_RETRY_LABEL}</button></span>
+            : card.unavailableNote ? <span data-testid="gift-card-unavailable" style={{ color: '#b45309', fontWeight: 600 }}>{card.unavailableNote}</span> : (card.description || ' ')}
         </p>
 
         {/* 4 + 5. PRICE AND ACTION — pinned to the bottom by marginTop:auto, so they sit at the same
@@ -199,7 +206,7 @@ export function GiftProductCard({ card, actionLabel, onAction, selected = false,
  */
 export function GiftProductGrid({
   cards, state, actionLabel, onAction, onRetry,
-  selectedId = null, isNarrow = false, emptyLabel = 'This collection',
+  selectedId = null, isNarrow = false, emptyLabel = 'This collection', onRetryAvailability = null,
 }) {
   if (state === 'loading') {
     // Skeletons in the real grid, at the real card size, so the layout does not jump when they
@@ -267,6 +274,7 @@ export function GiftProductGrid({
           onAction={onAction}
           selected={selectedId != null && selectedId === card.id}
           isNarrow={isNarrow}
+          onRetryAvailability={onRetryAvailability}
         />
       ))}
     </div>
