@@ -132,3 +132,12 @@ test("gift wording is the scheduler's own", () => {
   assert.equal(S({ type: "qrcash", autoGift: true }, false), "Reminder only \u2014 confirmation required", "follows the scheduler's switch exactly like ContactForm");
   assert.equal(R.resolverGiftStatus({ type: "qrcash", autoGift: true }, false).detail, "QR Cash is sent when you send the Greet-Me. Scheduled QR Cash is not available yet.");
 });
+
+test("Auto-Gift detail follows the approved consent rule: with a backup, no contradictory 'unavailable … nothing is charged' sentence (founder 2026-10-21, S6-S7)", () => {
+  const plain = R.resolverGiftStatus({ type: "gift_boxes", autoGift: true, scheduledGift: { name: "Cookie Box" } }, true, true);
+  assert.match(plain.detail, /If it is unavailable or costs more, nothing is charged/);
+  const withBackup = R.resolverGiftStatus({ type: "gift_boxes", autoGift: true, scheduledGift: { name: "Cookie Box", backup: { name: "Tea" } } }, true, true);
+  assert.doesNotMatch(withBackup.detail, /If it is unavailable or costs more/);
+  assert.match(withBackup.detail, /your backup is ordered instead, only within your limit/);
+  assert.match(withBackup.detail, /neither gift can be ordered within your limit, nothing is charged and the greeting is sent without the gift\./);
+});

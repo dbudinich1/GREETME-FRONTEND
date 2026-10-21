@@ -43,7 +43,12 @@ export function resolverGiftStatus(gift, scheduledQrCashAvailable = SCHEDULED_QR
   if (gift.type === 'none') return { label: 'No gift', detail: 'The greeting is scheduled with no gift.' };
   // A chosen product with Auto-Gift consented (Report 117 contract v1), only while scheduled physical gifts are live.
   if (gift.scheduledGift && gift.autoGift === true && scheduledPhysicalAvailable) {
-    return { label: 'Auto-Gift on', detail: 'On the occasion date we check the gift is available and the full total is within your maximum, then charge your saved card and place the order. Delivery follows after the occasion date. If it is unavailable or costs more, nothing is charged and the greeting is sent without the gift.' };
+    const base = 'On the occasion date we check the gift is available and the full total is within your maximum, then charge your saved card and place the order. Delivery follows after the occasion date.';
+    // With a backup (founder 2026-10-21, S6-S7): the same rule as the consent text, never the contradictory no-gift sentence.
+    if (gift.scheduledGift.backup) {
+      return { label: 'Auto-Gift on', detail: `${base} If the gift isn’t available, your backup is ordered instead, only within your limit. If the gift costs more than your maximum, or neither gift can be ordered within your limit, nothing is charged and the greeting is sent without the gift.` };
+    }
+    return { label: 'Auto-Gift on', detail: `${base} If it is unavailable or costs more, nothing is charged and the greeting is sent without the gift.` };
   }
   if (gift.type === 'qrcash' && !scheduledQrCashAvailable) return { label: 'Reminder only \u2014 confirmation required', detail: SCHEDULED_QRCASH_UNAVAILABLE_COPY };
   if (gift.type === 'qrcash' && gift.autoGift === true) {
