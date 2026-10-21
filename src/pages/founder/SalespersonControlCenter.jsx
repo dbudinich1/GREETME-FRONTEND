@@ -580,7 +580,8 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
         </section>
       ) : null}
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: "1.25rem", alignItems: "start" }}>
+      {/* Two columns on wide screens; stacked on a phone (founder 2026-10-21 preview: the list was squeezed at 390px). */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: "1.25rem", alignItems: "start" }}>
         {/* ── CREATE ── */}
         <section style={card}>
           <h2 style={{ fontSize: "1rem", margin: "0 0 .75rem" }}>Add a salesperson</h2>
@@ -620,7 +621,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
         {/* ── LIST ── */}
         <section style={card}>
           <h2 style={{ fontSize: "1rem", margin: "0 0 .75rem" }}>Salespeople</h2>
-          <div role="tablist" aria-label="Salesperson status" style={{ display: "inline-flex", border: "1px solid var(--border)", borderRadius: 999, padding: 2, marginBottom: ".6rem" }}>
+          <div role="tablist" aria-label="Salesperson status" style={{ display: "inline-flex", flexWrap: "wrap", maxWidth: "100%", border: "1px solid var(--border)", borderRadius: 999, padding: 2, marginBottom: ".6rem" }}>
             {STATUS_VIEWS.map((v) => {
               const n = salespersonView(rows, v.key, "").length;
               const on = statusView === v.key;

@@ -30,13 +30,13 @@ export function recipientLimitText(recipients, controls) {
     : recipients.override === null || recipients.override === undefined ? "plan limit"
     : recipients.override === "unlimited" ? "custom: no limit" : `custom; plan limit ${lim(recipients.planLimit)}`;
   const over = limit !== null && recipients.count > limit ? " · above the limit: contacts kept, none can be added" : "";
-  return `${used} of ${limit === null ? "no limit" : limit} (${source})${over}`;
+  return limit === null ? `${used}, no limit (${source})` : `${used} of ${limit} (${source})${over}`;
 }
 
 export function accessSummary(view) {
   const { access, controls, recipients } = view;
   const sends = controls.unlimitedSending ? "Unlimited sending" : `${access.canSend ? "Can send" : "Blocked"} · ${access.remaining ?? 0} of ${access.limit} left`;
-  return `${sends} · recipients ${recipients.count} of ${lim(recipients.limit)}`;
+  return `${sends} · recipients ${recipients.count}${recipients.limit === null ? ", no limit" : ` of ${recipients.limit}`}`;
 }
 
 function fmtAt(at) {

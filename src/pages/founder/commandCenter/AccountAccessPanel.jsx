@@ -13,6 +13,8 @@ const h4 = { fontSize: ".84rem", margin: "0 0 .4rem" };
 const block = { borderTop: "1px solid var(--border)", paddingTop: ".8rem" };
 const pill = (ok) => ({ display: "inline-block", padding: ".1rem .5rem", borderRadius: 999, fontSize: ".75rem", fontWeight: 700,
   background: ok ? "var(--success-bg, #e7f6ec)" : "var(--danger-bg, #fdecec)", color: ok ? "var(--success, #166534)" : "var(--danger, #b42318)" });
+// Same as the gift panel's checkbox: the global input style (width 100%) must not stretch ticks and radios.
+const tick = { width: "auto", padding: 0, margin: 0, verticalAlign: "middle", display: "inline-block", flex: "0 0 auto" };
 const card = { background: "var(--surface, #fff)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg, 14px)", padding: "1.1rem" };
 
 export default function AccountAccessPanel({ api, salesperson }) {
@@ -114,7 +116,7 @@ export default function AccountAccessPanel({ api, salesperson }) {
         <div style={block} data-testid="acc-unlimited">
           <h4 style={h4}>Unlimited sending</h4>
           <label style={{ display: "flex", gap: ".5rem", alignItems: "center", fontSize: ".86rem" }}>
-            <input type="checkbox" data-testid="acc-unlimited-toggle" checked={unlimitedDraft} onChange={(e) => setUnlimitedDraft(e.target.checked)} />
+            <input type="checkbox" style={tick} data-testid="acc-unlimited-toggle" checked={unlimitedDraft} onChange={(e) => setUnlimitedDraft(e.target.checked)} />
             Unlimited sending
           </label>
           <p style={{ ...muted, margin: ".35rem 0 .2rem" }}>Unlimited sending also removes:</p>
@@ -168,8 +170,8 @@ export default function AccountAccessPanel({ api, salesperson }) {
           {controls.unlimitedSending ? <p style={{ ...muted, margin: "0 0 .4rem" }}>Unlimited sending already removes the recipient limit. This setting applies when unlimited sending is off.</p> : null}
           <div role="radiogroup" aria-label="Recipient limit" style={{ display: "flex", gap: ".9rem", flexWrap: "wrap", fontSize: ".84rem", marginBottom: ".45rem" }}>
             {[["plan", `Plan limit (${recipients.planLimit === null ? "no limit" : recipients.planLimit})`], ["number", "Custom"], ["unlimited", "No limit"]].map(([m, l]) => (
-              <label key={m} style={{ display: "flex", gap: ".3rem", alignItems: "center" }}>
-                <input type="radio" name={`acc-limit-${spId}`} data-testid={`acc-limit-${m}`} checked={limitMode === m} onChange={() => setLimitMode(m)} />{l}
+              <label key={m} style={{ display: "flex", gap: ".35rem", alignItems: "center", whiteSpace: "nowrap" }}>
+                <input type="radio" style={tick} name={`acc-limit-${spId}`} data-testid={`acc-limit-${m}`} checked={limitMode === m} onChange={() => setLimitMode(m)} />{l}
               </label>
             ))}
           </div>
