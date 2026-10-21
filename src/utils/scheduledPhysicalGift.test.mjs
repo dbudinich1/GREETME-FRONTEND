@@ -7,8 +7,8 @@ import { SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from "../config/scheduledPhysicalGi
 
 const DELIVERY = { firstName: "Evelyn", lastName: "Park", address1: "41 Orchard Lane", address2: "Apt 2", city: "Montclair", state: "NJ", postalCode: "07042", country: "US" };
 
-test("the feature ships switched off", () => {
-  assert.equal(SCHEDULED_PHYSICAL_GIFT_AVAILABLE, false);
+test("the feature ships switched ON (founder activation 2026-10-21)", () => {
+  assert.equal(SCHEDULED_PHYSICAL_GIFT_AVAILABLE, true);
 });
 
 test("delivery is prefilled from the saved record in the contract's shape; state names become 2-letter codes; non-US is not converted", () => {

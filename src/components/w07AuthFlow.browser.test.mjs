@@ -17,8 +17,8 @@ import esbuild from "esbuild";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PID = process.pid;
 const f = (n) => join(__dirname, `.__w07.${PID}.${n}`);
-const ENTRY = f("entry.jsx"), ON = f("on.mjs"), OFF = f("off.mjs"), API = f("api.js"), CFG_ON = f("cfg.js"), CFG_OFF = f("cfg-off.js"), STRIPE = f("stripe.jsx"), PROV = f("prov.js"), ROUTER = f("router.js"), AUTH = f("auth.js"), NOTIFY = f("notify.js");
-const TEMP = [ENTRY, ON, OFF, API, CFG_ON, CFG_OFF, STRIPE, PROV, ROUTER, AUTH, NOTIFY];
+const ENTRY = f("entry.jsx"), ON = f("on.mjs"), OFF = f("off.mjs"), API = f("api.js"), CFG_ON = f("cfg.js"), CFG_OFF = f("cfg-off.js"), PHYS_OFF = f("phys-off.js"), STRIPE = f("stripe.jsx"), PROV = f("prov.js"), ROUTER = f("router.js"), AUTH = f("auth.js"), NOTIFY = f("notify.js");
+const TEMP = [ENTRY, ON, OFF, API, CFG_ON, CFG_OFF, PHYS_OFF, STRIPE, PROV, ROUTER, AUTH, NOTIFY];
 let React, createRoot, act, FormOn, FormOff, window;
 
 before(async () => {
@@ -35,6 +35,10 @@ before(async () => {
   writeFileSync(CFG_ON, `export const SCHEDULED_QRCASH_AVAILABLE = true;\nexport const SCHEDULED_QRCASH_UNAVAILABLE_COPY = "";\n`);
   // Release 2 activation: the shipped constant is TRUE, so the OFF bundle must force the unavailable state explicitly.
   writeFileSync(CFG_OFF, `export const SCHEDULED_QRCASH_AVAILABLE = false;\nexport const SCHEDULED_QRCASH_UNAVAILABLE_COPY = "QR Cash is sent when you send the Greet-Me. Scheduled QR Cash is not available yet.";\n`);
+  // Scheduled physical gifts ship ON since 2026-10-21, so the OFF bundle forces that switch off too.
+  writeFileSync(PHYS_OFF, `export const SCHEDULED_PHYSICAL_GIFT_AVAILABLE = false;
+export const SCHEDULED_GIFT_WORDING_VERSION = "sched-gift-v1";
+`);
   writeFileSync(STRIPE, `
     import React from "react";
     export const Elements = ({ children }) => children;
@@ -61,6 +65,7 @@ before(async () => {
         if (a.path === "@stripe/react-stripe-js") return { path: STRIPE };
         if (/stripe\/stripeProvider$/.test(a.path)) return { path: PROV };
         if (/config\/scheduledQrCash$/.test(a.path)) return { path: withOnConfig ? CFG_ON : CFG_OFF };
+        if (!withOnConfig && /config\/scheduledPhysicalGift$/.test(a.path)) return { path: PHYS_OFF };
         return undefined;
       });
     } }],
