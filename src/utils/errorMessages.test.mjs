@@ -116,3 +116,9 @@ test("no error, or a completely empty error, never throws and falls back to DEFA
   assert.equal(getErrorMessage(null), ERROR_MESSAGES.DEFAULT);
   assert.equal(getErrorMessage({}), ERROR_MESSAGES.DEFAULT);
 });
+
+test("scheduled gift approved-total refusals map to clear messages, whatever the status or server text", () => {
+  assert.equal(getErrorMessage({ code: "approved_total_stale", status: 409, message: "occasionGiftSettings.x: the total changed" }), "Today's total has changed. Get today's total again before saving.");
+  assert.equal(getErrorMessage({ code: "approved_total_unverifiable", status: 503 }), "We couldn't check today's total just now. Get today's total again before saving.");
+  assert.equal(getErrorMessage({ code: "approved_total_gift_unavailable", status: 409 }), "This gift box isn't available right now. Choose another gift box, or try again later.");
+});

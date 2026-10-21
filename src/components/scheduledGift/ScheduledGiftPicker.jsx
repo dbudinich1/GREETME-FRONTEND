@@ -50,7 +50,10 @@ export default function ScheduledGiftPicker({ isOpen, onClose, contact, occasion
   // capped by the lower of the chosen box's quoted total at save (approvedTotalCents) and the maximum.
   const [backup, setBackup] = useState(prior && prior.vendor === 'gift_boxes' && prior.backup ? { providerProductId: prior.backup.providerProductId, name: prior.backup.name, imageUrl: prior.backup.imageUrl } : null);
   const [backupOpen, setBackupOpen] = useState(false);
-  const [approvedCents, setApprovedCents] = useState(prior && prior.backup && Number.isSafeInteger(prior.approvedTotalCents) ? prior.approvedTotalCents : null);
+  // The approved total is only ever today's server quote, fetched in this picker ("Get today's total"): a stored one is
+  // never reused, so keeping or changing a backup always needs a fresh total (and, being part of the consented
+  // selection, renewed consent at save).
+  const [approvedCents, setApprovedCents] = useState(null);
 
   // Any change to what is chosen, where it goes or how many clears a gift-box total already shown.
   const invalidate = () => { setQuote(null); setQuoteState('idle'); setQuoteError(''); setApprovedCents(null); };

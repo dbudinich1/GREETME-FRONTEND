@@ -43,7 +43,9 @@ before(async () => {
   writeFileSync(API, `
     export const __calls = [];
     const impl = { getContacts: async () => { __calls.push("getContacts"); return { ok: true, data: JSON.parse(JSON.stringify(globalThis.__contacts)) }; },
-      updateContact: async (id, body) => { __calls.push("updateContact:" + id); (globalThis.__bodies = globalThis.__bodies || []).push(body); return { ok: true, data: { id, ...body } }; },
+      updateContact: async (id, body) => { __calls.push("updateContact:" + id); (globalThis.__bodies = globalThis.__bodies || []).push(body);
+        if (globalThis.__saveError) { const e = new Error(globalThis.__saveError.message); Object.assign(e, globalThis.__saveError); throw e; }
+        return { ok: true, data: { id, ...body } }; },
       getQrCashCardStatus: async () => { __calls.push("cardStatus"); return { ok: true, card: globalThis.__card || null }; },
       quoteGiftBox: async (b) => { (globalThis.__quotes = globalThis.__quotes || []).push(b); return { ok: true, quotedTotalCents: 4599, providerQuotedTotalCents: 4299, feeCents: 300, quotedAt: "2026-10-18T12:00:00Z", quoteValidForMs: 120000, display: { productCents: 3699, shippingHandlingCents: 600, taxCents: 300, totalCents: 4599 } }; },
       request: async (path) => (path === "/api/merch/products" ? { ok: true, products: [{ syncProductId: 9101, name: "Mug", imageUrl: "", priceCentsMin: 1800, priceCentsMax: 1800, variantCount: 1, variants: [{ syncVariantId: 40011, label: "11 oz", priceCents: 1800 }] }] } : {}),
@@ -254,4 +256,71 @@ test("existing schedule with a v1 consent: adding a backup asks for fresh consen
   assert.equal($("[data-testid=save-modal]"), null, "unchanged backup + v2 consent: reused");
   assert.equal("scheduledGiftConsents" in globalThis.__bodies.at(-1), false);
   assert.equal(globalThis.__bodies.at(-1).occasionGiftSettings.christmas.scheduledGift.approvedTotalCents, 4599, "kept as stored");
+});
+
+test("the server refuses with approved_total_stale: a clear message, no confirmation, the selection kept; the picker then needs today's total again and the sender consents again", async () => {
+  await chooseCookieBox();
+  await setValue($("[data-testid=sg-max]"), "50");
+  await addTeaBackup();
+  await clickEl($("[data-testid=sg-use]"));
+  globalThis.__saveError = { message: "the total changed", status: 409, code: "approved_total_stale", currentTotalCents: 4799 };
+  try {
+    await clickEl(SAVE()); await settle();
+    await clickEl($("[data-testid=sg-consent-checkbox]"));
+    await clickEl($("[data-testid=save-modal-save]")); await settle();
+    assert.equal(globalThis.__bodies.length, 1, "one save attempt, no silent retry");
+    assert.equal($("[data-testid=save-modal-submit-error]").textContent, "Today's total has changed. Get today's total again before saving.");
+    assert.equal(globalThis.__toasts.length, 0, "never confirmed");
+    assert.doesNotMatch(document.body.textContent, /Confirmed!|Recipient updated successfully/);
+  } finally { globalThis.__saveError = null; }
+  await clickEl($("[data-testid=save-modal-cancel]")); await settle();
+  assert.equal(christmas().querySelector("[data-testid=sg-entry-backup]").textContent, "Backup: Tea Sampler", "the selection is kept");
+
+  // Re-open: the old approved total is not reused; Use this gift asks for today's total first.
+  await clickEl(christmas().querySelector("[data-testid=sg-change]")); await settle();
+  assert.ok($("[data-testid=sg-get-total]"), "today's total must be fetched again");
+  await clickEl($("[data-testid=sg-use]"));
+  assert.ok($("[data-testid=sg-picker]"), "not accepted with the old total");
+  assert.match($("[data-testid=sg-problems]").textContent, /Get today’s total to keep the backup gift/);
+  await clickEl($("[data-testid=sg-get-total]")); await settle();
+  assert.equal(globalThis.__quotes.length, 2, "a fresh server quote");
+  await clickEl($("[data-testid=sg-use]"));
+  assert.equal($("[data-testid=sg-picker]"), null);
+  await clickEl(SAVE()); await settle();
+  assert.ok($("[data-testid=sg-consent-checkbox]"), "consent is asked again before the save");
+  await clickEl($("[data-testid=sg-consent-checkbox]"));
+  await clickEl($("[data-testid=save-modal-save]")); await settle();
+  assert.equal(globalThis.__bodies.length, 2);
+  assert.deepEqual(globalThis.__bodies.at(-1).scheduledGiftConsents, { christmas: { accepted: true, wordingVersion: "sched-gift-v2" } });
+  assert.match(globalThis.__toasts.at(-1), /^Confirmed! /);
+});
+
+test("approved_total_unverifiable (retryable) and approved_total_gift_unavailable: a clear message each, nothing confirmed", async () => {
+  for (const [code, status, msg] of [
+    ["approved_total_unverifiable", 503, "We couldn't check today's total just now. Get today's total again before saving."],
+    ["approved_total_gift_unavailable", 409, "This gift box isn't available right now. Choose another gift box, or try again later."],
+  ]) {
+    await chooseCookieBox();
+    await addTeaBackup();
+    await clickEl($("[data-testid=sg-use]"));
+    globalThis.__saveError = { message: "x", status, code };
+    try {
+      await clickEl(SAVE()); await settle();
+      await clickEl($("[data-testid=sg-consent-checkbox]"));
+      await clickEl($("[data-testid=save-modal-save]")); await settle();
+      assert.equal($("[data-testid=save-modal-submit-error]").textContent, msg, code);
+      assert.equal(globalThis.__toasts.length, 0);
+    } finally { globalThis.__saveError = null; }
+  }
+});
+
+test("an address change clears the approved total: the backup then needs today's total again", async () => {
+  await chooseCookieBox();
+  await addTeaBackup();
+  assert.ok($("[data-testid=sg-quote]"));
+  await setValue($("[data-testid=sg-delivery-address1]"), "10 Pine Rd");
+  assert.equal($("[data-testid=sg-quote]"), null, "the old total is gone");
+  assert.ok($("[data-testid=sg-get-total]"));
+  await clickEl($("[data-testid=sg-use]"));
+  assert.match($("[data-testid=sg-problems]").textContent, /Get today’s total to keep the backup gift/);
 });
