@@ -65,7 +65,7 @@ before(async () => {
       id: "gm-" + f.providerProductId, vendor: "sample", title: f.name, description: "",
       priceCents: f.priceMinor, giftType: "Gifts", occasion: null, currency: f.currency,
       images: f.imageUrl ? [{ url: f.imageUrl, alt: "" }] : [], variants: [],
-      greetMeCategories: ["gift_baskets"], source: "sample", providerProductId: f.providerProductId,
+      greetMeCategories: ["gift_baskets"], source: "goody", providerProductId: f.providerProductId,
     }))) + ";\n"
     + "async function getGiftCatalog() { return { ok: true, products: curated }; }\n"
     + "async function getSmartCardTiles() { return { ok: false }; }\n"
@@ -98,6 +98,8 @@ before(async () => {
     "  if (giftType !== 'gift_boxes') return { ok: true, products: [] };",
     "  const mode = globalThis.__liveMode || 'ok';",
     "  if (mode === 'fail') return { ok: false, products: [] };",
+    // The real transport answers a 503 as { ok: true, products: [], unavailable: true } (see api/providerCheckout.js).
+    "  if (mode === 'unavailable') return { ok: true, products: [], unavailable: true };",
     "  if (mode === 'pending') await new Promise((r) => { globalThis.__releaseLive = r; });",
     "  return { ok: true, products: flowers };",
     "}",
@@ -324,5 +326,19 @@ test("the note sits in the card's existing description slot: same card, same slo
     assert.ok(slot.contains(note(m.host, "BOX-PLAIN")), "inside the reserved description slot");
     assert.equal(slot.style.minHeight, "2.1em");
     assert.equal(m.host.querySelectorAll('[data-testid^="gift-card-gm-"]').length >= 3, true);
+  } finally { await m.unmount(); globalThis.__liveMode = "ok"; }
+});
+
+test("the provider said it is available but its live list answered 503: 'Availability unavailable. Try again.', not 'not available'", async () => {
+  globalThis.__liveMode = "unavailable";
+  const m = await mountGiftPlace();
+  try {
+    await openGiftBaskets(m.host);
+    assert.equal(note(m.host, "BOX-PLAIN").textContent.replace(/\s+/g, " "), "Availability unavailable. Try again.");
+    assert.equal(action(m.host, "BOX-PLAIN").disabled, true);
+    globalThis.__liveMode = "ok";
+    await click(m.host.querySelector('[data-testid="gift-card-availability-retry-gm-BOX-PLAIN"]'));
+    await settleAll();
+    assert.equal(action(m.host, "BOX-PLAIN").disabled, false);
   } finally { await m.unmount(); globalThis.__liveMode = "ok"; }
 });

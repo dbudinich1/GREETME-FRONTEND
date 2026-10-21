@@ -38,6 +38,7 @@ export function useProviderCatalogue(giftType, deps = {}) {
   // A counter rather than a boolean, so a SECOND failure still re-runs the effect.
   const [attempt, setAttempt] = useState(0);
   const [postureAttempt, setPostureAttempt] = useState(0);
+  const [liveUnavailable, setLiveUnavailable] = useState(false);
 
   useEffect(() => {
     if (!giftType) return undefined;
@@ -64,8 +65,10 @@ export function useProviderCatalogue(giftType, deps = {}) {
     setState('loading');
     (async () => {
       try {
-        const { ok, products: live } = await readCatalogue(giftType);
+        const { ok, products: live, unavailable } = await readCatalogue(giftType);
         if (cancelled) return;
+        // The posture said yes but the list answered "unavailable" (503): for the live check that is a failed read.
+        setLiveUnavailable(unavailable === true);
         setProducts(Array.isArray(live) ? live : []);
         // `ok` is READ, not inferred from an empty array. The shared API client answers a dead
         // network and a 404 with a sentinel rather than a throw, so an empty list on its own cannot
@@ -75,6 +78,7 @@ export function useProviderCatalogue(giftType, deps = {}) {
       } catch {
         if (cancelled) return;
         setProducts([]);
+        setLiveUnavailable(false);
         setState('failed');
       }
     })();
@@ -93,7 +97,8 @@ export function useProviderCatalogue(giftType, deps = {}) {
     state: giftType && availableFor !== giftType ? 'loading' : state,
     // The same, except that a posture question answered "no" (or not at all) is 'failed' rather than 'loading': the
     // Gift Place uses it to say "Availability unavailable. Try again." instead of checking forever.
-    liveState: !giftType ? 'idle' : postureFailedFor === giftType ? 'failed' : availableFor !== giftType ? 'loading' : state,
+    liveState: !giftType ? 'idle' : postureFailedFor === giftType ? 'failed' : availableFor !== giftType ? 'loading'
+      : state === 'ready' && liveUnavailable ? 'failed' : state,
     retry,
   };
 }

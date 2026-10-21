@@ -517,7 +517,9 @@ test('the marketplace never hands its own product to a provider checkout', () =>
   const listDef = merch.match(/const (\w+) = useMemo\(\(\) => \[([\s\S]*?)\], \[([^\]]*)\]\);/);
   assert.ok(listDef, 'the provider-only checkout list must be a single useMemo of provider catalogue products');
   const [, listName, listBody, listDeps] = listDef;
-  const providerHooks = [...merch.matchAll(/const \{ products: (\w+) \} = useProviderCatalogue\(/g)].map((m) => m[1]);
+  // The hook's other results (its live state and retry, for the Gift Place availability notes) may be destructured
+  // beside `products`; only `products` can feed the provider-only list below.
+  const providerHooks = [...merch.matchAll(/const \{ products: (\w+)(?:, [^}]*)? \} = useProviderCatalogue\(/g)].map((m) => m[1]);
   assert.ok(providerHooks.length >= 1, 'provider products come from useProviderCatalogue');
   const spread = [...listBody.matchAll(/\.\.\.\(\s*(\w+)\s*\|\|\s*\[\]\)/g)].map((m) => m[1]);
   assert.deepEqual([...spread].sort(), [...providerHooks].sort(), 'the list spreads exactly the provider catalogue results');

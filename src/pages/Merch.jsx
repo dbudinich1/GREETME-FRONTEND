@@ -168,12 +168,10 @@ export default function Merch() {
   // ANY category — Tech and Americana as well as Flowers and Gift Baskets — can be resolved to
   // its live provider product the moment it is selected. Same endpoint, same hook, same posture
   // gate as before checkout preservation requires; only WHEN it is called has changed.
-  const flowersLive = useProviderCatalogue('flowers');
-  const giftBasketsLive = useProviderCatalogue('gift_boxes');
-  const flowersProviderProducts = flowersLive.products;
-  const giftBasketsProviderProducts = giftBasketsLive.products;
+  const { products: flowersProviderProducts, liveState: flowersLiveState, retry: retryFlowersLive } = useProviderCatalogue('flowers');
+  const { products: giftBasketsProviderProducts, liveState: giftBasketsLiveState, retry: retryGiftBasketsLive } = useProviderCatalogue('gift_boxes');
   // Re-read both live lists (the retry under "Availability unavailable. Try again.").
-  const retryLiveAvailability = () => { flowersLive.retry(); giftBasketsLive.retry(); };
+  const retryLiveAvailability = () => { retryFlowersLive(); retryGiftBasketsLive(); };
   // TAGGED BY ITS OWN CATEGORY, at the one point the two lists are merged. Once concatenated, a
   // Goody gift box and a Florist One arrangement are otherwise indistinguishable — both project
   // through the same six-field shape — so without this tag every provider-fulfilled selection
@@ -298,11 +296,11 @@ export default function Merch() {
       // A stored card is choosable only once the LIVE provider list confirms it (withLiveAvailability): while that list
       // loads, or when it failed, the card stays visible but cannot be chosen. Never fails open.
       ? withOptionsNote(withLiveAvailability(projectGiftCards(visibleProducts, fromCuratedProduct), {
-        flowers: { state: flowersLive.liveState, products: flowersProviderProducts },
-        gift_boxes: { state: giftBasketsLive.liveState, products: giftBasketsProviderProducts },
+        flowers: { state: flowersLiveState, products: flowersProviderProducts },
+        gift_boxes: { state: giftBasketsLiveState, products: giftBasketsProviderProducts },
       }), giftBasketsProviderProducts)
       : projectGiftCards(visibleProducts, fromCatalogProduct)
-  ), [isCuratedSelection, visibleProducts, flowersLive.liveState, flowersProviderProducts, giftBasketsLive.liveState, giftBasketsProviderProducts]);
+  ), [isCuratedSelection, visibleProducts, flowersLiveState, flowersProviderProducts, giftBasketsLiveState, giftBasketsProviderProducts]);
 
   // The grid's state, from whichever source is feeding it.
   const gridState = isCuratedSelection

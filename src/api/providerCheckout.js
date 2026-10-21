@@ -71,7 +71,9 @@ export async function fetchProviderCatalog(giftType) {
   if (Array.isArray(res?.products)) return { ok: true, products: res.products };
   // A dormant provider is not a failure: it answered, and the answer is that there is nothing to
   // show. Everything else — a dead network, a 404, an unreadable body — is.
-  if (res?.unavailable === true) return { ok: true, products: [] };
+  // `unavailable: true` is additive: callers that only read ok/products are unchanged; the Gift Place's live check reads
+  // it so a 503 after the posture said "available" is shown as "Availability unavailable. Try again.", not as gone.
+  if (res?.unavailable === true) return { ok: true, products: [], unavailable: true };
   return { ok: false, products: [] };
 }
 
