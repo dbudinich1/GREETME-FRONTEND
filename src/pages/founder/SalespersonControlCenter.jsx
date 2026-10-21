@@ -19,6 +19,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { salesAdminApi, salesAdminErrorMessage } from "../../api/salesAdmin.js";
 import { AssignedLinksPanel, GiftSalesPanel, ShareQr } from "./commandCenter/ProfilePanels.jsx";
 import GiftCommissionPanel from "./commandCenter/GiftCommissionPanel.jsx";
+import { UnsavedEditsContext } from "./commandCenter/unsavedEdits.js";
 import CommissionSection from "./commandCenter/CommissionSection.jsx";
 import AccountAccessPanel from "./commandCenter/AccountAccessPanel.jsx";
 import { salespersonView, STATUS_VIEWS } from "./commandCenter/accountAccessLogic.js";
@@ -125,10 +126,24 @@ const REACTIVATE_EFFECTS = [
   "Their linked Greet-Me account and its sending allowance are not changed.",
 ];
 
-// Every confirmation that can be open while the details pop-up is shown. Escape belongs to the confirmation then, not to
-// the pop-up (Team 5, 2026-10-21: the gift-commission confirmation was missing).
-const OPEN_CONFIRMATIONS = ['fcc-confirm', 'acc-confirm', 'cc-giftcomm-confirm', 'fcc-payout-confirm', 'fcc-link-confirm']
-  .map((t) => `[data-testid="${t}"]`).concat('[role="alertdialog"]').join(", ");
+// Every confirmation that can be open while the details pop-up is shown, topmost first, with its own Cancel control.
+// Escape cancels ONLY the topmost confirmation (same as pressing its Cancel; the confirmed action never runs) and keeps
+// the pop-up open; with no confirmation open, Escape closes the pop-up (founder 2026-10-21).
+const CONFIRMATIONS = [
+  ["fcc-confirm", "fcc-confirm-cancel"],          // status / rotate (above the pop-up)
+  ["acc-confirm", "acc-confirm-cancel"],          // sending and recipients (above the pop-up)
+  ["cc-giftcomm-confirm", "cc-giftcomm-confirm-cancel"],
+  ["fcc-payout-confirm", "fcc-payout-cancel"],
+];
+function topmostConfirmation() {
+  for (const [box, cancel] of CONFIRMATIONS) {
+    const el = document.querySelector(`[data-testid="${box}"]`);
+    if (el) return { el, cancel: el.querySelector(`[data-testid="${cancel}"]`) || document.querySelector(`[data-testid="${cancel}"]`) };
+  }
+  const alert = document.querySelector('[role="alertdialog"]');
+  if (alert) return { el: alert, cancel: [...alert.querySelectorAll("button")].find((b) => /cancel/i.test(b.getAttribute("data-testid") || "") || /^\s*cancel\s*$/i.test(b.textContent || "")) || null };
+  return null;
+}
 
 export default function SalespersonControlCenter({ api = salesAdminApi, user: injectedUser, origin: originOverride } = {}) {
   const user = injectedUser !== undefined ? injectedUser : readUser();
@@ -466,6 +481,15 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
 
   // Founder 2026-10-21: the selected salesperson opens in a pop-up. Closing it returns to the list; nothing is saved by closing.
   function closeDetail() { setSelectedId(null); setDetail(null); }
+  // Unsaved edits in the pop-up (founder 2026-10-21): an outside click is ignored while any exist; × still closes.
+  const childDirty = useRef(new Map());
+  const reportDirty = useCallback((key, dirty) => { if (dirty) childDirty.current.set(key, true); else childDirty.current.delete(key); }, []);
+  const ownDirty = Boolean(detail) && (
+    slugDraft.trim() !== String(detail.referralSlug || "").trim()
+    || JSON.stringify(compDraft) !== JSON.stringify(compDraftFrom(detail))
+    || linkEmail.trim() !== ""
+  );
+  function hasUnsavedEdits() { return ownDirty || childDirty.current.size > 0; }
 
   useEffect(() => {
     const el = createCardRef.current;
@@ -484,8 +508,15 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     const focusClose = () => { const b = document.querySelector('[data-testid="fcc-detail-close"]'); if (b) b.focus(); };
     focusClose();
     const onKey = (e) => {
-      // Escape closes the pop-up, unless a confirmation is open (it handles Escape itself).
-      if (e.key === "Escape" && !document.querySelector(OPEN_CONFIRMATIONS)) { closeDetail(); return; }
+      if (e.key === "Escape") {
+        // Runs in the capture phase, BEFORE a confirmation's own Escape handling, so one key press acts once.
+        const top = topmostConfirmation();
+        e.preventDefault(); e.stopPropagation();
+        if (!top) { closeDetail(); return; }
+        if (top.cancel && !top.cancel.disabled) top.cancel.click(); // exactly the Cancel button: nothing is confirmed
+        setTimeout(focusClose, 0);                                   // focus returns into the pop-up
+        return;
+      }
       if (e.key !== "Tab") return;
       // Tab cycles inside the topmost layer: a confirmation shown above the pop-up, else the pop-up itself.
       const layer = document.querySelector('[data-testid="fcc-confirm"], [data-testid="acc-confirm"]') || document.querySelector('[data-testid="fcc-detail-modal"]');
@@ -498,9 +529,9 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
       else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
-    window.addEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
     return () => {
-      document.body.style.overflow = prev; window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev; window.removeEventListener("keydown", onKey, true);
       if (opener && document.contains(opener)) opener.focus();
     };
   }, [selectedId]);
@@ -724,8 +755,9 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
       {/* ── DETAIL ── */}
       {selectedId ? (
         <div data-testid="fcc-detail-modal" role="dialog" aria-modal="true" aria-labelledby="fcc-detail-title"
-          onMouseDown={(e) => { if (e.target === e.currentTarget) closeDetail(); }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget && !hasUnsavedEdits()) closeDetail(); }}
           style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "2.5vh 1rem", zIndex: 40, overflowY: "auto" }}>
+        <UnsavedEditsContext.Provider value={reportDirty}>
         <section style={{ ...card, width: "100%", maxWidth: 980, margin: "0 auto", position: "relative" }} data-testid="fcc-detail">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: ".75rem", margin: "0 0 .75rem" }}>
             <h2 id="fcc-detail-title" style={{ fontSize: "1rem", margin: 0, minWidth: 0, overflowWrap: "anywhere" }}>
@@ -1130,6 +1162,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
           ) : null}
 
         </section>
+        </UnsavedEditsContext.Provider>
         </div>
       ) : null}
 

@@ -5,6 +5,7 @@
 // The server is the authority for every value shown here; nothing is applied optimistically.
 import { useCallback, useEffect, useState } from "react";
 import CommissionSection from "./CommissionSection.jsx";
+import { useUnsavedEdit } from "./unsavedEdits.js";
 import { salesAdminErrorMessage } from "../../../api/salesAdmin.js";
 import { accessSummary, reasonText, changeText, recipientLimitText, newChangeId, controlErrorMessage, GRANT_MAX } from "./accountAccessLogic.js";
 
@@ -31,6 +32,12 @@ export default function AccountAccessPanel({ api, salesperson }) {
   const [pending, setPending] = useState(null);  // { kind, value, changeId, title, body, error }
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
+
+  const savedOverride = view && !view.error && view.recipients ? (view.recipients.override ?? null) : null;
+  const savedMode = savedOverride === null ? "plan" : savedOverride === "unlimited" ? "unlimited" : "number";
+  useUnsavedEdit("sending-and-recipients", pending !== null || grantDraft !== ""
+    || (Boolean(view) && !view.error && Boolean(view.controls) && (unlimitedDraft !== view.controls.unlimitedSending
+      || limitMode !== savedMode || (limitMode === "number" && limitDraft !== String(savedOverride)))));
 
   const adopt = useCallback((data) => {
     setView(data);

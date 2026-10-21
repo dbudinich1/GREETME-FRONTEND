@@ -276,13 +276,53 @@ test("selected salesperson opens in a pop-up that closes with ×, Escape and a c
   assert.equal(writes(a).length, 0, "closing saves nothing");
 });
 
-test("Escape while a confirmation is open leaves the pop-up open", async () => {
+const esc = async () => { await act(async () => { window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); }); await flush(); await act(async () => { await new Promise((r) => setTimeout(r, 5)); }); };
+
+test("Escape layering: Escape cancels ONLY the open confirmation (nothing confirmed), the pop-up stays; Escape again closes it", async () => {
   const a = api(); await mount(a);
   await click(tid("fcc-row-amir-yates"));
   await click(tid("fcc-disable"));
   assert.ok(tid("fcc-confirm"));
-  await act(async () => { window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape" })); }); await flush();
+  await esc();
+  assert.equal(tid("fcc-confirm"), null, "the confirmation is cancelled");
   assert.ok(tid("fcc-detail-modal"), "the pop-up stays");
+  assert.equal(writes(a).length, 0, "the confirmed action never ran");
+  assert.ok(tid("fcc-detail-modal").contains(document.activeElement), "focus is back inside the pop-up");
+  await esc();
+  assert.equal(tid("fcc-detail-modal"), null, "with no confirmation open, Escape closes the pop-up");
+});
+
+test("Escape layering for the Sending and recipients confirmation: grant not made, pop-up stays", async () => {
+  const a = api(); await mount(a);
+  await click(tid("fcc-row-amir-yates"));
+  await setVal(tid("acc-grant-input"), "10");
+  await click(tid("acc-grant-submit"));
+  assert.ok(tid("acc-confirm"));
+  await esc();
+  assert.equal(tid("acc-confirm"), null);
+  assert.ok(tid("fcc-detail-modal"));
+  assert.equal(a.calls.some((c) => c[0] === "grantSends"), false, "no grant was made");
+});
+
+test("outside click: ignored while there are unsaved edits, closes when clean; × always closes", async () => {
+  const backdrop = async () => { await act(async () => { tid("fcc-detail-modal").dispatchEvent(new window.MouseEvent("mousedown", { bubbles: true })); }); await flush(); };
+  const a = api(); await mount(a);
+  // Own edit: an unsaved vanity URL.
+  await click(tid("fcc-row-amir-yates"));
+  await setVal(tid("fcc-slug-input"), "amir-new");
+  await backdrop();
+  assert.ok(tid("fcc-detail-modal"), "unsaved vanity URL: outside click ignored");
+  assert.equal(tid("fcc-slug-input").value, "amir-new", "the edit is kept");
+  await click(tid("fcc-detail-close"));
+  assert.equal(tid("fcc-detail-modal"), null, "× still closes");
+  // Child edit: a typed grant in Sending and recipients.
+  await click(tid("fcc-row-amir-yates"));
+  await setVal(tid("acc-grant-input"), "5");
+  await backdrop();
+  assert.ok(tid("fcc-detail-modal"), "unsaved grant entry: outside click ignored");
+  await setVal(tid("acc-grant-input"), "");
+  await backdrop();
+  assert.equal(tid("fcc-detail-modal"), null, "clean again: outside click closes");
   assert.equal(writes(a).length, 0);
 });
 

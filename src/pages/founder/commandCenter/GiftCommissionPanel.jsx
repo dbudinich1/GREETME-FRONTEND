@@ -7,6 +7,7 @@ import {
   summaryLine, historyRows, giftCommissionErrorMessage, removedTypes, typeLabel,
 } from "./giftCommissionLogic.js";
 import { giftSummary, inheritedRatesText } from "./commissionSummaries.js";
+import { useUnsavedEdit } from "./unsavedEdits.js";
 
 const box = { border: "1px solid var(--border, #e5e7eb)", borderRadius: 12, padding: "12px 14px", display: "grid", gap: 8, background: "#fff" };
 const small = { margin: 0, fontSize: ".8rem", color: "#475569", lineHeight: 1.45 };
@@ -43,6 +44,8 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
   useEffect(() => { if (has) { setState({ loading: true }); setMode("view"); setSaved(""); load(); } }, [has, load]);
   // Simple mode: the checkbox starts from what is SAVED (ticked = currently disabled).
   useEffect(() => { if (state.gc) setDisableDraft(!!(state.gc.current && state.gc.current.enabled !== true)); }, [state.gc]);
+  // Unsaved: an open edit/confirm step, or the simple-view checkbox differing from the saved setting.
+  useUnsavedEdit("gift-commission", mode !== "view" || (Boolean(state.gc) && disableDraft !== !!(state.gc.current && state.gc.current.enabled !== true)));
 
   const savedSummary = giftSummary(state.gc ? state.gc.current : null, compensation, state.loading ? "loading" : state.error ? "error" : "ready");
   useEffect(() => { if (typeof onSummary === "function") onSummary(has ? savedSummary : null); }, [onSummary, has, savedSummary]);

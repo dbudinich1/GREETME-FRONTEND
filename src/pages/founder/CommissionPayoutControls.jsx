@@ -15,6 +15,7 @@
 // entry, so the net is derived here from the reversal rows already on the page (the full ledger for this salesperson).
 import { useState } from "react";
 import { salesAdminErrorMessage } from "../../api/salesAdmin.js";
+import { useUnsavedEdit } from "./commandCenter/unsavedEdits.js";
 
 const note = { fontSize: ".78rem", color: "var(--text-secondary)", margin: ".3rem 0 0" };
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -58,6 +59,8 @@ export default function CommissionPayoutControls({ api, salespersonId, entry, le
   const [reference, setReference] = useState("");
   const [paidOn, setPaidOn] = useState(todayIso());
   const [payNote, setPayNote] = useState("");
+  // An approval/payment step in progress is unsaved work (founder 2026-10-21).
+  useUnsavedEdit(`payout:${entry && entry.id}`, step !== null);
   // STALE PAGE (T5 R2 follow-up note 1): the ledger is re-read right before Approve / Record payment. `freshRows`
   // holds that re-read so the amount shown is the server's current net; `shownNet` is the net the open confirmation
   // displayed. If the re-read net differs, nothing is sent and the founder must confirm the new amount again.
