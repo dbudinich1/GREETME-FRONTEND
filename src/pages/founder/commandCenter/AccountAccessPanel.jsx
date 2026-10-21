@@ -119,13 +119,7 @@ export default function AccountAccessPanel({ api, salesperson }) {
             <input type="checkbox" style={tick} data-testid="acc-unlimited-toggle" checked={unlimitedDraft} onChange={(e) => setUnlimitedDraft(e.target.checked)} />
             Unlimited sending
           </label>
-          <p style={{ ...muted, margin: ".35rem 0 .2rem" }}>Unlimited sending also removes:</p>
-          <ul data-testid="acc-exemptions" style={{ ...muted, margin: "0 0 .5rem", paddingLeft: "1.1rem" }}>
-            <li>the send count (plan allowance, trial end, balance)</li>
-            <li>the recipient limit</li>
-            <li>the per-account daily AI generation limit</li>
-          </ul>
-          <p style={{ ...muted, margin: "0 0 .5rem" }}>Still applies: 20 sends per hour and the service-wide daily AI ceiling. Turning it off restores the plan’s limits; contacts, history and any one-time grant are kept.</p>
+          <div style={{ marginTop: ".5rem" }}>
           <button type="button" className="btn-primary" data-testid="acc-unlimited-save"
             disabled={busy || unlimitedDraft === controls.unlimitedSending}
             onClick={() => setPending({ kind: "unlimited", value: unlimitedDraft, changeId: newChangeId(),
@@ -134,13 +128,13 @@ export default function AccountAccessPanel({ api, salesperson }) {
                 : "The plan’s send count, recipient limit and daily AI limit apply again. Nothing is deleted; any one-time grant stays." })}>
             Save
           </button>
+          </div>
         </div>
 
         <div style={block} data-testid="acc-grant">
           <h4 style={h4}>Grant sends (one-time)</h4>
-          <p style={{ ...muted, margin: "0 0 .5rem" }}>Adds a fixed number of sends once. It does not refill and is not unlimited sending.</p>
           {grantAvailable ? (
-            <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: ".5rem", alignItems: "flex-start" }}>
               <input data-testid="acc-grant-input" aria-label="Number of sends to grant" inputMode="numeric" value={grantDraft}
                 onChange={(e) => setGrantDraft(e.target.value.replace(/[^0-9]/g, ""))} style={{ width: 110 }} placeholder="e.g. 10" />
               <button type="button" className="btn-primary" data-testid="acc-grant-submit" disabled={busy || !grantValid}

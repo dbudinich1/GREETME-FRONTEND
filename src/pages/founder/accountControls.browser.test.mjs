@@ -139,8 +139,11 @@ test("panel shows the linked name/email, effective access, remaining, grants and
   assert.match(tid("acc-access-remaining").textContent, /50 of 50 sends left/);
   assert.match(tid("acc-grants").textContent, /50 sends, one-time, 2026-10-21/);
   assert.match(tid("acc-recipients-current").textContent, /3 recipients of 3 \(plan limit\)/);
-  assert.match(tid("acc-exemptions").textContent, /recipient limit/);
-  assert.match(tid("acc-exemptions").textContent, /daily AI generation limit/);
+  // Founder 2026-10-21 final adjustments: no explanatory text under Unlimited sending or Grant sends; the controls stay.
+  assert.equal(tid("acc-exemptions"), null);
+  assert.equal(/also removes|Still applies|Adds a fixed number/.test(tid("fcc-access").textContent), false);
+  assert.ok(tid("acc-unlimited-toggle")); assert.ok(tid("acc-unlimited-save"));
+  assert.match(tid("acc-grant").textContent, /Grant sends \(one-time\)/);
 });
 
 test("grant: confirmation states the new remaining; one changeId; a failed confirm retries with the SAME changeId", async () => {

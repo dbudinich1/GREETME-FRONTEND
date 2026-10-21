@@ -654,13 +654,16 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                   <button type="button" data-testid={`fcc-row-${sp.salespersonId}`}
                     onClick={() => openDetail(sp.salespersonId)}
                     style={{
-                      width: "100%", textAlign: "left", background: "transparent",
+                      // Founder 2026-10-21 (390px): block layout so the name and the ID stack and wrap inside the card;
+                      // the global button style (inline-flex, centred, no wrap) would otherwise clip long names.
+                      display: "block", width: "100%", minWidth: 0, textAlign: "left", whiteSpace: "normal", overflowWrap: "anywhere",
+                      background: "transparent",
                       border: "1px solid var(--border)", borderRadius: "var(--radius-md)",
                       padding: ".6rem .75rem", cursor: "pointer",
                       outline: selectedId === sp.salespersonId ? "2px solid var(--primary)" : "none",
                     }}>
-                    <span style={{ fontWeight: 600 }}>{sp.displayName || sp.salespersonId}</span>
-                    <span style={{ ...mono, display: "block", color: "var(--text-tertiary)" }}>{sp.salespersonId}</span>
+                    <span style={{ fontWeight: 600, display: "block" }}>{sp.displayName || sp.salespersonId}</span>
+                    <span style={{ ...mono, display: "block", color: "var(--text-tertiary)", overflowWrap: "anywhere" }}>{sp.salespersonId}</span>
                   </button>
                 </li>
               ))}
