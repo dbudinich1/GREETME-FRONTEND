@@ -47,3 +47,13 @@ test("sign-in return: only the payment-method page", () => {
   assert.equal(loginReturnPath("/dashboard/payment-method?from=email"), "/dashboard/payment-method?from=email");
   for (const p of [undefined, null, "", "/dashboard", "/dashboard/contacts", "https://evil.example/dashboard/payment-method", "/dashboard/payment-methodx", "//evil"]) assert.equal(loginReturnPath(p), null, String(p));
 });
+
+test("a save the server did not confirm never reads as saved (network drop / 401 / 404 answer {ok:false}; no card)", async () => {
+  const confirm = async () => ({ setupIntent: { id: "seti", status: "succeeded" } });
+  const mk = (complete) => ({ setupQrCashCard: async () => ({ ok: true, clientSecret: "cs", setupIntentId: "seti", consentWordingVersion: "w07-card-v1" }), completeQrCashCard: complete });
+  for (const answer of [{ ok: false }, { ok: false, code: "NETWORK" }, { ok: true }, null, undefined]) {
+    assert.deepEqual(await replaceSavedCard({ api: mk(async () => answer), confirm }), { ok: false, error: "unavailable" }, JSON.stringify(answer));
+  }
+  const card = { present: true, last4: "4242" };
+  assert.deepEqual(await replaceSavedCard({ api: mk(async () => ({ ok: true, card })), confirm }), { ok: true, card });
+});

@@ -51,7 +51,10 @@ export async function replaceSavedCard({ api, confirm }) {
   try {
     done = await api.completeQrCashCard({ setupIntentId: confirmed.setupIntent.id, consentAccepted: true, consentWordingVersion: started.consentWordingVersion });
   } catch { return { ok: false, error: 'unavailable' }; }
-  return { ok: true, card: (done && done.card) || null };
+  // Saved only when the server confirms it (Team 5 note: api.request answers {ok:false} on a network drop or 401/404
+  // instead of throwing, which must never read as "Your card is saved.").
+  if (!done || done.ok !== true || !done.card) return { ok: false, error: 'unavailable' };
+  return { ok: true, card: done.card };
 }
 
 /** Where to go after signing in: back to the payment-method page when that is where the sender was sent from. Only
