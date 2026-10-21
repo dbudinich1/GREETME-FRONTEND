@@ -174,7 +174,8 @@ test("full path: no card -> SAVE -> final confirmation asks card + consent -> ad
   assert.deepEqual(body.scheduledGiftConsents, { christmas: { accepted: true, wordingVersion: "sched-gift-v1" } });
   assert.deepEqual(body.occasionGiftSettings.birthday, { type: "qrcash", amount: 25, autoGift: false }, "the other occasion's gift is kept");
   assert.deepEqual(body.occasions.map((o) => o.type).sort(), ["birthday", "christmas"]);
-  assert.equal(globalThis.__toasts.at(-1), "On December 25, the greeting is sent and Mug — 11 oz is charged to your saved card and ordered; delivery follows after that date.", "the date-specific confirmation IS the success toast, after the save");
+  assert.equal(globalThis.__toasts.at(-1), "Confirmed! Your greeting is scheduled to be sent and your gift ordered on December 25. Your saved card will be charged within your approved limit at that time. Physical delivery follows afterward.", "the approved S3 confirmation IS the success toast, after the save");
+  assert.doesNotMatch(document.body.textContent, /Recipient updated successfully/, "S4: the duplicate banner is hidden when the confirmation appears");
   assert.equal(globalThis.__toasts.includes("Recipient settings have been saved."), false, "not the generic message instead of it");
 });
 

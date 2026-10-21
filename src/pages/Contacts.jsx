@@ -29,6 +29,7 @@ import { getOccasionIcon, getOccasionLabel } from '../utils/helpers';
 import { getOccasionCadenceLabel } from '../utils/occasionCadence';
 import { autoAddRecipientPhotosToLibrary } from '../utils/mediaLibrary';
 import { getErrorMessage } from '../utils/errorMessages';
+import { autoGiftScheduledOccasions } from '../utils/scheduledPhysicalGift';
 import { useAuth } from '../context/AuthContext';
 import { resolveRecipientLimit, recipientLimitMessage, isAtRecipientCap } from '../utils/sendGating';
 import { getHoverHandlers } from '../utils/hoverable';
@@ -509,7 +510,9 @@ export default function Recipients() {
       // Auto-add any new recipient photos to media library
       autoAddRecipientPhotosToLibrary(contactData);
 
-      showAlertMessage('success', 'Recipient updated successfully');
+      // S4: when the save carries a scheduled physical gift on Auto-Gift, the scheduler shows the approved "Confirmed! ..."
+      // message itself, so this banner would be a duplicate. Every other update keeps it.
+      if (!autoGiftScheduledOccasions(contactData && contactData.occasionGiftSettings).length) showAlertMessage('success', 'Recipient updated successfully');
       setShowEditModal(false);
       setEditingContact(null);
       fetchRecipients();

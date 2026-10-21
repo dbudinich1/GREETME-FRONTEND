@@ -83,3 +83,13 @@ test("contract v1 limits: the maximum is 1..100000 cents; vendor ids are the gif
   assert.equal(over.scheduledGift.vendor, "merch");
   assert.equal(G.buildScheduledGiftSetting({ vendor: "gift_boxes", providerProductId: "x" }, { maxTotalCents: 100000, delivery: d }).scheduledGift.vendor, "gift_boxes");
 });
+
+test("S3: the approved success confirmation, one per Auto-Gift scheduled gift; none for a reminder-only or plain gift", () => {
+  assert.equal(G.scheduledGiftSavedConfirmation("December 25"),
+    "Confirmed! Your greeting is scheduled to be sent and your gift ordered on December 25. Your saved card will be charged within your approved limit at that time. Physical delivery follows afterward.");
+  const settings = { christmas: { type: "merch", autoGift: true, scheduledGift: { v: 1 } }, birthday: { type: "gift_boxes", autoGift: false, scheduledGift: { v: 1 } }, mothers_day: { type: "qrcash", autoGift: true } };
+  assert.deepEqual(G.autoGiftScheduledOccasions(settings), ["christmas"]);
+  assert.equal(G.scheduledGiftSavedConfirmations(settings, () => "December 25"), G.scheduledGiftSavedConfirmation("December 25"));
+  assert.equal(G.scheduledGiftSavedConfirmations({ mothers_day: settings.mothers_day }, () => "x"), "");
+  assert.deepEqual(G.autoGiftScheduledOccasions(undefined), []);
+});

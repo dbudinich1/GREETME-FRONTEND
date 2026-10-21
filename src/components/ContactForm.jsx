@@ -21,7 +21,7 @@ import SaveAuthorizationModal from './w07Auth/SaveAuthorizationModal';
 import ScheduledGiftPicker from './scheduledGift/ScheduledGiftPicker';
 import ScheduledGiftEntry from './scheduledGift/ScheduledGiftEntry';
 import { SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from '../config/scheduledPhysicalGift';
-import { scheduledGiftConsentsFor, authorizationStepEnabled } from '../utils/scheduledPhysicalGift';
+import { scheduledGiftConsentsFor, authorizationStepEnabled, scheduledGiftSavedConfirmations } from '../utils/scheduledPhysicalGift';
 import PaymentInfoTriangle from './w07Auth/PaymentInfoTriangle';
 import { planAuthorization } from '../utils/scheduledQrCashConsent';
 import { QRCASH_DEFAULT_DOLLARS, normalizeGiftSettingsForSave } from '../utils/occasionGiftSave';
@@ -569,10 +569,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
     // Clear draft on successful submission
     clearFormDraft();
     // Show saved toast — only now, after the save succeeded. A scheduled physical gift on Auto-Gift says what happens on its date.
-    const sgAuto = Object.entries(toSave.occasionGiftSettings || {}).filter(([, g]) => g && g.scheduledGift && g.autoGift === true);
-    showManualToast('Saved ✓', sgAuto.length
-      ? sgAuto.map(([t, g]) => `On ${sgDateLabel(t)}, the greeting is sent and ${g.scheduledGift.name || 'the gift'} is charged to your saved card and ordered; delivery follows after that date.`).join(' ')
-      : 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
+    showManualToast('Saved ✓', scheduledGiftSavedConfirmations(toSave.occasionGiftSettings, sgDateLabel) || 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
   };
 
   const handleSubmit = async (e) => {

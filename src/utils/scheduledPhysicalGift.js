@@ -215,3 +215,18 @@ export function scheduledGiftConsentText(args) {
   const { lead, backup, tail } = scheduledGiftConsentParts(args);
   return [lead, backup, tail].filter(Boolean).join(' ');
 }
+
+/** The approved S3 confirmation for one scheduled physical gift on Auto-Gift. Shown ONLY after the save succeeded. */
+export function scheduledGiftSavedConfirmation(dateLabel) {
+  return `Confirmed! Your greeting is scheduled to be sent and your gift ordered on ${dateLabel}. Your saved card will be charged within your approved limit at that time. Physical delivery follows afterward.`;
+}
+
+/** The occasions in `settings` whose saved scheduled physical gift is on Auto-Gift (the ones the confirmation covers). */
+export function autoGiftScheduledOccasions(settings) {
+  return Object.entries(settings || {}).filter(([, g]) => g && g.scheduledGift && g.autoGift === true).map(([t]) => t);
+}
+
+/** The confirmation for every Auto-Gift scheduled gift in `settings`, one per occasion; '' when there is none. */
+export function scheduledGiftSavedConfirmations(settings, dateLabelFor) {
+  return autoGiftScheduledOccasions(settings).map((t) => scheduledGiftSavedConfirmation(dateLabelFor(t))).join(' ');
+}

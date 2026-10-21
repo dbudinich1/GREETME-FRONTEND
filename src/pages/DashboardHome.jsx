@@ -54,7 +54,7 @@ import { OCCASION_CHIPS, OCCASION_MENUS } from '../utils/dashboardOccasions';
 import ScheduledGiftPicker from '../components/scheduledGift/ScheduledGiftPicker';
 import ScheduledGiftEntry from '../components/scheduledGift/ScheduledGiftEntry';
 import { SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from '../config/scheduledPhysicalGift';
-import { scheduledGiftConsentsFor, authorizationStepEnabled } from '../utils/scheduledPhysicalGift';
+import { scheduledGiftConsentsFor, authorizationStepEnabled, scheduledGiftSavedConfirmations } from '../utils/scheduledPhysicalGift';
 import { SCHEDULED_QRCASH_AVAILABLE } from '../config/scheduledQrCash';
 import { saveLauncherState, readLauncherState, clearLauncherState } from '../utils/dashboardLauncherState';
 import giftLuxuryBox from '../assets/gifts/gift-luxury-box.png';
@@ -458,8 +458,7 @@ export default function DashboardHome() {
   const hasAutoGiftNeedingCard = (settings) => Object.values(settings || {}).some((g) => g && g.autoGift === true && (g.type === 'qrcash' || g.scheduledGift));
   const dayLabel = (d) => { const t = d ? new Date(`${String(d).slice(0, 10)}T12:00:00`) : null; return t && !Number.isNaN(t.getTime()) ? t.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : 'the occasion date'; };
   // After a save has succeeded (never before): what happens on the date for each scheduled physical gift on Auto-Gift.
-  const sgAfterSave = (toSave) => Object.entries(toSave.occasionGiftSettings || {}).filter(([, g]) => g && g.scheduledGift && g.autoGift === true)
-    .map(([t, g]) => ` On ${dayLabel(((toSave.occasions || []).find((o) => o.type === t) || {}).date)}, the greeting is sent and ${g.scheduledGift.name || 'the gift'} is charged to your saved card and ordered; delivery follows after that date.`).join('');
+  const sgAfterSave = (toSave) => { const t = scheduledGiftSavedConfirmations(toSave.occasionGiftSettings, (k) => dayLabel(((toSave.occasions || []).find((o) => o.type === k) || {}).date)); return t ? ` ${t}` : ''; };
   // Physical gift types whose exact product can be chosen for the date (Goody gift box, Printful Branded Goods).
   const sgChoosable = (g) => SCHEDULED_PHYSICAL_GIFT_AVAILABLE && g && ['merch', 'marketplace', 'gift_boxes'].includes(g.type);
 

@@ -247,7 +247,7 @@ test("Save schedules: the consent is asked at the final confirmation; the save s
     delivery: { firstName: "Margaret", lastName: "Rivera", address1: "2 Elm St", city: "Town", state: "NJ", postalCode: "07001", country: "US" },
     providerProductId: "goody-1", variants: [], quantity: 1 } });
   assert.deepEqual(body.scheduledGiftConsents, { birthday: { accepted: true, wordingVersion: "sched-gift-v1" } });
-  assert.match($("[data-testid=gx-fine]").textContent, /Saved: 1 scheduled Greet-Me for Margaret.*On February 11, the greeting is sent and Cookie Box is charged to your saved card and ordered; delivery follows after that date\./);
+  assert.match($("[data-testid=gx-fine]").textContent, /Saved: 1 scheduled Greet-Me for Margaret.* Confirmed! Your greeting is scheduled to be sent and your gift ordered on February 11\. Your saved card will be charged within your approved limit at that time\. Physical delivery follows afterward\.$/);
   assert.equal(globalThis.__charges.length + globalThis.__boxCharges.length, 0, "nothing charged at scheduling");
 });
 
