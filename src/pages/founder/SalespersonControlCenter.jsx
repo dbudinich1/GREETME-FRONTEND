@@ -858,14 +858,6 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                 </div>
               </CommissionSection>
             </div>
-            {/* ── SENDING AND RECIPIENTS ── founder 2026-10-21: the linked account's access, one-time grants, unlimited
-                sending and recipient limit. Separate from commissions; changes nothing on the salesperson record. */}
-            <div data-testid="fcc-access" style={{ marginBottom: "1rem" }}>
-              <AccountAccessPanel key={`${detail.salespersonId}:${detail.linkedUserId || ""}`} api={api} salesperson={detail} />
-            </div>
-            <div style={{ display: "grid", gap: ".9rem", marginBottom: "1rem" }} data-testid="cc-profile-additions">
-              <GiftSalesPanel api={api} salespersonId={detail.salespersonId} />
-            </div>
 
               {/* ── COMPENSATION ──
                   FORWARD-ONLY, and the copy says so plainly. Terms are frozen onto each customer
@@ -967,6 +959,10 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                 {report ? (
                   <CommissionSection id="activity" title="Commission activity and attribution"
                     summary={report.summaryError ? "Summary unavailable" : activitySummary(report.summary, (v) => minorUnits(v))}>
+                    {/* Gift & store sales live here only (founder 2026-10-21: no separate area above the commissions). */}
+                    <div style={{ display: "grid", gap: ".9rem", marginBottom: "1rem" }} data-testid="cc-profile-additions">
+                      <GiftSalesPanel api={api} salespersonId={detail.salespersonId} />
+                    </div>
                     <div data-testid="fcc-report">
 
                 {/* W38 - ONE effective status joining the stored status to the platform switches.
@@ -1078,6 +1074,12 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                     </div>
                   </CommissionSection>
                 ) : null}
+              </div>
+
+              {/* ── SENDING AND RECIPIENTS ── founder 2026-10-21: after Commissions (order: Links / Commissions / Sending and
+                  recipients). The linked account's access, one-time grants, unlimited sending and recipient limit. */}
+              <div data-testid="fcc-access" style={{ marginTop: "1.1rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+                <AccountAccessPanel key={`${detail.salespersonId}:${detail.linkedUserId || ""}`} api={api} salesperson={detail} />
               </div>
 
               {/* ── DESTRUCTIVE ACTIONS, deliberately set apart ── */}

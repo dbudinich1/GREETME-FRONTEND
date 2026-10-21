@@ -285,3 +285,20 @@ test("Escape while a confirmation is open leaves the pop-up open", async () => {
   assert.ok(tid("fcc-detail-modal"), "the pop-up stays");
   assert.equal(writes(a).length, 0);
 });
+
+test("pop-up order: Links, then Commissions, then Sending and recipients; gift sales only inside Commission activity", async () => {
+  const a = api({
+    summary: async () => ({ ok: true, status: 200, data: { ok: true, summary: { salespersonId: "amir-yates", status: "active" } } }),
+    attributionHealth: async () => ({ ok: true, status: 200, data: { ok: true, attributionHealth: {}, controls: {} } }),
+    ledger: async () => ({ ok: true, status: 200, data: { ok: true, entries: [] } }),
+    giftSales: async () => ({ ok: false, status: 503, data: null }),
+  });
+  await mount(a); await click(tid("fcc-row-amir-yates"));
+  const order = ["fcc-links", "fcc-commissions", "fcc-access"].map((t) => tid(t));
+  assert.ok(order.every(Boolean), "all three sections render");
+  const follows = (x, y) => Boolean(x.compareDocumentPosition(y) & window.Node.DOCUMENT_POSITION_FOLLOWING);
+  assert.ok(follows(order[0], order[1]) && follows(order[1], order[2]), "Links → Commissions → Sending and recipients");
+  const additions = document.querySelectorAll('[data-testid="cc-profile-additions"]');
+  assert.equal(additions.length, 1, "gift sales appear once");
+  assert.ok(tid("fcc-commission-activity").contains(additions[0]), "inside Commission activity and attribution");
+});
