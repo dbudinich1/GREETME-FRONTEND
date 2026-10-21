@@ -45,6 +45,7 @@ const post = (e, b) => req("POST", e, b);
 
 const BASE = "/api/sales/admin/salespeople";
 const one = (id) => `${BASE}/${encodeURIComponent(id)}`;
+const ACCT = "/api/founder/account-controls";
 
 export const salesAdminApi = {
   /** GET /api/sales/admin/salespeople → { ok, salespeople: [...] } */
@@ -142,6 +143,20 @@ export const salesAdminApi = {
 
   /** POST …/status — "active" | "inactive". Deactivation stops NEW attribution only. */
   setStatus: (salespersonId, status) => post(`${one(salespersonId)}/status`, { status }),
+
+  // ── SEND AND RECIPIENT CONTROLS for the salesperson's LINKED account (founder, 2026-10-21) ──
+  // The server resolves the account from the salesperson's link; these calls never name a user. Every change carries a
+  // `changeId` the caller keeps until the change succeeds, so retrying the same change is applied once.
+  /** GET → { ok, account, access, controls, recipients, grants, grantAvailable, exemptions } · 409 NO_LINKED_ACCOUNT */
+  accountControls: (salespersonId) => get(`${ACCT}/${encodeURIComponent(salespersonId)}`),
+  /** GET → { ok, changes: [{ kind, actorId, at, before, after, result }] } (newest first, up to 50) */
+  accountAudit: (salespersonId) => get(`${ACCT}/${encodeURIComponent(salespersonId)}/audit`),
+  /** POST one-time grant of N sends (finite; no refill). */
+  grantSends: (salespersonId, sends, changeId) => post(`${ACCT}/${encodeURIComponent(salespersonId)}/grant`, { sends, changeId }),
+  /** PUT unlimited sending on/off. */
+  setUnlimitedSending: (salespersonId, enabled, changeId) => req("PUT", `${ACCT}/${encodeURIComponent(salespersonId)}/unlimited`, { enabled, changeId }),
+  /** PUT recipient limit: whole number, "unlimited", or null to clear (plan limit applies). */
+  setRecipientLimit: (salespersonId, limit, changeId) => req("PUT", `${ACCT}/${encodeURIComponent(salespersonId)}/recipient-limit`, { limit, changeId }),
 
   // ── B3 · READ-ONLY REPORTING ────────────────────────────────────────────────────────────
   // Every one of these is a GET. There is no founder endpoint that mutates reporting data, and

@@ -206,7 +206,7 @@ test("disable confirms first, then adopts the SERVER status — never optimistic
   const a = api();
   await open(a);
   await click(tid("fcc-disable"));
-  assert.match(tid("fcc-confirm-body").textContent, /New attribution stops/i);
+  assert.match(tid("fcc-confirm-body").textContent, /referral links stop working/i);
   assert.equal(writes(a).length, 0, "no write before confirmation");
   assert.equal(tid("fcc-detail-status").textContent, "active", "status unchanged while pending");
 
@@ -230,7 +230,7 @@ test("reactivate confirms and sends active", async () => {
   await open(a);
   assert.ok(tid("fcc-reactivate"));
   await click(tid("fcc-reactivate"));
-  assert.match(tid("fcc-confirm-body").textContent, /resumes/i);
+  assert.match(tid("fcc-confirm-body").textContent, /work again/i);
   await click(tid("fcc-confirm-go"));
   assert.deepEqual(a.calls.find((c) => c[0] === "setStatus"), ["setStatus", "sp1", "active"]);
 });

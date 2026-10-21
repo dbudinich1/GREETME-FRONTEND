@@ -20,6 +20,8 @@ import { salesAdminApi, salesAdminErrorMessage } from "../../api/salesAdmin.js";
 import { AssignedLinksPanel, GiftSalesPanel, ShareQr } from "./commandCenter/ProfilePanels.jsx";
 import GiftCommissionPanel from "./commandCenter/GiftCommissionPanel.jsx";
 import CommissionSection from "./commandCenter/CommissionSection.jsx";
+import AccountAccessPanel from "./commandCenter/AccountAccessPanel.jsx";
+import { salespersonView, STATUS_VIEWS } from "./commandCenter/accountAccessLogic.js";
 import { subscriptionSummary, activitySummary, linksSummary } from "./commandCenter/commissionSummaries.js";
 import { fundraiserApi } from "../../api/fundraiserApi.js";
 import { isFounder } from "../../utils/accountState.js";
@@ -108,11 +110,29 @@ function compDraftFrom(sp) {
   };
 }
 
+// What the EXISTING status mechanism does (services/sales/salesService.js setSalespersonStatus / salespersonBarredFromAccruing,
+// verified 2026-10-21). Stated, not changed: no new commission or reactivation policy is introduced here.
+const DEACTIVATE_EFFECTS = [
+  "Their referral links stop working, and no new customers can be attributed to them.",
+  "No commission is recorded for their customers’ payments or gifts while inactive, and it is not added later if you reactivate.",
+  "Their referrer’s override on those payments is still recorded.",
+  "Kept as they are: customers already attributed, frozen terms, commission history and amounts owed (still payable).",
+  "Their linked Greet-Me account and its sending allowance are not changed.",
+];
+const REACTIVATE_EFFECTS = [
+  "Their referral links work again and new customers can be attributed.",
+  "Commission is recorded again from now on. Nothing is added for the time they were inactive.",
+  "Their linked Greet-Me account and its sending allowance are not changed.",
+];
+
 export default function SalespersonControlCenter({ api = salesAdminApi, user: injectedUser, origin: originOverride } = {}) {
   const user = injectedUser !== undefined ? injectedUser : readUser();
   const founder = isFounder(user);
 
   const [rows, setRows] = useState([]);
+  // Active | Inactive list view (default Active); search applies within the selected view.
+  const [statusView, setStatusView] = useState("active");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
@@ -436,6 +456,8 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     setRows(Array.isArray(res.data && res.data.salespeople) ? res.data.salespeople : []);
   }
 
+  const visibleRows = useMemo(() => salespersonView(rows, statusView, search), [rows, statusView, search]);
+
   const canCreate = useMemo(
     () => form.salespersonId.trim() !== "" && form.displayName.trim() !== "" && !creating,
     [form, creating],
@@ -598,15 +620,35 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
         {/* ── LIST ── */}
         <section style={card}>
           <h2 style={{ fontSize: "1rem", margin: "0 0 .75rem" }}>Salespeople</h2>
+          <div role="tablist" aria-label="Salesperson status" style={{ display: "inline-flex", border: "1px solid var(--border)", borderRadius: 999, padding: 2, marginBottom: ".6rem" }}>
+            {STATUS_VIEWS.map((v) => {
+              const n = salespersonView(rows, v.key, "").length;
+              const on = statusView === v.key;
+              return (
+                <button key={v.key} type="button" role="tab" aria-selected={on} data-testid={`fcc-view-${v.key}`}
+                  onClick={() => setStatusView(v.key)}
+                  style={{ border: 0, borderRadius: 999, padding: ".3rem .8rem", fontSize: ".8rem", fontWeight: 600, cursor: "pointer",
+                    background: on ? "var(--primary)" : "transparent", color: on ? "#fff" : "var(--text-secondary)" }}>
+                  {v.label} ({n})
+                </button>
+              );
+            })}
+          </div>
+          <input type="search" data-testid="fcc-search" aria-label="Search salespeople" placeholder="Search name, ID or email"
+            value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: "100%", marginBottom: ".6rem" }} />
           {loading ? (
             <p data-testid="fcc-loading" style={{ color: "var(--text-secondary)", fontSize: ".88rem" }}>Loading…</p>
           ) : rows.length === 0 ? (
             <p data-testid="fcc-empty" style={{ color: "var(--text-secondary)", fontSize: ".88rem" }}>
               No salespeople yet.
             </p>
+          ) : visibleRows.length === 0 ? (
+            <p data-testid="fcc-view-empty" style={{ color: "var(--text-secondary)", fontSize: ".88rem" }}>
+              {search.trim() ? `No ${statusView} salespeople match “${search.trim()}”.` : `No ${statusView} salespeople.`}
+            </p>
           ) : (
             <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: ".4rem" }}>
-              {rows.map((sp) => (
+              {visibleRows.map((sp) => (
                 <li key={sp.salespersonId}>
                   <button type="button" data-testid={`fcc-row-${sp.salespersonId}`}
                     onClick={() => openDetail(sp.salespersonId)}
@@ -774,6 +816,11 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                   </div>
                 </div>
               </CommissionSection>
+            </div>
+            {/* ── SENDING AND RECIPIENTS ── founder 2026-10-21: the linked account's access, one-time grants, unlimited
+                sending and recipient limit. Separate from commissions; changes nothing on the salesperson record. */}
+            <div data-testid="fcc-access" style={{ marginBottom: "1rem" }}>
+              <AccountAccessPanel key={`${detail.salespersonId}:${detail.linkedUserId || ""}`} api={api} salesperson={detail} />
             </div>
             <div style={{ display: "grid", gap: ".9rem", marginBottom: "1rem" }} data-testid="cc-profile-additions">
               <GiftSalesPanel api={api} salespersonId={detail.salespersonId} />
@@ -1009,7 +1056,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                   <button type="button" className="btn-secondary" data-testid="fcc-disable"
                     disabled={busy !== null}
                     onClick={() => setConfirm({ kind: "disable", salespersonId: detail.salespersonId, name: detail.displayName })}>
-                    Disable
+                    Deactivate
                   </button>
                 )}
               </div>
@@ -1030,22 +1077,24 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
           <div style={{ ...card, maxWidth: 460, width: "100%" }}>
             <h2 id="fcc-confirm-title" style={{ fontSize: "1.05rem", margin: "0 0 .5rem" }}>
               {confirm.kind === "rotate" ? `Rotate the attribution link for “${confirm.name}”?`
-                : confirm.kind === "disable" ? `Disable “${confirm.name}”?`
+                : confirm.kind === "disable" ? `Deactivate “${confirm.name}”?`
                 : `Reactivate “${confirm.name}”?`}
             </h2>
-            <p data-testid="fcc-confirm-body" style={{ margin: "0 0 1rem", color: "var(--text-secondary)", fontSize: ".88rem" }}>
-              {confirm.kind === "rotate"
-                ? "The current attribution link stops working immediately and cannot be recovered. Anyone using it will no longer be attributed. The replacement is shown once."
-                : confirm.kind === "disable"
-                  ? "New attribution stops. Existing attribution history and commission records are kept."
-                  : "New attribution resumes for this salesperson."}
-            </p>
+            {confirm.kind === "rotate" ? (
+              <p data-testid="fcc-confirm-body" style={{ margin: "0 0 1rem", color: "var(--text-secondary)", fontSize: ".88rem" }}>
+                The current attribution link stops working immediately and cannot be recovered. Anyone using it will no longer be attributed. The replacement is shown once.
+              </p>
+            ) : (
+              <ul data-testid="fcc-confirm-body" style={{ margin: "0 0 1rem", paddingLeft: "1.1rem", color: "var(--text-secondary)", fontSize: ".86rem", display: "grid", gap: ".25rem" }}>
+                {(confirm.kind === "disable" ? DEACTIVATE_EFFECTS : REACTIVATE_EFFECTS).map((t) => <li key={t}>{t}</li>)}
+              </ul>
+            )}
             <div style={{ display: "flex", gap: ".5rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
               <button type="button" className="btn-secondary" data-testid="fcc-confirm-cancel"
                 onClick={() => setConfirm(null)} autoFocus>Cancel</button>
               <button type="button" className="btn-primary" data-testid="fcc-confirm-go"
                 disabled={busy !== null} onClick={runConfirmed}>
-                {confirm.kind === "rotate" ? "Rotate link" : confirm.kind === "disable" ? "Disable" : "Reactivate"}
+                {confirm.kind === "rotate" ? "Rotate link" : confirm.kind === "disable" ? "Deactivate" : "Reactivate"}
               </button>
             </div>
           </div>
