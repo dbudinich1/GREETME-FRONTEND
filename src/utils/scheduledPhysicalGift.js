@@ -192,9 +192,26 @@ export function scheduledGiftBackupSentence({ giftName, backupName, capCents }) 
   return `If ${giftName || 'the gift'} isn't available, we'll order your backup ${backupName || 'gift'} instead, only if its full total is no more than ${dollars(capCents)}.`;
 }
 
-/** The consent sentence the sender agrees to (draft wording for founder approval; Team 6 contract v1). */
-export function scheduledGiftConsentText({ dateLabel, maxTotalCents, giftName, backupName, capCents }) {
-  const v1 = `Auto-Gift: on ${dateLabel}, we'll check this gift is available and charge your saved card the full total (item, shipping and any fees) up to ${dollars(maxTotalCents)}, then place the order. Delivery follows after the occasion date. If it's unavailable or costs more, nothing is charged and your greeting is sent without the gift.`;
-  // Wording v2 = v1 + the backup sentence, only when a backup is present.
-  return backupName && Number.isSafeInteger(capCents) ? `${v1} ${scheduledGiftBackupSentence({ giftName, backupName, capCents })}` : v1;
+/**
+ * The consent text the sender agrees to, in parts (lead, backup, tail). Without a backup this is the approved v1 text
+ * exactly (backup ''). With a backup it is the approved sched-gift-v2 text: the v1 lead, the backup sentence, and a
+ * closing sentence that replaces v1's "If it's unavailable or costs more, ..." (which would contradict the backup).
+ */
+export function scheduledGiftConsentParts({ dateLabel, maxTotalCents, giftName, backupName, capCents }) {
+  const lead = `Auto-Gift: on ${dateLabel}, we'll check this gift is available and charge your saved card the full total (item, shipping and any fees) up to ${dollars(maxTotalCents)}, then place the order. Delivery follows after the occasion date.`;
+  if (backupName === undefined || backupName === null || !Number.isSafeInteger(capCents)) {
+    return { lead, backup: '', tail: "If it's unavailable or costs more, nothing is charged and your greeting is sent without the gift." };
+  }
+  const gift = giftName || 'the gift';
+  return {
+    lead,
+    backup: scheduledGiftBackupSentence({ giftName, backupName, capCents }),
+    tail: `If ${gift} costs more than your maximum, or neither gift can be ordered within your limit, nothing is charged and your greeting is sent without the gift.`,
+  };
+}
+
+/** The consent text as one string: v1 without a backup; sched-gift-v2 (founder-approved 2026-10-21) with one. */
+export function scheduledGiftConsentText(args) {
+  const { lead, backup, tail } = scheduledGiftConsentParts(args);
+  return [lead, backup, tail].filter(Boolean).join(' ');
 }

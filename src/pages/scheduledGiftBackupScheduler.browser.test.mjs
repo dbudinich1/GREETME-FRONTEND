@@ -170,7 +170,8 @@ test("backup chosen: the cap sentence is previewed, the row shows it, 'Almost do
   assert.ok($("[data-testid=save-modal]"), "Almost done opens");
   assert.match($("[data-testid=save-modal]").textContent, /Almost done/);
   const text = $("[data-testid=sg-consent-text]").textContent;
-  assert.match(text, /^Auto-Gift: on December 25, we'll check this gift is available and charge your saved card the full total \(item, shipping and any fees\) up to \$50\.00, then place the order\./, "v1 text first");
+  assert.equal(text, "Auto-Gift: on December 25, we'll check this gift is available and charge your saved card the full total (item, shipping and any fees) up to $50.00, then place the order. Delivery follows after the occasion date. If Cookie Box isn't available, we'll order your backup Tea Sampler instead, only if its full total is no more than $45.99. If Cookie Box costs more than your maximum, or neither gift can be ordered within your limit, nothing is charged and your greeting is sent without the gift.", "exactly the approved sched-gift-v2 text");
+  assert.doesNotMatch(text, /If it's unavailable or costs more/, "no contradictory v1 sentence when a backup applies");
   assert.equal($("[data-testid=sg-consent-backup]").textContent, "If Cookie Box isn't available, we'll order your backup Tea Sampler instead, only if its full total is no more than $45.99.");
   assert.match($("[data-testid=sg-consent-block-christmas]").textContent, /Wording version sched-gift-v2/);
   await clickEl($("[data-testid=sg-consent-checkbox]"));
@@ -196,6 +197,7 @@ test("removing the backup returns to v1 exactly: no backup fields, the v1 consen
   assert.equal(christmas().querySelector("[data-testid=sg-entry-backup]"), null);
   await clickEl(SAVE()); await settle();
   assert.equal($("[data-testid=sg-consent-backup]"), null);
+  assert.equal($("[data-testid=sg-consent-text]").textContent, "Auto-Gift: on December 25, we'll check this gift is available and charge your saved card the full total (item, shipping and any fees) up to $46.00, then place the order. Delivery follows after the occasion date. If it's unavailable or costs more, nothing is charged and your greeting is sent without the gift.", "the approved v1 text, unchanged");
   assert.match($("[data-testid=sg-consent-block-christmas]").textContent, /Wording version sched-gift-v1/);
   await clickEl($("[data-testid=sg-consent-checkbox]"));
   await clickEl($("[data-testid=save-modal-save]")); await settle();

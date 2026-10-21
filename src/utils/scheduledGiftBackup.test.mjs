@@ -44,12 +44,20 @@ test("consent v2 only with a backup; v1 exactly as today without", () => {
   assert.deepEqual(G.scheduledGiftConsentsFor(["birthday"]), { birthday: { accepted: true, wordingVersion: "sched-gift-v1" } });
 });
 
-test("v2 wording = the v1 text + the founder-approved sentence; cap = the lower of approvedTotalCents and the maximum", () => {
-  const v1 = G.scheduledGiftConsentText({ dateLabel: "December 25", maxTotalCents: 5000 });
+test("v2 wording (sched-gift-v2) is exactly the founder-approved text; cap = the lower of approvedTotalCents and the maximum", () => {
   const v2 = G.scheduledGiftConsentText({ dateLabel: "December 25", maxTotalCents: 5000, giftName: "Cookie Box", backupName: "Tea Sampler", capCents: G.backupCapCents(withBackup().scheduledGift) });
-  assert.equal(v2, `${v1} If Cookie Box isn't available, we'll order your backup Tea Sampler instead, only if its full total is no more than $45.99.`);
+  assert.equal(v2, "Auto-Gift: on December 25, we'll check this gift is available and charge your saved card the full total (item, shipping and any fees) up to $50.00, then place the order. Delivery follows after the occasion date. If Cookie Box isn't available, we'll order your backup Tea Sampler instead, only if its full total is no more than $45.99. If Cookie Box costs more than your maximum, or neither gift can be ordered within your limit, nothing is charged and your greeting is sent without the gift.");
+  assert.doesNotMatch(v2, /If it's unavailable or costs more/, "the contradictory v1 sentence is gone when a backup applies");
+  const parts = G.scheduledGiftConsentParts({ dateLabel: "December 25", maxTotalCents: 5000, giftName: "Cookie Box", backupName: "Tea Sampler", capCents: 4599 });
+  assert.equal([parts.lead, parts.backup, parts.tail].join(" "), v2);
   assert.equal(G.backupCapCents(withBackup({ maxTotalCents: 4000 }).scheduledGift), 4000);
   assert.equal(G.backupCapCents(without().scheduledGift), null);
+});
+
+test("without a backup the approved v1 text is unchanged, word for word", () => {
+  assert.equal(G.scheduledGiftConsentText({ dateLabel: "December 25", maxTotalCents: 5000 }),
+    "Auto-Gift: on December 25, we'll check this gift is available and charge your saved card the full total (item, shipping and any fees) up to $50.00, then place the order. Delivery follows after the occasion date. If it's unavailable or costs more, nothing is charged and your greeting is sent without the gift.");
+  assert.equal(G.scheduledGiftConsentParts({ dateLabel: "December 25", maxTotalCents: 5000 }).backup, "");
 });
 
 test("consent-need parity: new/changed/removed backup or a changed approvedTotalCents asks; a v1 consent never covers a backup; a lower maximum alone keeps consent", () => {
