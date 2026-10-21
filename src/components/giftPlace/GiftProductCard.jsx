@@ -126,7 +126,9 @@ export function GiftProductCard({ card, actionLabel, onAction, selected = false,
             minHeight: '2.1em',
             // Two lines at most, so one verbose supplier cannot make its row taller than the others.
             display: '-webkit-box',
-            WebkitLineClamp: 2,
+            // A "can't be chosen" note may take a third line on a narrow card, so its retry ("Try again.") is never
+            // clipped; an ordinary description stays at two.
+            WebkitLineClamp: card.unavailableNote ? 3 : 2,
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
           }}
