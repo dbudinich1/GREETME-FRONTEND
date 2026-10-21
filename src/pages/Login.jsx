@@ -1,6 +1,7 @@
 // src/pages/Login.jsx
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { loginReturnPath } from "../utils/paymentMethod";
 import { useAuth } from "../context/AuthContext";
 import { getErrorMessage } from "../utils/errorMessages";
 import { Mail, Lock, QrCode, Smartphone } from "lucide-react";
@@ -15,6 +16,7 @@ export const Login = () => {
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
 
   const { login } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -56,7 +58,9 @@ export const Login = () => {
             localStorage.removeItem('greetme_referral_code');
             navigate(`/dashboard/send?referral=${pendingReferral}`);
           } else {
-            navigate("/dashboard");
+            // Sent here from a page that asks to be returned to (the Auto-Gift payment-method page, linked from
+            // emails): go back there. Everything else lands on the dashboard exactly as before.
+            navigate(loginReturnPath(location.state && location.state.from) || "/dashboard");
           }
         }
       }

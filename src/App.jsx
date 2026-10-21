@@ -22,6 +22,7 @@ import CorporateDashboardTestDrive from "./components/corporateCampaign/testDriv
 import ContactImportWizard from "./components/importWizard/ContactImportWizard";
 import TemplateLibrary from "./pages/TemplateLibrary";
 import Settings from "./pages/Settings";
+import PaymentMethod from "./pages/PaymentMethod";
 import SendGreeting from "./pages/SendGreeting";
 import SentGreetings from "./pages/SentGreetings";
 import MediaLibrary from "./pages/MediaLibrary";
@@ -228,6 +229,8 @@ export default function App() {
             <Route path="templates" element={<TemplateLibrary />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
+            {/* Auto-Gift saved card (emails link here as "Update payment method"). */}
+            <Route path="payment-method" element={<PaymentMethod />} />
             <Route path="send" element={<SendGreeting />} />
             <Route path="sent" element={<SentGreetings />} />
             <Route path="media" element={<MediaLibrary />} />
