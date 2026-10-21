@@ -125,6 +125,11 @@ const REACTIVATE_EFFECTS = [
   "Their linked Greet-Me account and its sending allowance are not changed.",
 ];
 
+// Every confirmation that can be open while the details pop-up is shown. Escape belongs to the confirmation then, not to
+// the pop-up (Team 5, 2026-10-21: the gift-commission confirmation was missing).
+const OPEN_CONFIRMATIONS = ['fcc-confirm', 'acc-confirm', 'cc-giftcomm-confirm', 'fcc-payout-confirm', 'fcc-link-confirm']
+  .map((t) => `[data-testid="${t}"]`).concat('[role="alertdialog"]').join(", ");
+
 export default function SalespersonControlCenter({ api = salesAdminApi, user: injectedUser, origin: originOverride } = {}) {
   const user = injectedUser !== undefined ? injectedUser : readUser();
   const founder = isFounder(user);
@@ -474,12 +479,30 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     if (!selectedId) return undefined;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden"; // the page behind the pop-up does not scroll
+    // Team 5 (2026-10-21): keyboard focus moves into the pop-up, stays there, and returns to the row on close.
+    const opener = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
+    const focusClose = () => { const b = document.querySelector('[data-testid="fcc-detail-close"]'); if (b) b.focus(); };
+    focusClose();
     const onKey = (e) => {
-      // Escape closes the pop-up, unless a confirmation dialog is open (it closes itself first).
-      if (e.key === "Escape" && !document.querySelector('[data-testid="fcc-confirm"], [data-testid="acc-confirm"]')) closeDetail();
+      // Escape closes the pop-up, unless a confirmation is open (it handles Escape itself).
+      if (e.key === "Escape" && !document.querySelector(OPEN_CONFIRMATIONS)) { closeDetail(); return; }
+      if (e.key !== "Tab") return;
+      // Tab cycles inside the topmost layer: a confirmation shown above the pop-up, else the pop-up itself.
+      const layer = document.querySelector('[data-testid="fcc-confirm"], [data-testid="acc-confirm"]') || document.querySelector('[data-testid="fcc-detail-modal"]');
+      if (!layer) return;
+      const items = [...layer.querySelectorAll('button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')]
+        .filter((el) => !el.disabled && el.offsetParent !== null);
+      if (items.length === 0) return;
+      const first = items[0], last = items[items.length - 1];
+      if (!layer.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
     window.addEventListener("keydown", onKey);
-    return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
+    return () => {
+      document.body.style.overflow = prev; window.removeEventListener("keydown", onKey);
+      if (opener && document.contains(opener)) opener.focus();
+    };
   }, [selectedId]);
 
   const visibleRows = useMemo(() => salespersonView(rows, statusView, search), [rows, statusView, search]);

@@ -302,3 +302,29 @@ test("pop-up order: Links, then Commissions, then Sending and recipients; gift s
   assert.equal(additions.length, 1, "gift sales appear once");
   assert.ok(tid("fcc-commission-activity").contains(additions[0]), "inside Commission activity and attribution");
 });
+
+test("Team 5: focus moves into the pop-up, Tab stays inside, focus returns to the row on close", async () => {
+  const a = api(); await mount(a);
+  const row = tid("fcc-row-amir-yates");
+  row.focus();
+  await click(row);
+  assert.equal(document.activeElement, tid("fcc-detail-close"), "focus starts on ×");
+  const modal = tid("fcc-detail-modal");
+  const items = [...modal.querySelectorAll("button, [href], input, select, textarea, summary")].filter((el) => !el.disabled);
+  items[items.length - 1].focus();
+  await act(async () => { window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Tab" })); }); await flush();
+  assert.ok(modal.contains(document.activeElement), "Tab from the last control stays in the pop-up");
+  await click(tid("fcc-detail-close"));
+  assert.equal(document.activeElement, tid("fcc-row-amir-yates"), "focus returns to the row");
+});
+
+test("Team 5: Escape during the gift-commission confirmation does not close the pop-up", async () => {
+  const a = api(); await mount(a); await click(tid("fcc-row-amir-yates"));
+  const fake = document.createElement("div"); fake.setAttribute("role", "alertdialog"); fake.setAttribute("data-testid", "cc-giftcomm-confirm");
+  tid("fcc-detail").appendChild(fake);
+  await act(async () => { window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape" })); }); await flush();
+  assert.ok(tid("fcc-detail-modal"), "the pop-up stays while that confirmation is open");
+  fake.remove();
+  await act(async () => { window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape" })); }); await flush();
+  assert.equal(tid("fcc-detail-modal"), null, "Escape closes it once the confirmation is gone");
+});
