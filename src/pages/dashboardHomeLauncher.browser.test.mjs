@@ -449,7 +449,7 @@ test("resolver: one person + several occasions -> prefilled rows, blocked until 
   await setValue($$("[data-testid=gx-resolver-row]")[1].querySelector("select"), "none");
   assert.equal(datesSave().disabled, false);
   assert.equal(datesSave().textContent.trim(), "Save schedules");
-  assert.equal(state().cont.textContent.trim(), "Save schedules");
+  assert.equal(state().cont.textContent.trim(), "Save", "Report 135: the final action reads Save for schedules");
 });
 
 test("resolver save: PUT /api/contacts/:id with the FULL record; other data untouched; success reported only after acceptance", async () => {
@@ -588,15 +588,15 @@ test("Re-record / Revisit open setup re-entry", async () => {
   assert.equal(opened, 2);
 });
 
-test("Smart Card slide: 'Coming later' and no add action unless the server reports published cards", async () => {
+test("Smart Card slide: 'Coming later' unless the server reports published cards; the gold Add a gift stays in place on every slide", async () => {
   await mount({ tiles: { ok: true, tiles: [] } });
   await click($$(".dot")[4]);
   assert.match($(".slide-l").textContent, /Coming later — not yet available/);
-  assert.equal($("[data-testid=gx-add-gift]").style.visibility, "hidden");
+  assert.equal($("[data-testid=gx-add-gift]").style.visibility, "", "Report 135: Add a gift is never hidden");
   await mount({ tiles: { ok: true, tiles: [{ id: "t1" }] } });
   await click($$(".dot")[4]);
   assert.match($(".slide-l").textContent, /One card, spent at the brands they love/);
-  assert.equal($("[data-testid=gx-add-gift]").style.visibility, "visible");
+  assert.equal($("[data-testid=gx-add-gift]").style.visibility, "");
 });
 
 test("G7: a gift box for everyone — address per person (prefilled only from saved data), quotes for all before the one confirmation, then confirmed orders attached", async () => {
@@ -861,14 +861,14 @@ test("Add a gift: a second tap never silently removes it; Remove does; the note 
   await click($("[data-testid=gx-add-gift]"));
   assert.equal($("[data-testid=gx-add-gift]").getAttribute("aria-pressed"), "true", "still added after a second tap");
   assert.match($("[data-testid=gx-summary]").textContent, /gift/);
-  assert.match($("[data-testid=gx-fine]").textContent, /You choose it on the next screen, before anything is charged/);
+  assert.match($("[data-testid=gx-fine]").textContent, /Send takes you to the Gift Place to choose it, with this greeting kept\. Nothing is charged until you confirm\./);
   assert.equal($("[data-testid=gx-gift-remove]").style.visibility, "visible");
   await click($("[data-testid=gx-gift-remove]"));
   assert.equal($("[data-testid=gx-add-gift]").getAttribute("aria-pressed"), "false");
   assert.doesNotMatch($("[data-testid=gx-summary]").textContent, /gift/);
   await click($("[data-testid=gx-add-gift]"));
   await click(state().cont);
-  assert.match(globalThis.__nav.at(-1).to, /&gift=choose$/, "the send flow opens its gift chooser");
+  assert.match(globalThis.__nav.at(-1).to, /&gift=choose$/, "the send flow takes this greeting to the Gift Place (Report 135)");
 });
 
 test("After editing a recipient, the dashboard comes back with the in-progress choices; another account's are never restored", async () => {
@@ -1020,4 +1020,29 @@ test("adjustments: no gold 'Send a Greet-Me' label; Quick Gift in the welcome he
   const add = $("[data-testid=gx-add-gift]") || $("[data-testid=gx-add-qr]");
   assert.ok(add.classList.contains("btn-gold"), "gold");
   assert.equal(add.parentElement.lastElementChild, add, "the last control in the card's action column (lower right)");
+});
+
+test("Report 135: the gold Add a gift stays on every carousel slide; the final labels are Send (Send Now) and Save (Schedule the Love); the gift card and Step 5 are contained cards", async () => {
+  await mount();
+  for (let k = 0; k < $$(".dot").length; k++) {
+    await click($$(".dot")[k]);
+    const add = $("[data-testid=gx-add-gift]");
+    assert.ok(add && add.classList.contains("btn-gold"), `slide ${k}: the gold Add a gift is present`);
+    assert.equal(add.style.visibility, "", `slide ${k}: never hidden`);
+    assert.equal(add.parentElement.lastElementChild, add, `slide ${k}: it keeps its place, last in the action column`);
+  }
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await pickPerson("Theresa");
+  await click($("[data-testid=gx-who-done]"));
+  assert.equal(state().cont.textContent.trim(), "Send");
+  assert.match($("[data-testid=gx-footbar] .step-label").textContent, /Send/);
+  await click(byText(".mode", "Schedule the Love"));
+  assert.equal(state().cont.textContent.trim(), "Save");
+  assert.match($("[data-testid=gx-footbar] .step-label").textContent, /Save/);
+  const { DASHBOARD_HOME_CSS } = await import(pathToFileURL(join(__dirname, "dashboardHomeStyles.js")).href);
+  const tail = DASHBOARD_HOME_CSS.slice(DASHBOARD_HOME_CSS.indexOf("Report 135"));
+  assert.match(tail, /\.gx \.giftband \{ margin:8px 0 0;[^}]*border-radius:22px;[^}]*overflow:hidden;/, "the gold stays inside a rounded card, no bleed");
+  assert.match(tail, /\.gx \.footbar \{ margin:14px 0 22px;[^}]*border-radius:22px;/, "Step 5 is its own rounded card");
+  assert.match(tail, /\.gx \.footbar \.sum \{ white-space:normal;/, "the summary wraps instead of being cut off");
 });

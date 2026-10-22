@@ -467,4 +467,23 @@ export const DASHBOARD_HOME_CSS = `
   .gx .carousel .cta-col { grid-column:1 / -1; flex-direction:row; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:6px 14px; }
   .gx .carousel .cta-col .link { grid-column:auto; justify-self:auto; }
 }
+/* ---- Report 135 (founder 2026-10-22): the gift card and the final step sit inside the composer like its other
+   steps: the same width, rounded corners and margins, comfortable padding; the gold stays inside its card. ---- */
+.gx .giftband { margin:8px 0 0; padding:14px 18px 18px; border-radius:22px; overflow:hidden; box-shadow:0 18px 40px -32px rgba(122,91,12,.7); }
+.gx .carousel { margin-top:10px; }
+.gx .carousel .qr-acts { display:flex; align-items:center; gap:10px; }
+.gx .carousel .qr-add { height:34px; font-size:13.5px; padding:0 12px; gap:6px; }
+.gx .footbar { margin:14px 0 22px; padding:16px 20px 18px; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px 28px; background:var(--p50); border:1px solid var(--line); border-radius:22px; }
+.gx .footbar > div:first-child { min-width:0; }
+.gx .footbar .sum { white-space:normal; overflow:visible; text-overflow:clip; line-height:1.35; }
+.gx .footbar .fine { min-height:2.8em; margin-top:4px; }
+.gx .footbar .btn-primary { min-width:170px; }
+@media (max-width: 640px) {
+  .gx .giftband { margin:8px 0 0; padding:12px 10px 14px; border-radius:20px; }
+  .gx .carousel .cta-col { justify-content:space-between; }
+  .gx .carousel .qr-acts { order:-1; }
+  .gx .footbar { margin:12px 0 14px; padding:14px 14px 16px; grid-template-columns:minmax(0,1fr); gap:12px; border-radius:20px; }
+  .gx .footbar .fine { min-height:4.4em; }
+  .gx .footbar .btn-primary { width:100%; min-width:0; }
+}
 `;

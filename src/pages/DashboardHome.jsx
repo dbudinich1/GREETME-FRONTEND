@@ -180,16 +180,19 @@ function GiftCarousel({ chosen, onAdd, onRemove, onLearnQr, smartCardAvailable }
       <div className="cta-col">
         {/* Adding never toggles off on a second tap; removing is its own action. */}
         <button type="button" className="link" data-testid="gx-gift-remove" style={{ visibility: chosen ? 'visible' : 'hidden' }} tabIndex={chosen ? 0 : -1} onClick={onRemove}>Remove {chosen === 'qrcash' ? 'QR Cash' : 'gift'}</button>
-        <button type="button" className="link" style={{ visibility: s.key === 'qrcash' ? 'visible' : 'hidden' }} onClick={onLearnQr} tabIndex={s.key === 'qrcash' ? 0 : -1}>How it works</button>
-        {s.key === 'qrcash' ? (
-          <button type="button" className="btn btn-sm btn-gold" style={{ height: 40 }} data-testid="gx-add-qr" aria-pressed={chosen === 'qrcash'} onClick={() => onAdd('qrcash')}>
-            {chosen === 'qrcash' ? <><Check size={16} /> QR Cash added</> : <><Gift size={16} /> Add QR Cash</>}
+        {/* Report 135: QR Cash is offered beside the gold button on its own slide; its space is kept on every slide so
+            nothing moves as the carousel turns. */}
+        <span className="qr-acts" style={{ visibility: s.key === 'qrcash' ? 'visible' : 'hidden' }}>
+          <button type="button" className="link" onClick={onLearnQr} tabIndex={s.key === 'qrcash' ? 0 : -1}>How it works</button>
+          <button type="button" className="btn btn-sm btn-line qr-add" data-testid="gx-add-qr" tabIndex={s.key === 'qrcash' ? 0 : -1} aria-pressed={chosen === 'qrcash'} onClick={() => onAdd('qrcash')}>
+            {chosen === 'qrcash' ? <><Check size={15} /> QR Cash added</> : <><QrCode size={15} /> Add QR Cash</>}
           </button>
-        ) : (
-          <button type="button" className="btn btn-sm btn-gold" style={{ height: 40, visibility: smartCardOff ? 'hidden' : 'visible' }} tabIndex={smartCardOff ? -1 : 0} data-testid="gx-add-gift" aria-pressed={chosen === 'gift'} onClick={() => onAdd('gift')}>
-            {chosen === 'gift' ? <><Check size={16} /> Gift added</> : <><Gift size={16} /> Add a gift</>}
-          </button>
-        )}
+        </span>
+        {/* The gold "Add a gift" stays in place on every slide (Report 135): it opens the Gift Place, which holds
+            every gift, so it never depends on the slide showing. */}
+        <button type="button" className="btn btn-sm btn-gold" style={{ height: 40 }} data-testid="gx-add-gift" aria-pressed={chosen === 'gift'} onClick={() => onAdd('gift')}>
+          {chosen === 'gift' ? <><Check size={16} /> Gift added</> : <><Gift size={16} /> Add a gift</>}
+        </button>
       </div>
     </div>
   );
@@ -938,7 +941,7 @@ export default function DashboardHome() {
                 setGift(g);
                 setGiftNote(isGroup && g === 'gift' ? 'For a group, choose a gift box (or QR Cash) for each person at review, before anything is charged.'
                   : g === 'qrcash' ? 'QR Cash added. You set the amount on the next screen, before anything is charged.'
-                    : 'Gift added. You choose it on the next screen, before anything is charged.');
+                    : 'Gift added. Send takes you to the Gift Place to choose it, with this greeting kept. Nothing is charged until you confirm.');
               }}
               onRemove={() => { setGift(null); setGiftNote(''); }}
               onLearnQr={() => setShowHowItWorksModal(true)}
@@ -947,14 +950,15 @@ export default function DashboardHome() {
 
           <div className="footbar" data-testid="gx-footbar">
             <div style={{ minWidth: 0 }}>
-              <StepHead n={5} label="Send" isDone={Boolean(saveMsg && saveMsg.ok)} />
+              <StepHead n={5} label={resolverOn || groupSchedOn ? 'Save' : 'Send'} isDone={Boolean(saveMsg && saveMsg.ok)} />
               <div className="sum" data-testid="gx-summary" style={{ marginTop: 6 }}>{summary}</div>
               <div className={`fine ${saveMsg && !saveMsg.ok ? 'saveerr' : ''}`} data-testid="gx-fine" role="status" aria-live="polite">{fineText}</div>
             </div>
             <button type="button" className="btn btn-primary" data-testid="gx-continue" disabled={!canContinue} onClick={handoff}>
-              {resolverOn ? <><CalendarDays size={18} /> {saving ? 'Saving…' : `Save schedule${occasions.length === 1 ? '' : 's'}`}</>
-                : groupSchedOn ? <><CalendarDays size={18} /> {saving ? 'Saving…' : `Save ${chosen.length} schedules`}</>
-                  : <><Send size={18} /> Continue to review</>}
+              {/* Report 135: the final labels are "Send" (Send Now: the send flow, where it is reviewed) and "Save"
+                  (Schedule the Love: saved to their Occasion Scheduler). The line beside it says what happens next. */}
+              {resolverOn || groupSchedOn ? <><CalendarDays size={18} /> {saving ? 'Saving…' : 'Save'}</>
+                : <><Send size={18} /> Send</>}
             </button>
           </div>
         </section>
