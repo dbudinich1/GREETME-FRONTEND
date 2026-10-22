@@ -49,7 +49,9 @@ test("'Add a gift' from the dashboard opens the Gift Place with this greeting ke
   assert.match(block, /kept\.giftContext\.entry === want\.entry\) \{ navigate\('\/dashboard\/send\?returnTo=send', \{ replace: true \}\); return; \}/, "the same press seen again restores instead of reopening shopping");
   assert.match(block, /if \(qrCashEntry\) setGiftSettings\(prev => \(\{ \.\.\.prev, type: 'qrcash' \}\)\);/, "only the QR Cash entry pre-sets a gift");
   assert.match(SRC, /navigate\('\/dashboard\/gifts\?returnTo=send&giftType=marketplace'\);/, "the one Gift Place destination with the return-to-greeting contract");
-  assert.equal((SRC.match(/navigate\('\/dashboard\/gifts\?returnTo=send/g) || []).length, 1, "one shared opener for the chooser's Gift Place option and the dashboard entry");
+  const opener = SRC.slice(SRC.indexOf("const browseGiftPlaceForGreeting = "), SRC.indexOf("useEffect(() => {", SRC.indexOf("const browseGiftPlaceForGreeting = ")));
+  assert.equal((SRC.match(/navigate\('\/dashboard\/gifts\?returnTo=send/g) || []).length, (opener.match(/navigate\('\/dashboard\/gifts\?returnTo=send/g) || []).length, "every Gift Place navigation is inside the one shared opener");
+  assert.match(opener, /markGiftPlaceEntryUsed\(window\.sessionStorage, giftContext\.entry\);\s*navigate\('\/dashboard\/gifts\?returnTo=send&giftType=marketplace', \{ replace: true \}\);/, "Team 5 M1: the dashboard entry leaves history and its marker survives the restore");
   assert.equal((SRC.match(/setIsGiftModalOpen\(true\)/g) || []).length, 3, "still exactly three chooser open paths");
 });
 

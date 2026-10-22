@@ -21,7 +21,7 @@
 //   occasion falls back to the chooser exactly as before. Verification gate, review, payment and send unchanged.
 
 import { useState, useEffect } from 'react';
-import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff, dashboardGiftPlaceEntry } from '../utils/dashboardSendHandoff';
+import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff, dashboardGiftPlaceEntry, markGiftPlaceEntryUsed, giftPlaceEntryUsed } from '../utils/dashboardSendHandoff';
 import { buildGreetingPayload, qrCashGiftForPayload } from '../utils/sendGreetingPayload';
 import { getPhotoSrc } from '../utils/getPhotoSrc';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -770,6 +770,14 @@ export default function SendGreeting() {
     // If this greeting can't be kept on this device, stay here: nothing is lost, and the sender is told why.
     try { sessionStorage.setItem('sendGreetingState', JSON.stringify(stateToSave)); }
     catch { showManualToast('Gift Place not opened', 'This greeting couldn’t be kept on this device while you shop, so it stays open here. Use Add a Gift on this page.', COMMS_CATEGORIES.SYSTEM); return; }
+    // The dashboard's one-time entry (Report 135, Team 5 M1): the entry URL is replaced by the Gift Place and its
+    // marker is recorded separately from the greeting (the restore deletes sendGreetingState), so Back or a refresh
+    // can never land on it and reopen shopping.
+    if (giftContext && giftContext.entry) {
+      markGiftPlaceEntryUsed(window.sessionStorage, giftContext.entry);
+      navigate('/dashboard/gifts?returnTo=send&giftType=marketplace', { replace: true });
+      return;
+    }
     navigate('/dashboard/gifts?returnTo=send&giftType=marketplace');
   };
   useEffect(() => {
@@ -785,6 +793,12 @@ export default function SendGreeting() {
         let kept = null;
         try { kept = JSON.parse(sessionStorage.getItem('sendGreetingState') || 'null'); } catch { kept = null; }
         if (want.entry && kept && kept.giftContext && kept.giftContext.entry === want.entry) { navigate('/dashboard/send?returnTo=send', { replace: true }); return; }
+        // Already used and the greeting already restored: stay on this page with this recipient and occasion (their
+        // saved draft is restored by the URL draft restore) and drop the gift request from the URL.
+        if (want.entry && giftPlaceEntryUsed(window.sessionStorage, want.entry)) {
+          navigate(`/dashboard/send?${new URLSearchParams({ contactId: want.contactId, occasion: want.occasion }).toString()}`, { replace: true });
+          return;
+        }
         giftPlaceEntryRef.current = want; return;
       }
     }

@@ -57,6 +57,22 @@ export function dashboardGiftPlaceEntry(params) {
   return contactId && occasion ? { contactId, occasion, ...(entry ? { entry } : {}) } : null;
 }
 
+// Used one-time "Add a gift" entries (Report 135, Team 5 M1), kept apart from the greeting record, which the send
+// page's restore deletes. This tab only; the last 20.
+export const GIFT_PLACE_ENTRIES_KEY = 'gm_giftplace_entries_v1';
+export function markGiftPlaceEntryUsed(storage, entry) {
+  if (!storage || !entry) return;
+  try {
+    const cur = JSON.parse(storage.getItem(GIFT_PLACE_ENTRIES_KEY) || '[]');
+    const list = (Array.isArray(cur) ? cur : []).filter((x) => x !== entry);
+    storage.setItem(GIFT_PLACE_ENTRIES_KEY, JSON.stringify([...list, String(entry)].slice(-20)));
+  } catch { /* storage unavailable: the replaced history entry still keeps Back away from it */ }
+}
+export function giftPlaceEntryUsed(storage, entry) {
+  if (!storage || !entry) return false;
+  try { const cur = JSON.parse(storage.getItem(GIFT_PLACE_ENTRIES_KEY) || '[]'); return Array.isArray(cur) && cur.includes(String(entry)); } catch { return false; }
+}
+
 export const DASHBOARD_HANDOFF_KEY = 'gm_dashboard_send_handoff_v1';
 const HANDOFF_MAX_AGE_MS = 30 * 60 * 1000;
 export const HANDOFF_MAX_WORDS = 280;      // the send flow's personal-message limit

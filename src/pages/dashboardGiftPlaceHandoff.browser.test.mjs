@@ -101,10 +101,11 @@ before(async () => {
     + "export async function submitCheckout() { throw new Error('no test may submit a checkout'); }\n");
 
   writeFileSync(ENTRY,
-    'import { useLocation } from "react-router-dom";\n'
+    'import { useLocation, useNavigate } from "react-router-dom";\n'
     + 'export { default as Merch } from "./Merch.jsx";\n'
     + 'export { default as SendGreeting } from "./SendGreeting.jsx";\n'
     + 'export { MemoryRouter, Routes, Route } from "react-router-dom";\n'
+    + 'export function NavProbe() { globalThis.__navigate = useNavigate(); return null; }\n'
     + 'export { __sends } from "../api/api";\n'
     + 'export const __visited = [];\n'
     + 'export function LocationProbe() {\n'
@@ -210,16 +211,17 @@ const location = (host) => {
   return `${el?.dataset.path || ""}${el?.dataset.search || ""}`;
 };
 
-async function mountAt(url) {
-  const { MemoryRouter, Routes, Route, Merch, SendGreeting, LocationProbe } = mod;
+async function mountAt(url, { history } = {}) {
+  const { MemoryRouter, Routes, Route, Merch, SendGreeting, LocationProbe, NavProbe } = mod;
   const h = React.createElement;
   const host = window.document.createElement("div");
   window.document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(h(MemoryRouter, { initialEntries: [url] },
-      h(LocationProbe),
+    root.render(h(MemoryRouter, { initialEntries: history ? [...history, url] : [url], initialIndex: history ? history.length : 0 },
+      h(LocationProbe), h(NavProbe),
       h(Routes, null,
+        h(Route, { path: "/dashboard", element: h("div", { "data-testid": "dash-home" }, "dashboard") }),
         h(Route, { path: "/dashboard/gifts", element: h(Merch) }),
         h(Route, { path: "/dashboard/send", element: h(SendGreeting) }),
       )));
@@ -298,4 +300,70 @@ test("after a gift is chosen, the same entry again (Back, refresh) never reopens
     assert.equal(text(again.host.querySelector('[data-testid="send-banner-occasion"]')), "Birthday");
     assert.equal(mod.__sends.length, 0);
   } finally { await again.unmount(); }
+});
+
+const back = async () => { await act(async () => { globalThis.__navigate(-1); }); await settle(8); };
+const pickBoxAndReturn = async (host) => {
+  await click(buttonsByText(host, /^Gift Baskets$/)[0]);
+  await settle(6);
+  await click(host.querySelector('[data-testid^="gift-card-action-"]'));
+  await click(buttonsByText(host, /Return to Greeting/).at(-1));
+  for (let i = 0; i < 6; i += 1) await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+};
+
+test("Team 5 M1: Back AFTER the restore has consumed the greeting record goes to the dashboard, never into the Gift Place; nothing reopens shopping", async () => {
+  window.sessionStorage.setItem(HANDOFF_KEY, JSON.stringify({ contactId: "c1", occasion: "Birthday", words: "Happy birthday, Dana", memoryPhotos: [], at: Date.now() }));
+  const m = await mountAt(DASH, { history: ["/dashboard"] });
+  try {
+    assert.equal(location(m.host), "/dashboard/gifts?returnTo=send&giftType=marketplace");
+    await pickBoxAndReturn(m.host);
+    assert.equal(location(m.host), "/dashboard/send", "restored and tidied");
+    assert.equal(window.sessionStorage.getItem("sendGreetingState"), null, "the restore has consumed the record");
+    assert.match(text(m.host), /Round Trip Gift Box/, "the chosen gift is on the greeting");
+    assert.equal(m.host.querySelector("textarea").value, "Happy birthday, Dana", "the words are on the greeting");
+    mod.__visited.length = 0;
+    await back();
+    assert.equal(location(m.host), "/dashboard", "Back leaves for the dashboard: the entry and the Gift Place were replaced in history");
+    assert.ok(!mod.__visited.some((v) => v.startsWith("/dashboard/gifts")), "the Gift Place was not reopened");
+    assert.doesNotMatch(text(m.host), /Choose a Gift \(Optional\)/);
+    assert.equal(mod.__sends.length, 0);
+  } finally { await m.unmount(); }
+});
+
+test("Team 5 M1: the used entry URL reached again after the restore (any Back or a refresh of it) stays on the send page with the recipient and occasion: no Gift Place, no chooser", async () => {
+  const m = await mountAt(DASH);
+  try { await pickBoxAndReturn(m.host); } finally { await m.unmount(); }
+  assert.equal(window.sessionStorage.getItem("sendGreetingState"), null);
+  assert.deepEqual(JSON.parse(window.sessionStorage.getItem("gm_giftplace_entries_v1")), ["e1"], "the used marker outlives the greeting record");
+  mod.__visited.length = 0;
+  const again = await mountAt(DASH);
+  try {
+    assert.equal(location(again.host), "/dashboard/send?contactId=c1&occasion=Birthday", "the gift request is dropped from the URL");
+    assert.ok(!mod.__visited.some((v) => v.startsWith("/dashboard/gifts")), "no shopping");
+    assert.doesNotMatch(text(again.host), /Choose a Gift \(Optional\)/, "no chooser");
+    assert.equal(text(again.host.querySelector('[data-testid="send-banner-occasion"]')), "Birthday");
+    const recip = [...again.host.querySelectorAll("select")].find((sel) => [...sel.options].some((o) => o.value === "c1"));
+    assert.equal(recip.value, "c1", "the recipient is kept");
+  } finally { await again.unmount(); }
+});
+
+test("Team 5 M1: refresh at each step: the Gift Place keeps its context and stays; the restored send page stays; neither reopens shopping or the chooser", async () => {
+  const m = await mountAt(DASH);
+  const saved = window.sessionStorage.getItem("sendGreetingState");
+  await m.unmount();
+  mod.__visited.length = 0;
+  const gp = await mountAt("/dashboard/gifts?returnTo=send&giftType=marketplace");
+  try {
+    assert.equal(window.sessionStorage.getItem("sendGreetingState"), saved, "refreshing the Gift Place keeps the greeting");
+    assert.equal(text(gp.host.querySelector('[data-testid="gift-place-greeting-context"]')), "for Dana Example · Birthday · Send now");
+    assert.ok(!mod.__visited.some((v) => v.startsWith("/dashboard/send")));
+    await pickBoxAndReturn(gp.host);
+  } finally { await gp.unmount(); }
+  mod.__visited.length = 0;
+  const sp = await mountAt("/dashboard/send");
+  try {
+    assert.equal(location(sp.host), "/dashboard/send");
+    assert.ok(!mod.__visited.some((v) => v.startsWith("/dashboard/gifts")));
+    assert.doesNotMatch(text(sp.host), /Choose a Gift \(Optional\)/);
+  } finally { await sp.unmount(); }
 });

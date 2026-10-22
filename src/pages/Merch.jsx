@@ -113,7 +113,7 @@ export default function Merch() {
     if (!cameFromSendGreeting) return null;
     try {
       const ctx = (JSON.parse(sessionStorage.getItem('sendGreetingState') || '{}') || {}).giftContext;
-      return ctx && typeof ctx === 'object' ? { recipientName: String(ctx.recipientName || ''), label: String(ctx.label || ''), timing: String(ctx.timing || '') } : null;
+      return ctx && typeof ctx === 'object' ? { recipientName: String(ctx.recipientName || ''), label: String(ctx.label || ''), timing: String(ctx.timing || ''), entry: String(ctx.entry || '') } : null;
     } catch { return null; }
   });
 
@@ -615,6 +615,9 @@ export default function Merch() {
     // (flowers / gift_boxes above, marketplace for merch), and SendGreeting restores that record when
     // the URL carries no type. Handing it `merch` overwrote a gift box or flower and left the review
     // with no checkout branch; the header button, which runs with no confirmation, did the same.
+    // Report 135 (Team 5 M1): a visit opened by the dashboard's Add a gift returns in place, so Back from the restored
+    // greeting goes to the dashboard, never into gift shopping again.
+    if (greetingGiftContext && greetingGiftContext.entry) { navigate('/dashboard/send?returnTo=send', { replace: true }); return; }
     navigate('/dashboard/send?returnTo=send');
   };
 
