@@ -487,8 +487,8 @@ test("in scheduled mode the carousel gift does not pretend: each occasion's gift
   await click($("[data-testid=gx-add-gift]"));
   assert.equal($("[data-testid=gx-add-gift]").getAttribute("aria-pressed"), "false", "not marked chosen");
   assert.doesNotMatch($("[data-testid=gx-summary]").textContent, /gift/);
-  assert.match($("[data-testid=gx-fine]").textContent, /each gift is chosen in Dates & gifts/);
-  assert.ok($("[data-testid=gx-dates-modal]"), "it opens Dates & gifts, the scheduler's own gift choice");
+  assert.ok($("[data-testid=sg-picker]"), "founder 2026-10-22: it opens the existing scheduled-gift picker directly, not an explanation");
+  assert.doesNotMatch($("[data-testid=gx-fine]").textContent, /each gift is chosen in Dates & gifts/);
 });
 
 test("resolver save refused by the server: the error is shown and nothing claims success", async () => {

@@ -600,6 +600,16 @@ export default function DashboardHome() {
     if (resolverOn || groupSchedOn) setDatesOpen(true);
   };
 
+  const openScheduledGift = (g) => {
+    setDatesOpen(true);
+    if (!resolverOn || occasions.length !== 1) return;
+    const o = occasions[0];
+    const r = rowOf(o) || prefillRow(resolvePerson, o);
+    if (!rows[`${resolvePerson.id}:${o}`]) setRow(o, r);
+    if (g === 'qrcash') { if (!r.gift || r.gift.type === 'none') setRow(o, { gift: chooseGift(r, 'qrcash') }); return; }
+    if (!SCHEDULED_PHYSICAL_GIFT_AVAILABLE) return;
+    setSgPick({ person: resolvePerson, occasion: o, type: r.type, date: r.date, initial: sgChoosable(r.gift) ? r.gift : null, apply: (gift) => setRow(o, { gift }) });
+  };
   const handoff = () => {
     if (!canContinue) return;
     if (resolverOn || groupSchedOn) { if (datesComplete) saveDates(); else setDatesOpen(true); return; }
@@ -947,8 +957,11 @@ export default function DashboardHome() {
               chosen={sendNowGroup ? gift : null}
               smartCardAvailable={smartCardAvailable}
               onAdd={(g) => {
-                // Scheduled Greet-Mes take each occasion's gift from Dates & gifts (the Occasion Scheduler's own gift choice).
-                if (resolverOn || groupSchedOn) { setGiftNote('For scheduled Greet-Mes, each gift is chosen in Dates & gifts.'); setDatesOpen(true); return; }
+                // Scheduled Greet-Mes (founder 2026-10-22, Report 135): Add a gift opens the existing scheduled-gift path
+                // directly. One person + one occasion: the scheduled-gift picker for that occasion, with Dates & gifts
+                // behind it (its Save runs the scheduler's own card + consent step and saves). Several people or
+                // occasions: Dates & gifts, which lists each one with its gift step. Every choice is kept on cancel.
+                if (resolverOn || groupSchedOn) { setGiftNote(''); openScheduledGift(g); return; }
                 // Report 135: one person + one occasion (Send Now): Add a gift opens the Gift Place now, with the
                 // recipient, occasion, timing, words and photos kept (Add QR Cash opens the QR Cash amount step).
                 if (sendNowSingle && !overCap && !notSchedulable) { setGiftNote(''); goSendFlow(g); return; }

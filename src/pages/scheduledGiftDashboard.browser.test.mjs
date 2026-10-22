@@ -400,3 +400,68 @@ test("required-option gift box: listed in the group review's gift choices but di
   assert.equal(listed.disabled, false);
   assert.match(listed.textContent, /^Gift box: Charger · From \$44\.99 \+ S&H$/);
 });
+
+// Founder 2026-10-22 (Report 135): Schedule the Love -> Add a gift opens the existing scheduled-gift picker directly.
+async function scheduleMargaretBirthday() {
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday"));
+  await pickPerson("Margaret");
+  await click($("[data-testid=gx-who-done]"));
+  await click($("[data-testid=gx-dates-close]"));
+  await setValue($("[data-testid=gx-words]"), "Happy birthday, Mom");
+}
+
+test("Report 135: Schedule the Love, one person + one occasion: Add a gift opens the scheduled-gift picker directly; Cancel keeps every choice and saves nothing", async () => {
+  await scheduleMargaretBirthday();
+  await click($("[data-testid=gx-add-gift]"));
+  assert.ok($("[data-testid=sg-picker]"), "the picker itself opens");
+  assert.equal($("[data-testid=gx-dates-modal]"), null, "Dates & gifts waits behind it");
+  assert.equal($("[data-testid=sg-consent]"), null); assert.equal($("[data-testid=sg-add-card]"), null, "no card or consent in the picker");
+  await click($("[data-testid=sg-cancel]"));
+  assert.equal($("[data-testid=sg-picker]"), null);
+  assert.ok($("[data-testid=gx-dates-modal]"), "Dates & gifts is there, with the row to finish");
+  assert.equal($$("[data-testid=gx-resolver-row]").length, 1);
+  assert.equal($$("[data-testid=gx-resolver-row]")[0].querySelector("select").value, "", "no gift was invented");
+  await click($("[data-testid=gx-dates-close]"));
+  assert.deepEqual(state().picks, ["MRMargaret Rivera"]);
+  assert.deepEqual(state().occ, ["Birthday"]);
+  assert.equal($("[data-testid=gx-words]").value, "Happy birthday, Mom");
+  assert.equal(globalThis.__saves.length, 0);
+});
+
+test("Report 135: the gift chosen in the directly opened picker is kept; the final Save still goes through the scheduler's card + consent step before anything is saved", async () => {
+  await scheduleMargaretBirthday();
+  await click($("[data-testid=gx-add-gift]"));
+  await chooseBox();
+  await click($("[data-testid=sg-use]"));
+  assert.ok($("[data-testid=gx-dates-modal]"));
+  assert.match($("[data-testid=sg-entry]").textContent, /Cookie Box/, "the selection is on the row");
+  await setValue($$("[data-testid=gx-resolver-row]")[0].querySelector("input"), "1960-02-11");
+  await click($("[data-testid=gx-dates-save]"));
+  assert.ok($("[data-testid=auth-modal]"), "the scheduler's own final confirmation");
+  assert.equal(authNeed().scheduledGiftConsent, true);
+  assert.equal(globalThis.__saves.length, 0, "nothing saved before it");
+  await click($("[data-testid=auth-cancel]"));
+  assert.match($("[data-testid=sg-entry]").textContent, /Cookie Box/, "cancelling the confirmation keeps the selection");
+  await click($("[data-testid=gx-dates-save]"));
+  await click($("[data-testid=auth-save]"));
+  assert.equal(globalThis.__saves.length, 1);
+  assert.equal(globalThis.__saves[0].body.occasionGiftSettings.birthday.type, "gift_boxes");
+  assert.ok(globalThis.__saves[0].body.scheduledGiftConsents.birthday, "the consent travels with the save");
+  assert.equal(globalThis.__charges.length + globalThis.__boxCharges.length, 0, "nothing charged at scheduling");
+});
+
+test("Report 135: several occasions (or people): Add a gift opens Dates & gifts directly, each row with its gift step; no explanation text", async () => {
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday")); await click(occ("Anniversary"));
+  await pickPerson("Margaret");
+  await click($("[data-testid=gx-who-done]"));
+  await click($("[data-testid=gx-dates-close]"));
+  await click($("[data-testid=gx-add-gift]"));
+  assert.ok($("[data-testid=gx-dates-modal]"));
+  assert.equal($("[data-testid=sg-picker]"), null);
+  assert.equal($$("[data-testid=gx-resolver-row]").length, 2);
+  assert.doesNotMatch($("[data-testid=gx-fine]").textContent, /each gift is chosen/);
+});
