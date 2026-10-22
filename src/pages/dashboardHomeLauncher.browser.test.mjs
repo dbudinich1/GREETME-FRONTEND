@@ -1076,3 +1076,19 @@ test("Report 135: the gold Add a gift stays on every carousel slide; the final l
   assert.match(tail, /\.gx \.footbar \{ margin:14px 0 22px;[^}]*border-radius:22px;/, "Step 5 is its own rounded card");
   assert.match(tail, /\.gx \.footbar \.sum \{ white-space:normal;/, "the summary wraps instead of being cut off");
 });
+
+test("Report 135: Celebrations' Occasions path hands several people to THIS Dates & gifts: it opens with them and the occasion, shared dates filled in, and each save keeps the person's other occasions", async () => {
+  const snap = JSON.stringify({ v: 1, userId: "u1", savedAt: Date.now(), mode: "occasion", occasions: ["Christmas"], audience: "one", picks: ["c1", "c2"], excluded: [], whoDone: true, datesOpen: true });
+  await mountKeeping(snap);
+  assert.ok($("[data-testid=gx-dates-modal]"), "Dates & gifts is open");
+  const rows = $$("[data-testid=gx-group-row]");
+  assert.deepEqual(rows.map((r) => r.querySelector(".rname").textContent.replace(/saved|Saved/g, "").trim()), ["Theresa Morgan", "Margaret Rivera"]);
+  for (const r of rows) assert.ok(r.querySelector("input[type=date]").value.endsWith("-12-25"), "the shared calendar date is filled in");
+  await setValue($("[data-testid=gx-group-default-gift]"), "none");
+  await click(datesSave());
+  const t = globalThis.__saves.find((x) => x.id === "c1");
+  assert.ok(t, "Theresa saved");
+  assert.deepEqual(t.body.occasions.map((o) => o.type), ["birthday", "christmas"], "her birthday is kept");
+  assert.deepEqual(t.body.occasionGiftSettings.birthday, { type: "qrcash", autoGift: true, amount: 50 }, "and its gift");
+  assert.ok(t.body.occasions.find((o) => o.type === "christmas").date.endsWith("-12-25"));
+});

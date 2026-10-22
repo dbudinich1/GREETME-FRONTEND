@@ -177,7 +177,7 @@ export default function DashboardLayout({ children }) {
 
   const navigation = [
     { name: 'Home', path: '/dashboard', icon: null },
-    { name: 'Recipients', path: '/dashboard/contacts', icon: Users },
+    { name: 'Celebrations', path: '/dashboard/contacts', icon: Users }, // Report 135: the Recipients page, renamed (people and their occasions)
     { name: 'Plans & Pricing', path: '/pricing', icon: null },
     { name: 'Greet-Me Gifts', path: '/dashboard/gifts', icon: Gift },
     { name: '❤️ Hearts Hub', path: '/dashboard/rewards', icon: null },

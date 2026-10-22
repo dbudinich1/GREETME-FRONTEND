@@ -34,6 +34,9 @@ import { useAuth } from '../context/AuthContext';
 import { resolveRecipientLimit, recipientLimitMessage, isAtRecipientCap } from '../utils/sendGating';
 import { getHoverHandlers } from '../utils/hoverable';
 import { RELATIONS_BY_CATEGORY, RELATIONSHIP_CATEGORIES } from '../import/completionModel.js';
+import CelebrationsWorkspace from '../components/celebrations/CelebrationsWorkspace';
+import { launcherChoicesForOccasion } from '../utils/celebrationsModel';
+import { saveLauncherState } from '../utils/dashboardLauncherState';
 
 // Human relationship labels the wizard already uses (value → label), so display shows "Family Member"
 // (not raw "family_member"). Stored data is UNCHANGED. Source of truth: src/import/completionModel.js.
@@ -209,6 +212,11 @@ export default function Recipients() {
   const [editingContact, setEditingContact] = useState(null);
   // Deep link from the "Review your Auto-Gift" / 10-day reminder emails: #/dashboard/contacts?contactId=<id>&occasion=<type>.
   const [focusOccasion, setFocusOccasion] = useState(null);
+  // Celebrations (Report 135): opened from the Occasions path for someone who doesn't hold the occasion yet.
+  const [addFocusOccasion, setAddFocusOccasion] = useState(false);
+  // Saved dates' real statuses and the real send history, for Upcoming | Past. Read-only; failures leave them empty.
+  const [upcomingRows, setUpcomingRows] = useState([]);
+  const [sentGreetings, setSentGreetings] = useState([]);
   const [alert, setAlert] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [viewMode, setViewMode] = useState('recipients');
@@ -309,7 +317,12 @@ export default function Recipients() {
     }
   }, [location.state, navigate, location.pathname]);
 
+  const fetchCelebrationStatus = async () => {
+    try { const r = await api.getUpcomingOccasions(366); if (r && r.ok !== false && Array.isArray(r.data)) setUpcomingRows(r.data); } catch { /* statuses fall back to the saved record */ }
+    try { const r = await api.getSentGreetings(); if (r && Array.isArray(r.greetings)) setSentGreetings(r.greetings); } catch { /* Past shows no sends */ }
+  };
   const fetchRecipients = async ({ silent = false } = {}) => {
+    fetchCelebrationStatus();
     try {
       if (!silent) setLoading(true);
       const response = await api.getContacts();
@@ -592,6 +605,25 @@ export default function Recipients() {
     }, 100);
   };
 
+  // Celebrations (Report 135): both entry paths open the SAME Occasion Scheduler (ContactForm) for one person; from an
+  // occasion it opens at that occasion and, for someone who doesn't hold it yet, adds it there (nothing saved until Save).
+  const openScheduler = (contact, occasionType = null, addIfMissing = false) => {
+    setFocusOccasion(occasionType || null);
+    setAddFocusOccasion(Boolean(occasionType && addIfMissing));
+    setEditingContact(contact);
+    setShowEditModal(true);
+  };
+  // Several people from one occasion: the dashboard's own Dates & gifts resolver, through its one-round-trip launcher state.
+  const scheduleGroupFromOccasion = (label, ids) => {
+    const kept = saveLauncherState(window.sessionStorage, user && user.id, launcherChoicesForOccasion(label, ids));
+    if (kept === 'none') { showAlertMessage('error', 'We couldn’t open Dates & gifts on this device. Open each person’s scheduler instead.'); return; }
+    navigate('/dashboard');
+  };
+  const openImport = () => {
+    if (import.meta.env.VITE_IMPORT_WIZARD_ENTRY === 'true') navigate('/dashboard/import-wizard');
+    else setShowImportModal(true);
+  };
+
   // SLICE E6 — the list follows the scope. The two sources are chosen between, never combined:
   // `recipients` came from the personal endpoint with its own fail-closed scope predicate, and
   // `businessContacts` from the corporate one. Search applies to whichever is in view.
@@ -677,6 +709,8 @@ export default function Recipients() {
 
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+      {isBusiness ? (
+      <>
       {/* Premium page shell — unifies header, gift presentation, and workspace
           into one elevated luxury surface. Visual only; no structural change. */}
       <div style={{
@@ -1220,6 +1254,84 @@ export default function Recipients() {
       {/* End premium workspace container */}
       </div>
       {/* End premium page shell */}
+      </>
+      ) : (
+      <>
+      {/* Celebrations (Report 135): personal recipients and their occasions, two ways into the same Occasion Scheduler. */}
+      {/* LANE E2 — recipient cap, with the number and an Upgrade link, before any form is filled. */}
+      {showRecipientCapNotice && (
+        <div
+          id="recipient-cap-notice"
+          data-testid="recipient-cap-notice"
+          role="status"
+          style={{
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem 1rem',
+            padding: '0.75rem 1rem', marginBottom: '1rem', borderRadius: '0.625rem',
+            border: '1px solid #fcd34d', background: '#fffbeb', color: '#92400e', fontSize: '0.875rem',
+          }}
+        >
+          <span style={{ flex: '1 1 16rem' }}>{recipientLimitMessage(capNoticeLimit)}</span>
+          <button
+            type="button"
+            data-testid="recipient-cap-upgrade"
+            onClick={() => navigate('/pricing')}
+            style={{
+              padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', background: '#b45309',
+              color: '#fff', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+            }}
+          >
+            Upgrade
+          </button>
+        </div>
+      )}
+
+      {/* Alert */}
+      {alert && (
+        <Alert
+          type={alert.type}
+          message={alert.message}
+          onClose={() => setAlert(null)}
+        />
+      )}
+
+      <CelebrationsWorkspace
+        contacts={recipients}
+        upcomingRows={upcomingRows}
+        sent={sentGreetings}
+        scopeToggle={(
+          businessAvailable ? (
+            <div data-testid="scope-toggle" role="tablist" aria-label="Which contacts to show"
+              style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+              {[{ key: VIEW_SCOPE.PERSONAL, label: 'Personal' }, { key: VIEW_SCOPE.BUSINESS, label: 'Business' }].map((t) => {
+                const on = scope === t.key;
+                return (
+                  <button key={t.key} type="button" role="tab" aria-selected={on}
+                    data-testid={`scope-${t.key}`}
+                    onClick={() => { setRequestedScope(t.key); setSearchTerm(''); }}
+                    style={{
+                      padding: '7px 14px', fontSize: '0.8125rem', fontWeight: 700,
+                      borderRadius: '999px', cursor: 'pointer',
+                      border: on ? '1px solid #667eea' : '1px solid var(--border, rgba(0,0,0,.12))',
+                      background: on ? 'rgba(102,126,234,.10)' : 'transparent',
+                      color: on ? '#4a3fb0' : 'var(--text-secondary)',
+                    }}>
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null
+        )}
+        onOpenScheduler={openScheduler}
+        onSend={(c) => navigate(`/dashboard/send?contactId=${c._id || c.id}`)}
+        onDelete={(c) => setDeleteConfirm(c)}
+        onAddRecipient={openAddRecipient}
+        onImport={openImport}
+        onSendGreeting={() => navigate('/dashboard/send')}
+        onScheduleGroup={scheduleGroupFromOccasion}
+      />
+      </>
+      )}
 
       {/* Add Recipient Modal */}
       <Modal
@@ -1249,6 +1361,7 @@ export default function Recipients() {
           setShowEditModal(false);
           setEditingContact(null);
           setFocusOccasion(null);
+          setAddFocusOccasion(false);
           backToDashboard();
         }}
         title="Edit Recipient"
@@ -1257,11 +1370,13 @@ export default function Recipients() {
         <ContactForm
           contact={editingContact}
           focusOccasion={focusOccasion}
+          addFocusOccasion={addFocusOccasion}
           onSubmit={handleEditRecipient}
           onCancel={() => {
             setShowEditModal(false);
             setEditingContact(null);
             setFocusOccasion(null);
+            setAddFocusOccasion(false);
             backToDashboard();
           }}
         />

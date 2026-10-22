@@ -89,7 +89,7 @@ function CinematicGiftIcon() {
   );
 }
 
-export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion = null }) {
+export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion = null, addFocusOccasion = false }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [formData, setFormData] = useState(getInitialFormData());
@@ -330,6 +330,22 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
       setSelectedFaiths(Array.from(faiths));
     }
   }, [contact]);
+
+  // Report 135 (Celebrations, Occasions path): opened for a person who doesn't hold this occasion yet, the occasion is
+  // added here exactly as ticking it would add it (the same date pre-fill), so the sender fills only what is
+  // missing. Nothing is saved until the sender saves. Never removes an occasion (safe to run twice).
+  useEffect(() => {
+    if (!contact || !addFocusOccasion || !focusOccasion) return;
+    if ((contact.occasions || []).some((o) => o && o.type === focusOccasion)) return;
+    const def = occasionTypes.find((o) => o.value === focusOccasion);
+    if (!def || def.value === 'getwell') return;
+    const year = new Date().getFullYear();
+    const date = def.fixedDate ? `${year}-${def.fixedDate}` : (calculateVaryingOccasionDate(def.value, year) || '');
+    setFormData((prev) => ((prev.occasions || []).some((o) => o.type === def.value) ? prev
+      : { ...prev, occasions: [...(prev.occasions || []), { type: def.value, date, autoSend: def.recurring !== false }] }));
+    if (['christian', 'jewish', 'muslim', 'secular'].includes(def.category)) setSelectedFaiths((prev) => (prev.includes(def.category) ? prev : [...prev, def.category]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contact && contact.id, focusOccasion, addFocusOccasion]);
 
   const handleNameBlur = () => {
     setFormData(prev => {

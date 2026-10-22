@@ -115,7 +115,7 @@ async function open({ contacts, user = UNCAPPED, put = [], post = [], card, list
   });
   await settle();
 }
-const editButtons = () => [...document.querySelectorAll("button")].filter((b) => b.textContent.trim() === "Edit");
+const editButtons = () => [...document.querySelectorAll("button")].filter((b) => b.textContent.trim() === "Edit" || b.dataset.testid === "cx-edit"); // Report 135: the Celebrations rows edit with an icon button
 const submitBtn = () => document.querySelector('[data-testid="contact-form-footer"] button[type="submit"]');
 const editOpen = () => /Edit Recipient/.test(txt()) && Boolean(submitBtn());
 const addOpen = () => /Add New Recipient/.test(txt()) && Boolean(submitBtn());
