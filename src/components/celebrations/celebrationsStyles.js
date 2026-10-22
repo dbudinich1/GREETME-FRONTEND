@@ -124,4 +124,27 @@ export const CELEBRATIONS_CSS = `
   .cx .rrow { grid-template-columns:auto auto minmax(0,1fr); }
   .cx .rrow .stat { grid-column:1 / -1; justify-content:flex-start !important; padding-left:28px; }
 }
+/* Report 135 layout adjustment: two cards, each with its own bounded height and internal scrolling. */
+.cx .mgrbody { height:640px; margin-top:4px; }
+.cx .mgrview { height:100%; display:flex; flex-direction:column; min-height:0; }
+.cx .mgrview .rows { flex:1 1 0; height:auto; min-height:0; overflow:auto; }
+.cx .mgrview .occgrid { flex:1 1 0; min-height:0; grid-template-rows:minmax(0,1fr); }
+.cx .mgrview .occlist { height:auto; min-height:0; overflow:auto; }
+.cx .mgrview .roster { display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+.cx .mgrview .rosterbody { flex:1 1 0; max-height:none; min-height:0; overflow:auto; }
+.cx .schedbody { height:440px; overflow:auto; margin-top:10px; padding-right:4px; }
+.cx .srow { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:6px 14px; align-items:center; padding:10px 4px; border-top:1px solid var(--line); }
+.cx .srow:first-child { border-top:none; }
+.cx .srow .stat { display:flex; align-items:center; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
+.cx .srow .line { font-size:12.5px; color:var(--muted); }
+.cx .datebox { width:48px; height:52px; border-radius:12px; background:#FDF9EC; border:1px solid #F1E2B3; display:grid; place-items:center; align-content:center; text-align:center; color:#7A5B0C; font:700 11px var(--sans); }
+.cx .datebox b { display:block; font:600 18px var(--serif); color:var(--ink); }
+@media (max-width: 760px) {
+  .cx .mgrbody { height:700px; }
+  .cx .mgrview .occgrid { grid-template-rows:200px minmax(0,1fr); }
+  .cx .mgrview .occlist { max-height:none; }
+  .cx .schedbody { height:500px; }
+  .cx .srow { grid-template-columns:auto minmax(0,1fr); }
+  .cx .srow .stat { grid-column:1 / -1; justify-content:flex-start; padding-left:62px; }
+}
 `;

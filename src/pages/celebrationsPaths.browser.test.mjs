@@ -104,6 +104,12 @@ async function open(url, { mountOnly = false, state } = {}) {
 const formOpen = () => /Edit Recipient/.test(txt()) && Boolean(document.querySelector('input[name="name"]'));
 const click = async (el) => { assert.ok(el, "control must exist"); await act(async () => { el.click(); }); await wait(0); await wait(0); };
 const $$ = (s) => [...document.querySelectorAll(s)];
+const setValue = async (el, value) => {
+  assert.ok(el, "field must exist");
+  Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set.call(el, value);
+  await act(async () => { el.dispatchEvent(new window.Event("input", { bubbles: true })); });
+  await wait(0);
+};
 const names = () => $$('[data-testid="cx-row"] .pname').map((e) => e.textContent);
 const rosterRow = (id) => $$('[data-testid="cx-roster-row"]').find((r) => r.dataset.contact === id);
 const saveForm = async () => {
@@ -249,17 +255,18 @@ test("Upcoming and Past are truthful: the scheduler's real status where reported
     assert.equal(chips.length, 1, "the passed one-time graduation is not upcoming");
     assert.equal(chips[0].dataset.status, "open", "anniversary with auto-send off: not scheduled");
     assert.doesNotMatch($$('[data-testid="cx-row"]').map((r) => r.textContent).join(" "), /\bSent\b/, "nothing upcoming is called sent");
+    // The Celebration Schedule card: upcoming rows carry the same truthful statuses; Past lists only real sends.
+    const up = $$('[data-testid="cx-sched-row"]');
+    assert.equal(up.find((r) => r.dataset.contact === "c1" && /Birthday/.test(r.textContent)).dataset.status, "queued");
+    assert.doesNotMatch(up.map((r) => r.textContent).join(" "), /Sent/, "nothing upcoming is called sent");
     await click(tid("cx-when-past"));
-    const a2 = $$('[data-testid="cx-row"]').find((r) => r.dataset.contact === "c1");
-    assert.deepEqual([...a2.querySelectorAll('[data-testid="cx-past-chip"]')].map((c) => c.dataset.status), ["completed"], "only Avery's own send");
-    const b2 = $$('[data-testid="cx-row"]').find((r) => r.dataset.contact === "c2");
-    assert.deepEqual([...b2.querySelectorAll('[data-testid="cx-past-chip"]')].map((c) => /No send recorded/.test(c.textContent)), [true]);
-    const c3 = $$('[data-testid="cx-row"]').find((r) => r.dataset.contact === "c3");
-    assert.match(c3.textContent, /no sends recorded/);
-    assert.equal(c3.querySelectorAll('[data-testid="cx-past-chip"]').length, 0, "Casey: nothing invented");
-    await click(tid("cx-path-occasions")); await click(tid("cx-occ-christmas"));
-    assert.equal($$('[data-testid="cx-past-row"]').length, 1, "Past for Christmas: the one real send, even if unmatched to a recipient");
-    assert.match(tid("cx-past-occasion").textContent, /Not sent/);
+    const past = $$('[data-testid="cx-past-row"]');
+    assert.deepEqual(past.filter((r) => r.dataset.contact === "c1").map((r) => r.dataset.status), ["completed"], "only Avery's own send is Avery's (matched by email)");
+    assert.ok(past.some((r) => r.dataset.contact === "" && /Someone Else/.test(r.textContent) && r.dataset.status === "failed"), "an unmatched send is listed under its own name, never attributed");
+    assert.ok(past.some((r) => r.dataset.contact === "c2" && /No send recorded/.test(r.textContent)), "Blake's passed graduation: No send recorded");
+    assert.equal(past.filter((r) => r.dataset.contact === "c3").length, 0, "Casey: nothing invented");
+    await setValue(tid("cx-schedule-search"), "christmas");
+    assert.deepEqual($$('[data-testid="cx-past-row"]').map((r) => r.dataset.status), ["failed"], "the schedule's own search");
   } finally { globalThis.__upcoming = []; globalThis.__sent = []; }
 });
 
@@ -277,4 +284,36 @@ test("Team 5 L1: a shared date added from the Occasions path is its NEXT occurre
   const put = globalThis.__puts.find((p) => p.id === "c2");
   assert.equal(put.body.occasions.find((o) => o.type === "mothers_day").date, expected);
   assert.deepEqual(put.body.occasions.map((o) => o.type).sort(), ["anniversary", "graduation", "mothers_day"]);
+});
+
+test("Report 135 layout: Celebration Manager and Celebration Schedule are separate, both always mounted; switching or searching in one leaves the other's tab, search and content untouched", async () => {
+  await open("/dashboard/contacts");
+  assert.ok(tid("cx-manager") && tid("cx-schedule"), "two cards");
+  assert.match(tid("cx-manager").textContent, /Celebration Manager/); assert.match(tid("cx-schedule").textContent, /Celebration Schedule/);
+  assert.ok(tid("cx-manager").compareDocumentPosition(tid("cx-schedule")) & window.Node.DOCUMENT_POSITION_FOLLOWING, "Manager above Schedule");
+  const schedBody = tid("cx-schedule-body");
+  await click(tid("cx-when-past"));
+  await setValue(tid("cx-schedule-search"), "blake");
+  const schedHtml = schedBody.innerHTML;
+  const rowsNode = tid("cx-rows");
+  // the Manager: change path, filter, search, occasion
+  await click(tid("cx-seg-family"));
+  await setValue(tid("cx-manager-search"), "bl");
+  await click(tid("cx-path-occasions"));
+  await click(tid("cx-occ-christmas"));
+  await setValue(tid("cx-occasion-search"), "chr");
+  await click(tid("cx-path-recipients"));
+  assert.equal(tid("cx-schedule-body"), schedBody, "the Schedule's viewport was never replaced");
+  assert.equal(schedBody.innerHTML, schedHtml, "and its content is unchanged");
+  assert.equal(tid("cx-when-past").getAttribute("aria-selected"), "true");
+  assert.equal(tid("cx-schedule-search").value, "blake");
+  // the Manager kept its own state across its own switch too (both views stay mounted)
+  assert.equal(tid("cx-rows"), rowsNode, "the recipients list was not remounted");
+  assert.equal(tid("cx-seg-family").getAttribute("aria-selected"), "true");
+  assert.equal(tid("cx-manager-search").value, "bl");
+  assert.equal(tid("cx-occasion-search").value, "chr");
+  // and the Schedule's switch leaves the Manager untouched
+  const mgrHtml = tid("cx-manager-body").innerHTML;
+  await click(tid("cx-when-upcoming")); await setValue(tid("cx-schedule-search"), "");
+  assert.equal(tid("cx-manager-body").innerHTML, mgrHtml);
 });

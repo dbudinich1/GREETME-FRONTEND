@@ -1,20 +1,23 @@
 // src/components/celebrations/CelebrationsWorkspace.jsx
 //
-// Celebrations (Report 135): the place to manage people and their occasions, with two ways into the SAME
-// per-recipient Occasion Scheduler (ContactForm) records:
-//   * Recipients path: Individuals | Friends | Family | Professional (the recipient's existing relationshipCategory),
-//     then search, then people. Selecting a person, or one of their occasion chips, opens their Occasion Scheduler.
-//   * Occasions path: the scheduler's occasion list and sub-occasions. Selecting an occasion shows every recipient with
-//     what their own record holds for it: saved dates, the shared calendar date where the occasion has one, or the
-//     date still needed. One person opens their Occasion Scheduler at that occasion (added there if they don't hold
-//     it yet); several people open the dashboard's own Dates & gifts resolver. Both save each person's full record.
-//   * Upcoming | Past: saved dates and real statuses only (utils/celebrationsModel.js).
+// Celebrations (Report 135): the place to manage people and their occasions, in two separate cards (founder layout
+// adjustment 2026-10-22), each with its own bounded, scrolling viewport and its own state, both always mounted:
+//   * Celebration Manager — Recipients | Occasions, two ways into the SAME per-recipient Occasion Scheduler
+//     (ContactForm) records:
+//       - Recipients: Individuals | Friends | Family | Professional (the recipient's existing relationshipCategory),
+//         then search, then people. A person, or one of their occasion chips, opens their Occasion Scheduler.
+//       - Occasions: the scheduler's occasion list and sub-occasions (with its own search). Selecting an occasion shows
+//         every recipient with what their own record holds for it: saved dates, the shared calendar date where the
+//         occasion has one, or the date still needed. One person opens their Occasion Scheduler at that occasion
+//         (added there if they don't hold it yet); several people open the dashboard's own Dates & gifts resolver.
+//   * Celebration Schedule — Upcoming Occasions | Past Occasions, its own search and results: saved dates and real
+//     statuses only; Past lists real sends only (utils/celebrationsModel.js).
 // This component schedules, sends and saves nothing itself.
 import { useMemo, useState } from 'react';
 import { Send, Pencil, Trash2, Search, UserPlus, Upload, Plus, CalendarDays } from 'lucide-react';
 import {
   RECIPIENT_SEGMENTS, CATEGORY_LABELS, filterRecipients, segmentCounts, OCCASION_GROUPS, occasionSummaries, occasionRoster,
-  upcomingForContact, pastForContact, pastForOccasion, nextUp, occasionLabel, occasionIcon,
+  upcomingForContact, nextUp, occasionLabel, occasionIcon, scheduleUpcoming, schedulePast, scheduleMatches,
 } from '../../utils/celebrationsModel';
 import { isSchedulerOccasion } from '../../utils/occasionResolver';
 import { GROUP_MAX } from '../../utils/groupSend';
@@ -37,35 +40,42 @@ export function giftText(g) {
 const chipNote = (u) => (u.missingDate ? `${u.label}: a date is still needed in their Occasion Scheduler.`
   : u.status.source === 'scheduler' ? `${u.label} ${day(u.date)}: ${u.status.label} (from the scheduler).`
     : u.status.planned ? `${u.label} is planned — set to auto-send on ${day(u.date)}.` : `${u.label} is still open — not set to send yet.`);
+const chipClass = (u) => (u.missingDate ? 'amber' : u.status.planned ? 'planned' : u.status.tone === 'muted' && u.status.source === 'scheduler' ? 'muted' : 'open');
+const pastClass = (p) => (p.status.tone === 'ok' ? 'planned' : p.status.tone === 'amber' ? 'amber' : 'muted');
+const titleCase = (v) => String(v || '').replace(/_/g, ' ').replace(/\b\w/g, (x) => x.toUpperCase());
 
 export default function CelebrationsWorkspace({
-  contacts = [], upcomingRows = [], sent = [], now = new Date(), scopeToggle = null,
+  contacts = [], upcomingRows = [], sent = [], now = new Date(), scopeToggle = null, initialPath = 'recipients', initialOccasion = 'birthday',
   onOpenScheduler, onSend, onDelete, onAddRecipient, onImport, onSendGreeting, onScheduleGroup,
 }) {
-  const [path, setPath] = useState('recipients');
-  const [when, setWhen] = useState('upcoming');
+  // Celebration Manager state.
+  const [path, setPath] = useState(initialPath === 'occasions' ? 'occasions' : 'recipients');
   const [segment, setSegment] = useState('individuals');
   const [term, setTerm] = useState('');
-  const [occ, setOcc] = useState('birthday');
+  const [occTerm, setOccTerm] = useState('');
+  const [occ, setOcc] = useState(OCCASION_GROUPS.some((g) => g.types.includes(initialOccasion)) ? initialOccasion : 'birthday');
   const [picked, setPicked] = useState([]);
+  // Celebration Schedule state (independent).
+  const [when, setWhen] = useState('upcoming');
+  const [schedTerm, setSchedTerm] = useState('');
 
   const counts = useMemo(() => segmentCounts(contacts), [contacts]);
   const shown = useMemo(() => filterRecipients(contacts, segment, term), [contacts, segment, term]);
   const summaries = useMemo(() => occasionSummaries(contacts, upcomingRows, sent, now), [contacts, upcomingRows, sent, now]);
   const roster = useMemo(() => occasionRoster(contacts, occ, upcomingRows, now), [contacts, occ, upcomingRows, now]);
   const next = useMemo(() => nextUp(contacts, upcomingRows, now), [contacts, upcomingRows, now]);
+  const upcomingAll = useMemo(() => scheduleUpcoming(contacts, upcomingRows, now), [contacts, upcomingRows, now]);
+  const pastAll = useMemo(() => schedulePast(contacts, sent, now), [contacts, sent, now]);
   const segInfo = RECIPIENT_SEGMENTS.find((s) => s.key === segment);
   const schedulable = isSchedulerOccasion(occasionLabel(occ));
+  const occQuery = occTerm.trim().toLowerCase();
+  const groups = OCCASION_GROUPS.map((g) => ({ ...g, types: g.types.filter((t) => !occQuery || occasionLabel(t).toLowerCase().includes(occQuery)) })).filter((g) => g.types.length);
 
   const chooseOcc = (t) => { setOcc(t); setPicked([]); };
   const togglePick = (id) => setPicked((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.length >= GROUP_MAX ? cur : [...cur, id]));
 
-  const recipientsCard = (
-    <section className="card listcard" data-testid="cx-recipients">
-      <div className="cardhead">
-        <div><h2>Recipients</h2><p>{contacts.length} {contacts.length === 1 ? 'person' : 'people'} in your circle</p></div>
-        <button type="button" className="btn btn-pri" data-testid="add-recipient" onClick={onAddRecipient}><Plus size={16} /> Add Recipient</button>
-      </div>
+  const recipientsView = (
+    <div className="mgrview" data-testid="cx-recipients">
       {scopeToggle}
       {/* Founder: Individuals / Friends / Family / Professional below the primary toggle and above the search. */}
       <div className="chips" role="tablist" aria-label="Show recipients" data-testid="cx-segments">
@@ -75,15 +85,14 @@ export default function CelebrationsWorkspace({
           </button>
         ))}
       </div>
-      <label className="search"><Search size={16} color="#8a8199" /><input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Find someone…" aria-label="Find someone" /></label>
+      <label className="search"><Search size={16} color="#8a8199" /><input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Find someone…" aria-label="Find someone" data-testid="cx-manager-search" /></label>
       <div className="rows" data-testid="cx-rows">
         {shown.length === 0 ? (
           <p className="empty" data-testid="cx-empty">{term ? `No one matches “${term}”.` : segment === 'individuals' ? 'No people yet. Add someone you care about.' : `No ${segInfo.label.toLowerCase()} yet — set a relationship on a recipient.`}</p>
         ) : shown.map((c) => {
-          const ups = when === 'upcoming' ? upcomingForContact(c, upcomingRows, now) : [];
-          const past = when === 'past' ? pastForContact(c, sent, now) : [];
+          const ups = upcomingForContact(c, upcomingRows, now);
           const soon = ups.find((u) => !u.missingDate);
-          const relName = String(c.relationship || '').replace(/_/g, ' ').replace(/\w/g, (x) => x.toUpperCase());
+          const relName = titleCase(c.relationship);
           const cat = CATEGORY_LABELS[c.relationshipCategory];
           const rel = [relName, cat && cat.toLowerCase() !== relName.toLowerCase() ? cat : ''].filter(Boolean).join(' · ');
           return (
@@ -92,11 +101,8 @@ export default function CelebrationsWorkspace({
                 <span className="av" style={{ background: avBg(c.name) }}>{initials(c.name)}</span>
                 <span style={{ minWidth: 0 }}>
                   <span className="pname" style={{ display: 'block' }}>{c.name}</span>
-                  <span className="pmeta" style={{ display: 'block' }} data-testid="cx-meta">
-                    {rel}{when === 'upcoming' ? (soon ? ` — ${soon.label} ${inDays(soon.daysUntil)}` : ' — no upcoming occasions')
-                      : past.length ? ` — last: ${past[0].label}, ${past[0].status.label.toLowerCase()}` : ' — no sends recorded'}
-                  </span>
-                  {when === 'upcoming' && soon ? <span className="pdate" style={{ display: 'block' }}>{day(soon.date)}</span> : null}
+                  <span className="pmeta" style={{ display: 'block' }} data-testid="cx-meta">{rel}{soon ? ` — ${soon.label} ${inDays(soon.daysUntil)}` : ' — no upcoming occasions'}</span>
+                  {soon ? <span className="pdate" style={{ display: 'block' }}>{day(soon.date)}</span> : null}
                 </span>
               </button>
               <div className="racts">
@@ -105,24 +111,18 @@ export default function CelebrationsWorkspace({
                 <button type="button" className="iconbtn del" onClick={() => onDelete(c)} aria-label="Delete recipient" title="Delete"><Trash2 size={15} /></button>
               </div>
               <div className="occchips" data-testid="cx-chips">
-                {when === 'upcoming' ? ups.map((u) => (
-                  <button key={u.type} type="button" data-testid="cx-chip" data-status={u.status.key}
-                    className={`chip ${u.missingDate ? 'amber' : u.status.planned ? 'planned' : u.status.tone === 'muted' && u.status.source === 'scheduler' ? 'muted' : 'open'}`}
+                {ups.map((u) => (
+                  <button key={u.type} type="button" data-testid="cx-chip" data-status={u.status.key} className={`chip ${chipClass(u)}`}
                     data-note={chipNote(u)} aria-label={chipNote(u)} onClick={() => onOpenScheduler(c, u.type)}>
                     <span className="dot" />{u.label}{u.status.source === 'scheduler' ? ` · ${u.status.label}` : ''}
                   </button>
-                )) : past.map((p) => (
-                  <span key={p.id} className={`chip ${p.status.tone === 'ok' ? 'planned' : p.status.tone === 'amber' ? 'amber' : 'muted'}`} data-testid="cx-past-chip" data-status={p.status.key}
-                    data-note={p.kind === 'send' ? `${p.label}: ${p.status.label}, ${day(p.when, { month: 'short', day: 'numeric', year: 'numeric' })}.` : `${p.label} was on ${day(p.when, { month: 'short', day: 'numeric', year: 'numeric' })}. No Greet-Me send is recorded for it.`}>
-                    <span className="dot" />{p.label} · {p.status.label}{p.when ? ` · ${day(p.when, { month: 'short', day: 'numeric' })}` : ''}
-                  </span>
                 ))}
               </div>
             </div>
           );
         })}
       </div>
-    </section>
+    </div>
   );
 
   const heldRows = roster.rows.filter((r) => r.held);
@@ -135,7 +135,7 @@ export default function CelebrationsWorkspace({
     const c = r.contact;
     return (
       <div className="rrow" key={c.id} data-testid="cx-roster-row" data-contact={c.id} data-held={r.held} data-source={r.dateSource}>
-        {schedulable && when === 'upcoming' ? <input type="checkbox" aria-label={`Choose ${c.name}`} checked={picked.includes(c.id)} disabled={!picked.includes(c.id) && picked.length >= GROUP_MAX} onChange={() => togglePick(c.id)} /> : <span />}
+        {schedulable ? <input type="checkbox" aria-label={`Choose ${c.name}`} checked={picked.includes(c.id)} disabled={!picked.includes(c.id) && picked.length >= GROUP_MAX} onChange={() => togglePick(c.id)} /> : <span />}
         <span className="av" style={{ background: avBg(c.name), width: 32, height: 32, fontSize: 11 }}>{initials(c.name)}</span>
         <div className="who">
           <div className="pname" style={{ fontSize: 14.5 }}>{c.name}</div>
@@ -154,16 +154,13 @@ export default function CelebrationsWorkspace({
       </div>
     );
   };
-  const pastOcc = when === 'past' ? pastForOccasion(sent, occ) : [];
 
-  const occasionsCard = (
-    <section className="card listcard" data-testid="cx-occasions">
-      <div className="cardhead">
-        <div><h2>Occasions</h2><p>Start with an occasion, then choose who it&rsquo;s for.</p></div>
-      </div>
+  const occasionsView = (
+    <div className="mgrview" data-testid="cx-occasions">
+      <label className="search" style={{ marginTop: 14 }}><Search size={16} color="#8a8199" /><input value={occTerm} onChange={(e) => setOccTerm(e.target.value)} placeholder="Find an occasion…" aria-label="Find an occasion" data-testid="cx-occasion-search" /></label>
       <div className="occgrid">
         <div className="occlist" role="tablist" aria-label="Occasions" data-testid="cx-occlist">
-          {OCCASION_GROUPS.map((g) => (
+          {groups.length === 0 ? <p className="empty">No occasion matches “{occTerm}”.</p> : groups.map((g) => (
             <div key={g.key} role="group" aria-label={g.title}>
               <div className="ogroup">{g.title}</div>
               {g.types.map((t) => {
@@ -172,11 +169,10 @@ export default function CelebrationsWorkspace({
                   <button key={t} type="button" role="tab" className="occbtn" aria-selected={occ === t} data-testid={`cx-occ-${t}`} onClick={() => chooseOcc(t)}>
                     <span className="ic" aria-hidden="true">{s.icon}</span>
                     <span className="ol">{s.label}</span>
-                    <span className="cnt">{when === 'upcoming' ? s.heldCount : s.pastCount}</span>
+                    <span className="cnt">{s.heldCount}</span>
                     <span className="os">
                       {s.kind === 'personal' ? 'Each person’s own date' : s.sharedDate ? `Shared date · ${day(s.sharedDate, { month: 'short', day: 'numeric' })}` : 'Shared date · entered per person'}
-                      {when === 'upcoming' && s.soonest ? ` · next ${day(s.soonest.date, { month: 'short', day: 'numeric' })}` : ''}
-                      {when === 'past' ? ` · ${s.pastCount} sent` : ''}
+                      {s.soonest ? ` · next ${day(s.soonest.date, { month: 'short', day: 'numeric' })}` : ''}
                     </span>
                   </button>
                 );
@@ -186,40 +182,67 @@ export default function CelebrationsWorkspace({
         </div>
         <div className="roster" data-testid="cx-roster" data-kind={roster.kind}>
           <h3><span aria-hidden="true">{occasionIcon(occ)}</span>{roster.label} <span className={`kind ${roster.kind}`} data-testid="cx-kind">{roster.kind === 'personal' ? 'Each person’s own date' : 'Shared calendar date'}</span></h3>
-          {when === 'upcoming' ? (
-            <>
-              <p className="rule" data-testid="cx-rule">{ruleText}</p>
-              <div className="rosterbody">
-                <div className="rsec">Saved for {heldRows.length} {heldRows.length === 1 ? 'person' : 'people'}</div>
-                {heldRows.length ? heldRows.map(rosterRow) : <p className="empty" style={{ padding: '12px 0' }}>No one has {roster.label} saved yet.</p>}
-                {otherRows.length ? <div className="rsec">Not added yet</div> : null}
-                {otherRows.map(rosterRow)}
-              </div>
-              {schedulable ? (
-                <div className="bulk" data-testid="cx-bulk">
-                  <p>Choose up to {GROUP_MAX} people to set {roster.label} for all of them at once in Dates &amp; gifts on your dashboard: saved and calendar dates are filled in, missing ones are asked per person, and each person&rsquo;s other occasions are kept.</p>
-                  <button type="button" className="btn btn-pri btn-sm" data-testid="cx-bulk-go" disabled={picked.length === 0} onClick={() => onScheduleGroup(roster.label, picked)}>
-                    <CalendarDays size={15} /> Set dates &amp; gifts{picked.length ? ` for ${picked.length}` : ''}
-                  </button>
-                </div>
-              ) : <p className="rule" style={{ marginTop: 12 }}>{roster.label} is a one-time occasion that isn&rsquo;t sent automatically. Open each person&rsquo;s scheduler to save the date; send it with Send Now.</p>}
-            </>
-          ) : (
-            <div className="rosterbody" data-testid="cx-past-occasion">
-              {pastOcc.length === 0 ? <p className="empty" style={{ padding: '16px 0' }}>No sends recorded for {roster.label}.</p>
-                : pastOcc.map((p) => {
-                  const s = sent.find((x) => x.id === p.id) || {};
-                  return (
-                    <div className="rrow" key={p.id} data-testid="cx-past-row">
-                      <span /><span className="av" style={{ background: avBg(s.recipientName), width: 32, height: 32, fontSize: 11 }}>{initials(s.recipientName)}</span>
-                      <div className="who"><div className="pname" style={{ fontSize: 14.5 }}>{s.recipientName || 'Unknown'}</div><div className="line">{day(p.when, { month: 'short', day: 'numeric', year: 'numeric' })}</div></div>
-                      <div className="stat"><span className={`chip ${p.status.tone === 'ok' ? 'planned' : p.status.tone === 'amber' ? 'amber' : 'muted'}`}><span className="dot" />{p.status.label}</span></div>
-                    </div>
-                  );
-                })}
+          <p className="rule" data-testid="cx-rule">{ruleText}</p>
+          <div className="rosterbody">
+            <div className="rsec">Saved for {heldRows.length} {heldRows.length === 1 ? 'person' : 'people'}</div>
+            {heldRows.length ? heldRows.map(rosterRow) : <p className="empty" style={{ padding: '12px 0' }}>No one has {roster.label} saved yet.</p>}
+            {otherRows.length ? <div className="rsec">Not added yet</div> : null}
+            {otherRows.map(rosterRow)}
+          </div>
+          {schedulable ? (
+            <div className="bulk" data-testid="cx-bulk">
+              <p>Choose up to {GROUP_MAX} people to set {roster.label} for all of them at once in Dates &amp; gifts on your dashboard: saved and calendar dates are filled in, missing ones are asked per person, and each person&rsquo;s other occasions are kept.</p>
+              <button type="button" className="btn btn-pri btn-sm" data-testid="cx-bulk-go" disabled={picked.length === 0} onClick={() => onScheduleGroup(roster.label, picked)}>
+                <CalendarDays size={15} /> Set dates &amp; gifts{picked.length ? ` for ${picked.length}` : ''}
+              </button>
             </div>
-          )}
+          ) : <p className="rule" style={{ marginTop: 12 }}>{roster.label} is a one-time occasion that isn&rsquo;t sent automatically. Open each person&rsquo;s scheduler to save the date; send it with Send Now.</p>}
         </div>
+      </div>
+    </div>
+  );
+
+  const schedUp = upcomingAll.filter((u) => scheduleMatches(u, schedTerm));
+  const schedPast = pastAll.filter((p) => scheduleMatches(p, schedTerm));
+  const scheduleCard = (
+    <section className="card listcard schedcard" data-testid="cx-schedule">
+      <div className="cardhead">
+        <div><h2>Celebration Schedule</h2><p>Saved dates and their real status. Nothing is shown as sent unless it was.</p></div>
+      </div>
+      <div className="seg small" role="tablist" aria-label="When" data-testid="cx-when" style={{ marginTop: 12 }}>
+        <button type="button" role="tab" aria-selected={when === 'upcoming'} data-testid="cx-when-upcoming" onClick={() => setWhen('upcoming')}>Upcoming Occasions</button>
+        <button type="button" role="tab" aria-selected={when === 'past'} data-testid="cx-when-past" onClick={() => setWhen('past')}>Past Occasions</button>
+      </div>
+      <label className="search"><Search size={16} color="#8a8199" /><input value={schedTerm} onChange={(e) => setSchedTerm(e.target.value)} placeholder="Find a person or occasion…" aria-label="Find in the schedule" data-testid="cx-schedule-search" /></label>
+      <div className="schedbody" data-testid="cx-schedule-body">
+        {when === 'upcoming' ? (
+          schedUp.length === 0 ? <p className="empty" data-testid="cx-schedule-empty">{schedTerm ? `Nothing upcoming matches “${schedTerm}”.` : 'No upcoming occasions saved yet.'}</p>
+            : schedUp.map((u) => (
+              <div className="srow" key={u.id} data-testid="cx-sched-row" data-contact={u.contact.id} data-status={u.status.key}>
+                <span className="datebox">{u.date ? <><span>{day(u.date, { month: 'short' }).toUpperCase()}</span><b>{new Date(`${u.date}T12:00:00`).getDate()}</b></> : <span>DATE</span>}</span>
+                <div className="who">
+                  <div className="pname" style={{ fontSize: 14.5 }}>{u.contact.name}</div>
+                  <div className="line">{u.icon} {u.label}{u.date ? ` · ${day(u.date)} · ${inDays(u.daysUntil)}` : ' · date needed'} · {giftText(u.gift)}</div>
+                </div>
+                <div className="stat">
+                  <span className={`chip ${chipClass(u)}`} data-testid="cx-sched-status" data-note={chipNote(u)}><span className="dot" />{u.status.label}</span>
+                  <button type="button" className="btn btn-out btn-sm" onClick={() => onOpenScheduler(u.contact, u.type)}>Open scheduler</button>
+                </div>
+              </div>
+            ))
+        ) : (
+          schedPast.length === 0 ? <p className="empty" data-testid="cx-schedule-empty">{schedTerm ? `No past occasion matches “${schedTerm}”.` : 'No sends recorded yet.'}</p>
+            : schedPast.map((p) => (
+              <div className="srow" key={p.id} data-testid="cx-past-row" data-status={p.status.key} data-contact={p.contact ? p.contact.id : ''}>
+                <span className="datebox"><span>{day(p.when, { month: 'short' }).toUpperCase()}</span><b>{p.when ? new Date(`${String(p.when).slice(0, 10)}T12:00:00`).getDate() : ''}</b></span>
+                <div className="who">
+                  <div className="pname" style={{ fontSize: 14.5 }}>{p.contact ? p.contact.name : p.name}</div>
+                  <div className="line">{p.icon} {p.label} · {day(p.when, { month: 'short', day: 'numeric', year: 'numeric' })}{p.kind === 'passed' ? ' · no Greet-Me send is recorded for it' : ''}</div>
+                </div>
+                <div className="stat"><span className={`chip ${pastClass(p)}`} data-testid="cx-past-status"><span className="dot" />{p.status.label}</span></div>
+              </div>
+            ))
+        )}
       </div>
     </section>
   );
@@ -240,8 +263,12 @@ export default function CelebrationsWorkspace({
           <button type="button" className="btn btn-out" onClick={onImport}><Upload size={15} /> Import Wizard</button>
         </div>
       </section>
-      <section className="card navcard" data-testid="cx-nav">
-        <div className="navrow">
+      <section className="card listcard mgrcard" data-testid="cx-manager">
+        <div className="cardhead">
+          <div><h2>Celebration Manager</h2><p>{contacts.length} {contacts.length === 1 ? 'person' : 'people'} in your circle</p></div>
+          <button type="button" className="btn btn-pri" data-testid="add-recipient" onClick={onAddRecipient}><Plus size={16} /> Add Recipient</button>
+        </div>
+        <div className="navrow" style={{ marginTop: 12 }}>
           <span className="eyebrow">Start from</span>
           <div className="seg" role="tablist" aria-label="Start from" data-testid="cx-path">
             <button type="button" role="tab" aria-selected={path === 'recipients'} data-testid="cx-path-recipients" onClick={() => setPath('recipients')}>Recipients</button>
@@ -249,14 +276,13 @@ export default function CelebrationsWorkspace({
           </div>
           <span className="hint">{path === 'recipients' ? 'Start with someone, then add their occasions.' : 'Start with an occasion, then choose who it’s for.'}</span>
         </div>
-        <div className="navrow">
-          <div className="seg small" role="tablist" aria-label="When" data-testid="cx-when">
-            <button type="button" role="tab" aria-selected={when === 'upcoming'} data-testid="cx-when-upcoming" onClick={() => setWhen('upcoming')}>Upcoming Occasions</button>
-            <button type="button" role="tab" aria-selected={when === 'past'} data-testid="cx-when-past" onClick={() => setWhen('past')}>Past Occasions</button>
-          </div>
+        {/* Both views stay mounted (each keeps its filter, search and scroll); only the selected one is shown. */}
+        <div className="mgrbody" data-testid="cx-manager-body">
+          <div hidden={path !== 'recipients'} style={{ height: '100%' }}>{recipientsView}</div>
+          <div hidden={path !== 'occasions'} style={{ height: '100%' }}>{occasionsView}</div>
         </div>
       </section>
-      {path === 'recipients' ? recipientsCard : occasionsCard}
+      {scheduleCard}
     </div>
   );
 }

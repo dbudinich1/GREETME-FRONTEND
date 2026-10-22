@@ -234,3 +234,27 @@ export function nextUp(contacts, upcomingRows = [], now = new Date()) {
 export const launcherChoicesForOccasion = (label, contactIds) => ({
   mode: 'occasion', occasions: [label], audience: 'one', picks: contactIds.map(String), excluded: [], whoDone: true, datesOpen: true,
 });
+
+/**
+ * Celebration Schedule (Report 135 layout): every person's saved occasions still ahead, soonest first, with the same
+ * truthful statuses as above. Occasions without a saved date are listed last as "Date needed".
+ */
+export function scheduleUpcoming(contacts, upcomingRows = [], now = new Date()) {
+  const out = [];
+  for (const c of contacts || []) for (const u of upcomingForContact(c, upcomingRows, now)) out.push({ ...u, contact: c, id: `${c.id}:${u.type}` });
+  return out.sort((a, b) => (a.daysUntil ?? 1e9) - (b.daysUntil ?? 1e9) || String(a.contact.name).localeCompare(String(b.contact.name)));
+}
+/**
+ * Celebration Schedule, Past: every real send (newest first), with the recipient it belongs to when one matches, plus
+ * passed one-time occasions with no send ("No send recorded"). Nothing is inferred for earlier yearly occasions.
+ */
+export function schedulePast(contacts, sent = [], now = new Date()) {
+  const out = (sent || []).map((s) => ({ ...sendItem(s), contact: (contacts || []).find((c) => sendBelongsTo(s, c)) || null, name: s.recipientName || 'Unknown' }));
+  for (const c of contacts || []) for (const p of pastForContact(c, [], now)) if (p.kind === 'passed' && !out.some((o) => o.contact === c && o.type === p.type)) out.push({ ...p, contact: c, name: c.name });
+  return out.sort((a, b) => String(b.when).localeCompare(String(a.when)));
+}
+/** One search for the schedule: the person's name or the occasion's label. */
+export const scheduleMatches = (item, term) => {
+  const t = String(term || '').trim().toLowerCase();
+  return !t || String((item.contact && item.contact.name) || item.name || '').toLowerCase().includes(t) || String(item.label || '').toLowerCase().includes(t);
+};

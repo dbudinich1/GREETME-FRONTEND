@@ -92,3 +92,21 @@ test("occasion roster: holders first with saved dates; others pre-filled with th
 test("several people from one occasion: the dashboard resolver's own launcher choices", () => {
   assert.deepEqual(launcherChoicesForOccasion("Christmas", ["a", 2]), { mode: "occasion", occasions: ["Christmas"], audience: "one", picks: ["a", "2"], excluded: [], whoDone: true, datesOpen: true });
 });
+
+test("Celebration Schedule: upcoming across everyone, soonest first; Past = real sends (unmatched kept under their own name) + passed one-time occasions; one search for name or occasion", async () => {
+  const { scheduleUpcoming, schedulePast, scheduleMatches } = await import("./celebrationsModel.js");
+  const people = [
+    { id: "a", name: "Ann", email: "ann@x.test", occasions: [{ type: "birthday", date: "1990-11-01", autoSend: true }, { type: "christmas", date: "", autoSend: true }] },
+    { id: "b", name: "Bo", email: "bo@x.test", occasions: [{ type: "birthday", date: "1990-10-25", autoSend: false }, { type: "graduation", date: "2026-05-01" }] },
+  ];
+  const up = scheduleUpcoming(people, [], NOW);
+  assert.deepEqual(up.map((u) => `${u.contact.id}:${u.type}:${u.status.label}`), ["b:birthday:Not scheduled", "a:birthday:Auto-send on", "a:christmas:Date needed"]);
+  const sent = [{ id: "s1", recipientEmail: "ann@x.test", recipientName: "Ann", occasionType: "birthday", status: "completed", createdAt: "2025-11-01T00:00:00Z" },
+    { id: "s2", recipientEmail: "z@x.test", recipientName: "Zed", occasionType: "thankyou", status: "failed", createdAt: "2026-02-01T00:00:00Z" }];
+  const past = schedulePast(people, sent, NOW);
+  assert.deepEqual(past.map((p) => [p.contact ? p.contact.id : null, p.label, p.status.label]), [["b", "Graduation", "No send recorded"], [null, "Thank You", "Not sent"], ["a", "Birthday", "Sent"]], "newest first");
+  assert.ok(past.some((p) => !p.contact && p.name === "Zed"), "unmatched send kept under its own name");
+  assert.ok(past.some((p) => p.contact && p.contact.id === "b" && p.status.label === "No send recorded"));
+  assert.ok(past.every((p) => p.status.label !== "Sent" || p.kind === "send"));
+  assert.equal(scheduleMatches(up[0], "bo"), true); assert.equal(scheduleMatches(up[0], "birth"), true); assert.equal(scheduleMatches(up[0], "xmas"), false);
+});
