@@ -478,6 +478,7 @@ export const DASHBOARD_HOME_CSS = `
 .gx .footbar .sum { white-space:normal; overflow:visible; text-overflow:clip; line-height:1.35; }
 .gx .footbar .fine { min-height:2.8em; margin-top:4px; }
 .gx .footbar .btn-primary { min-width:170px; }
+@media (min-width: 641px) and (max-width: 900px) { .gx .carousel > div:nth-child(2) { min-height:136px; } }
 /* The lower card: Recipients | Occasions, then Individuals / Friends / Family / Professional or Upcoming / Past. */
 .gx .segrow { display:flex; gap:4px; flex-wrap:wrap; margin-top:10px; }
 .gx .segrow button { border:1px solid var(--p100); background:#fff; border-radius:999px; padding:6px 14px; font:600 13.5px var(--sans); color:rgba(44,29,70,.7); cursor:pointer; min-height:0; white-space:nowrap; }
@@ -489,6 +490,8 @@ export const DASHBOARD_HOME_CSS = `
   .gx .giftband { margin:8px 0 0; padding:12px 10px 14px; border-radius:20px; }
   .gx .carousel .cta-col { justify-content:space-between; }
   .gx .carousel .qr-acts { order:-1; }
+  /* Every slide's text fits the same height, so the gold Add a gift never moves as the carousel turns. */
+  .gx .carousel > div:nth-child(2) { min-height:136px; }
   .gx .footbar { margin:12px 0 14px; padding:14px 14px 16px; grid-template-columns:minmax(0,1fr); gap:12px; border-radius:20px; }
   .gx .footbar .fine { min-height:4.4em; }
   .gx .footbar .btn-primary { width:100%; min-width:0; }
