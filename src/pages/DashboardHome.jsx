@@ -100,11 +100,13 @@ const SMARTCARD_UNAVAILABLE_LINE = 'Coming later — not yet available';
 // plus the send page's Thank You, Congratulations, Just Because and the generic Season's Greetings. GREETING_RULES untouched.
 // Base44 "Send to" segments mapped onto the recipient's existing relationshipCategory (family | friend | professional).
 // The lower card's Recipients filter: the same relationshipCategory values, All by default.
+// Report 135: the same organisation as the Celebrations page — Individuals | Friends | Family | Professional, shown
+// below the Recipients | Occasions toggle and above the search. Individuals (key 'all') lists everyone, one by one.
 const RECIPIENT_FILTERS = [
+  { key: 'all', label: 'Individuals', people: 'recipients' },
   { key: 'friend', label: 'Friends', people: 'friends' },
   { key: 'family', label: 'Family', people: 'family members' },
   { key: 'professional', label: 'Professional', people: 'professional contacts' },
-  { key: 'all', label: 'All', people: 'recipients' },
 ];
 const AUDIENCES = [
   { key: 'one', segment: 'Individuals', label: 'People you choose' },
@@ -227,6 +229,7 @@ export default function DashboardHome() {
   const [tab, setTab] = useState('recipients');
   // The lower card's Recipients filter. Display only: it never changes who is chosen in the composer.
   const [recipFilter, setRecipFilter] = useState('all');
+  const lastWhen = useRef('upcoming');
 
   useEffect(() => {
     const onResize = () => setIsNarrow(window.innerWidth <= 768);
@@ -966,28 +969,10 @@ export default function DashboardHome() {
         {/* 3. One full-width card: Recipients | Upcoming Occasions | Past Occasions (fixed size, scrolls inside) */}
         <section className="card tabcard" data-testid="gx-lower">
           <div className="tabhead">
+            {/* Report 135: Recipients | Occasions, the Celebrations page's two paths; Upcoming | Past sits below it. */}
             <div className="tabs" role="tablist" aria-label="Your people and occasions">
-              {[['recipients', 'Recipients'], ['upcoming', 'Upcoming Occasions'], ['past', 'Past Occasions']].map(([k, t]) => (k === 'recipients' ? (
-                <span key={k} className="relpop rtab" role="presentation">
-                  <button type="button" role="tab" id={`gx-tab-${k}`} aria-selected={tab === k} aria-controls="gx-tabpanel" onClick={() => setTab(k)}>
-                    {recipFilter === 'all' ? t : `${t} · ${RECIPIENT_FILTERS.find((f) => f.key === recipFilter).label}`}
-                  </button>
-                  <button type="button" className="rcaret" data-testid="gx-recip-filter" aria-label="Filter recipients" aria-haspopup="menu" aria-expanded={menuOpen === 'recipfilter'}
-                    onClick={() => { setTab('recipients'); setMenuOpen((v) => (v === 'recipfilter' ? null : 'recipfilter')); }}><ChevronDown size={15} /></button>
-                  {menuOpen === 'recipfilter' ? (
-                    <span className="menu menu-recip" role="menu" aria-label="Show recipients" onKeyDown={(e) => { if (e.key === 'Escape') setMenuOpen(null); }}>
-                      {RECIPIENT_FILTERS.map((f) => (
-                        <button key={f.key} type="button" role="menuitemradio" aria-checked={recipFilter === f.key} data-testid={`gx-recip-filter-${f.key}`}
-                          onClick={() => { setRecipFilter(f.key); setMenuOpen(null); }}>
-                          <span className={`box ${recipFilter === f.key ? 'on' : ''}`}><Check size={12} /></span>{f.label}
-                        </button>
-                      ))}
-                    </span>
-                  ) : null}
-                </span>
-              ) : (
-                <button key={k} type="button" role="tab" id={`gx-tab-${k}`} aria-selected={tab === k} aria-controls="gx-tabpanel" onClick={() => setTab(k)}>{t}</button>
-              )))}
+              <button type="button" role="tab" id="gx-tab-recipients" data-testid="gx-lower-recipients" aria-selected={tab === 'recipients'} aria-controls="gx-tabpanel" onClick={() => setTab('recipients')}>Recipients</button>
+              <button type="button" role="tab" id="gx-tab-occasions" data-testid="gx-lower-occasions" aria-selected={tab !== 'recipients'} aria-controls="gx-tabpanel" onClick={() => setTab((t) => (t === 'recipients' ? lastWhen.current : t))}>Occasions</button>
             </div>
             <div className="tabact">
               {tab === 'recipients' ? <button type="button" className="btn btn-sm btn-primary" style={{ height: 38 }} onClick={goAddRecipient}><UserPlus size={15} /> Add Recipient</button>
@@ -995,6 +980,19 @@ export default function DashboardHome() {
                   : <span className="sub" style={{ marginTop: 0 }}>From Occasion Schedulers</span>}
             </div>
           </div>
+          {tab === 'recipients' ? (
+            <div className="segrow" role="tablist" aria-label="Show recipients" data-testid="gx-recip-segments">
+              {RECIPIENT_FILTERS.map((f) => (
+                <button key={f.key} type="button" role="tab" aria-selected={recipFilter === f.key} data-testid={`gx-recip-filter-${f.key}`} onClick={() => setRecipFilter(f.key)}>{f.label}</button>
+              ))}
+            </div>
+          ) : (
+            <div className="segrow" role="tablist" aria-label="Upcoming or past occasions" data-testid="gx-when">
+              {[['upcoming', 'Upcoming Occasions'], ['past', 'Past Occasions']].map(([k, t]) => (
+                <button key={k} type="button" role="tab" id={`gx-tab-${k}`} aria-selected={tab === k} aria-controls="gx-tabpanel" onClick={() => { lastWhen.current = k; setTab(k); }}>{t}</button>
+              ))}
+            </div>
+          )}
           <div className="tabbody" id="gx-tabpanel" role="tabpanel" aria-labelledby={`gx-tab-${tab}`} data-testid="gx-tabbody">
             {tab === 'recipients' ? (
               contacts.length === 0 ? (

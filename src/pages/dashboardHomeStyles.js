@@ -478,7 +478,14 @@ export const DASHBOARD_HOME_CSS = `
 .gx .footbar .sum { white-space:normal; overflow:visible; text-overflow:clip; line-height:1.35; }
 .gx .footbar .fine { min-height:2.8em; margin-top:4px; }
 .gx .footbar .btn-primary { min-width:170px; }
+/* The lower card: Recipients | Occasions, then Individuals / Friends / Family / Professional or Upcoming / Past. */
+.gx .segrow { display:flex; gap:4px; flex-wrap:wrap; margin-top:10px; }
+.gx .segrow button { border:1px solid var(--p100); background:#fff; border-radius:999px; padding:6px 14px; font:600 13.5px var(--sans); color:rgba(44,29,70,.7); cursor:pointer; min-height:0; white-space:nowrap; }
+.gx .segrow button[aria-selected="true"] { background:var(--p800); border-color:var(--p800); color:#fff; }
+.gx .segrow button:focus-visible { outline:3px solid #c9b8f2; outline-offset:1px; }
 @media (max-width: 640px) {
+  .gx .segrow { flex-wrap:nowrap; }
+  .gx .segrow button { flex:1 1 auto; padding:6px 6px; font-size:12.5px; }
   .gx .giftband { margin:8px 0 0; padding:12px 10px 14px; border-radius:20px; }
   .gx .carousel .cta-col { justify-content:space-between; }
   .gx .carousel .qr-acts { order:-1; }

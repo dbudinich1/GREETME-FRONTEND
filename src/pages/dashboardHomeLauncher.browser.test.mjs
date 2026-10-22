@@ -547,6 +547,7 @@ test("Schedule the Love with an occasion the scheduler does not hold explains it
 
 test("Upcoming: real statuses; no schedule -> 'Auto-send on' or 'Schedule the Love' (opens that person's scheduler)", async () => {
   await mount();
+  await click($("[data-testid=gx-lower-occasions]"));
   await click(byText("[role=tab]", "Upcoming Occasions"));
   assert.ok($("[data-testid=gx-nudge]"));
   const rows = $$("[data-testid=gx-up-row]");
@@ -564,6 +565,7 @@ test("Upcoming: real statuses; no schedule -> 'Auto-send on' or 'Schedule the Lo
 
 test("Past Occasions: dates from completedAt/createdAt; statuses Sent / Not sent", async () => {
   await mount();
+  await click($("[data-testid=gx-lower-occasions]"));
   await click(byText("[role=tab]", "Past Occasions"));
   const rows = $$("[data-testid=gx-past-row]");
   assert.equal(rows.length, 2);
@@ -973,32 +975,42 @@ test("Save in 'Who is it for?': for schedules it opens Dates & gifts with every 
   assert.equal(globalThis.__saves.length, 0, "Save in Step 2 saves no schedule");
 });
 
-test("Recipients tab filter: All by default; Friends / Family / Professional filter the list; search and edit stay; the composer's choices never change", async () => {
+test("Lower card (Report 135): Recipients | Occasions; Individuals / Friends / Family / Professional above the search; Upcoming | Past below Occasions; the composer's choices never change", async () => {
   await mount();
   await click(byText(".mode", "Send Now"));
   await click(occ("Birthday"));
   await pickPerson("Margaret");
   await click($("[data-testid=gx-picker-done]"));
   const names = () => $$("[data-testid=gx-tabbody] .row .name").map((e) => e.textContent);
-  assert.deepEqual(names(), ["Theresa Morgan", "Margaret Rivera", "Daniel Okafor"], "All by default");
-  assert.equal($("#gx-tab-recipients").textContent, "Recipients");
-  await click($("[data-testid=gx-recip-filter]"));
-  assert.deepEqual($$(".menu-recip button").map((b) => b.textContent.trim()), ["Friends", "Family", "Professional", "All"]);
-  assert.equal($("[data-testid=gx-recip-filter-all]").getAttribute("aria-checked"), "true");
+  assert.deepEqual($$("[role=tablist][aria-label='Your people and occasions'] [role=tab]").map((b) => b.textContent), ["Recipients", "Occasions"]);
+  assert.deepEqual($$("[data-testid=gx-recip-segments] button").map((b) => b.textContent), ["Individuals", "Friends", "Family", "Professional"]);
+  const seg = $("[data-testid=gx-recip-segments]");
+  assert.ok(seg.compareDocumentPosition($("[data-testid=gx-tabbody] input")) & window.Node.DOCUMENT_POSITION_FOLLOWING, "the filter row is above the search");
+  assert.equal($("[data-testid=gx-recip-filter-all]").getAttribute("aria-selected"), "true", "Individuals by default");
+  assert.deepEqual(names(), ["Theresa Morgan", "Margaret Rivera", "Daniel Okafor"]);
   await click($("[data-testid=gx-recip-filter-friend]"));
-  assert.equal($(".menu-recip"), null, "the menu closes");
   assert.deepEqual(names(), ["Theresa Morgan"]);
-  assert.equal($("#gx-tab-recipients").textContent, "Recipients · Friends");
   assert.equal($$("[data-testid=gx-tabbody] [data-testid=gx-edit-recipient]").length, 1, "edit stays on each row");
-  await click($("[data-testid=gx-recip-filter]")); await click($("[data-testid=gx-recip-filter-professional]"));
+  await click($("[data-testid=gx-recip-filter-professional]"));
   assert.deepEqual(names(), ["Daniel Okafor"]);
   await setValue($("[data-testid=gx-tabbody] input"), "zz");
   assert.deepEqual(names(), []);
   assert.match($("[data-testid=gx-recip-filter-empty]").textContent, /No professional contacts match that name/);
   await setValue($("[data-testid=gx-tabbody] input"), "");
-  await click($("[data-testid=gx-recip-filter]")); await click($("[data-testid=gx-recip-filter-all]"));
+  await click($("[data-testid=gx-recip-filter-family]"));
+  assert.deepEqual(names(), ["Margaret Rivera"]);
+  await click($("[data-testid=gx-recip-filter-all]"));
   assert.equal(names().length, 3);
-  assert.deepEqual(state().picks, ["MRMargaret Rivera"], "the composer's choice is unchanged by the filter");
+  await click($("[data-testid=gx-lower-occasions]"));
+  assert.equal($("[data-testid=gx-recip-segments]"), null);
+  assert.deepEqual($$("[data-testid=gx-when] button").map((b) => b.textContent), ["Upcoming Occasions", "Past Occasions"]);
+  assert.ok($$("[data-testid=gx-up-row]").length > 0, "Upcoming by default");
+  await click(byText("[data-testid=gx-when] button", "Past Occasions"));
+  assert.equal($$("[data-testid=gx-past-row]").length, 2);
+  await click($("[data-testid=gx-lower-recipients]"));
+  await click($("[data-testid=gx-lower-occasions]"));
+  assert.equal($$("[data-testid=gx-past-row]").length, 2, "Occasions reopens where it was left");
+  assert.deepEqual(state().picks, ["MRMargaret Rivera"], "the composer's choice is unchanged by the lower card");
 });
 
 test("composer heading is centred; the compact presentation keeps body text at its approved sizes", async () => {
