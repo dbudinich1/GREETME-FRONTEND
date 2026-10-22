@@ -204,4 +204,11 @@ export const CELEBRATIONS_CSS = `
   .cx .srow { grid-template-columns:auto minmax(0,1fr); }
   .cx .srow .stat { grid-column:1 / -1; justify-content:flex-start; padding-left:48px; }
 }
+/* Phones: the selected occasion scrolls as one piece under the occasion list; search fields keep one clean box. */
+.cx .search input { border:none !important; box-shadow:none !important; background:none !important; padding:0 !important; min-height:0; }
+@media (max-width: 760px) {
+  .cx .mgrview .occgrid { grid-template-rows:170px minmax(0,1fr); }
+  .cx .mgrview .roster { overflow:auto; }
+  .cx .mgrview .rosterbody { flex:none; overflow:visible; }
+}
 `;
