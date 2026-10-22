@@ -262,3 +262,19 @@ test("Upcoming and Past are truthful: the scheduler's real status where reported
     assert.match(tid("cx-past-occasion").textContent, /Not sent/);
   } finally { globalThis.__upcoming = []; globalThis.__sent = []; }
 });
+
+test("Team 5 L1: a shared date added from the Occasions path is its NEXT occurrence (Mother's Day after this year's has passed)", async () => {
+  const secondSundayOfMay = (y) => { const d = new Date(y, 4, 1); const first = (7 - d.getDay()) % 7 + 1; return `${y}-05-${String(first + 7).padStart(2, "0")}`; };
+  const t = new Date(); const today = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+  const expected = secondSundayOfMay(t.getFullYear()) >= today ? secondSundayOfMay(t.getFullYear()) : secondSundayOfMay(t.getFullYear() + 1);
+  await open("/dashboard/contacts");
+  await click(tid("cx-path-occasions"));
+  await click(tid("cx-occ-mothers_day"));
+  assert.match(rosterRow("c2").textContent, new RegExp(new Date(`${expected}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })));
+  await click(rosterRow("c2").querySelector('[data-testid="cx-roster-open"]'));
+  await wait(120);
+  await saveForm();
+  const put = globalThis.__puts.find((p) => p.id === "c2");
+  assert.equal(put.body.occasions.find((o) => o.type === "mothers_day").date, expected);
+  assert.deepEqual(put.body.occasions.map((o) => o.type).sort(), ["anniversary", "graduation", "mothers_day"]);
+});

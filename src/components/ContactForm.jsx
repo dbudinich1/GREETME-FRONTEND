@@ -339,8 +339,13 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
     if ((contact.occasions || []).some((o) => o && o.type === focusOccasion)) return;
     const def = occasionTypes.find((o) => o.value === focusOccasion);
     if (!def || def.value === 'getwell') return;
-    const year = new Date().getFullYear();
-    const date = def.fixedDate ? `${year}-${def.fixedDate}` : (calculateVaryingOccasionDate(def.value, year) || '');
+    // The next time this shared date comes round (Team 5 L1): this year's, or next year's once this year's has passed.
+    // The plain scheduler tick (handleOccasionToggle) is unchanged.
+    const dateFor = (y) => (def.fixedDate ? `${y}-${def.fixedDate}` : (calculateVaryingOccasionDate(def.value, y) || ''));
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    let date = dateFor(now.getFullYear());
+    if (date && date < today) date = dateFor(now.getFullYear() + 1) || date;
     setFormData((prev) => ((prev.occasions || []).some((o) => o.type === def.value) ? prev
       : { ...prev, occasions: [...(prev.occasions || []), { type: def.value, date, autoSend: def.recurring !== false }] }));
     if (['christian', 'jewish', 'muslim', 'secular'].includes(def.category)) setSelectedFaiths((prev) => (prev.includes(def.category) ? prev : [...prev, def.category]));
