@@ -416,17 +416,18 @@ test("Send Now: one person + one occasion hands off to the existing send flow, w
   assert.equal(globalThis.__saves.length, 0, "the dashboard itself saves nothing");
 });
 
-test("Send Now with QR Cash: Add QR Cash goes straight to the existing ?giftType=qrcash entry, with words kept", async () => {
+test("Report 135 layout: no separate Add QR Cash on any slide; on the QR Cash slide the one gold Add a gift opens the gift selection (Gift Place) with the greeting kept; How it works stays", async () => {
   await mount();
   await click(byText(".mode", "Send Now"));
   await click(occ("Birthday"));
   await pickPerson("Theresa");
   await click($("[data-testid=gx-who-done]"));
   await setValue($("[data-testid=gx-words]"), "Happy birthday");
-  // advance the carousel to the QR Cash slide
-  await click($$(".dot").at(-1));
-  await click($("[data-testid=gx-add-qr]"));
-  assert.equal(globalThis.__nav.at(-1).to, "/dashboard/send?contactId=c1&occasion=Birthday&from=dashboard&giftType=qrcash");
+  for (let k = 0; k < $$(".dot").length; k++) { await click($$(".dot")[k]); assert.equal($("[data-testid=gx-add-qr]"), null, `slide ${k}: no Add QR Cash`); assert.equal($$("[data-testid=gx-carousel] .btn").length, 1, `slide ${k}: one button`); }
+  // the QR Cash slide is the last one
+  assert.ok(byText("[data-testid=gx-carousel] .link", "How it works"));
+  await click($("[data-testid=gx-add-gift]"));
+  assert.match(globalThis.__nav.at(-1).to, /^\/dashboard\/send\?contactId=c1&occasion=Birthday&from=dashboard&gift=choose&entry=/);
   assert.equal(JSON.parse(window.sessionStorage.getItem("gm_dashboard_send_handoff_v1")).words, "Happy birthday");
 });
 
@@ -1047,7 +1048,7 @@ test("adjustments: no gold 'Send a Greet-Me' label; Quick Gift in the welcome he
   await click(q);
   assert.deepEqual(globalThis.__nav.at(-1), { to: "/dashboard/gifts", opts: undefined });
   assert.equal($("[data-testid=gx-carousel] [data-testid=gx-quick-banner]"), null);
-  const add = $("[data-testid=gx-add-gift]") || $("[data-testid=gx-add-qr]");
+  const add = $("[data-testid=gx-add-gift]");
   assert.ok(add.classList.contains("btn-gold"), "gold");
   assert.equal(add.parentElement.lastElementChild, add, "the last control in the card's action column (lower right)");
 });

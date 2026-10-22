@@ -182,13 +182,10 @@ function GiftCarousel({ chosen, onAdd, onRemove, onLearnQr, smartCardAvailable }
       <div className="cta-col">
         {/* Adding never toggles off on a second tap; removing is its own action. */}
         <button type="button" className="link" data-testid="gx-gift-remove" style={{ visibility: chosen ? 'visible' : 'hidden' }} tabIndex={chosen ? 0 : -1} onClick={onRemove}>Remove {chosen === 'qrcash' ? 'QR Cash' : 'gift'}</button>
-        {/* Report 135: QR Cash is offered beside the gold button on its own slide; its space is kept on every slide so
-            nothing moves as the carousel turns. */}
+        {/* Report 135 (founder layout adjustment): one gold "Add a gift" only; QR Cash is chosen in the gift selection
+            it opens. "How it works" stays on the QR Cash slide; its space is kept on every slide so nothing moves. */}
         <span className="qr-acts" style={{ visibility: s.key === 'qrcash' ? 'visible' : 'hidden' }}>
           <button type="button" className="link" onClick={onLearnQr} tabIndex={s.key === 'qrcash' ? 0 : -1}>How it works</button>
-          <button type="button" className="btn btn-sm btn-line qr-add" data-testid="gx-add-qr" tabIndex={s.key === 'qrcash' ? 0 : -1} aria-pressed={chosen === 'qrcash'} onClick={() => onAdd('qrcash')}>
-            {chosen === 'qrcash' ? <><Check size={15} /> QR Cash added</> : <><QrCode size={15} /> Add QR Cash</>}
-          </button>
         </span>
         {/* The gold "Add a gift" stays in place on every slide (Report 135): it opens the Gift Place, which holds
             every gift, so it never depends on the slide showing. */}

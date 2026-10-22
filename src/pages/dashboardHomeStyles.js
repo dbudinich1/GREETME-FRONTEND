@@ -472,7 +472,6 @@ export const DASHBOARD_HOME_CSS = `
 .gx .giftband { margin:8px 0 0; padding:14px 18px 18px; border-radius:22px; overflow:hidden; box-shadow:0 18px 40px -32px rgba(122,91,12,.7); }
 .gx .carousel { margin-top:10px; }
 .gx .carousel .qr-acts { display:flex; align-items:center; gap:10px; }
-.gx .carousel .qr-add { height:34px; font-size:13.5px; padding:0 12px; gap:6px; }
 .gx .footbar { margin:14px 0 22px; padding:16px 20px 18px; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px 28px; background:var(--p50); border:1px solid var(--line); border-radius:22px; }
 .gx .footbar > div:first-child { min-width:0; }
 .gx .footbar .sum { white-space:normal; overflow:visible; text-overflow:clip; line-height:1.35; }
