@@ -1,7 +1,7 @@
 // src/pages/Merch.jsx
 import { Fragment, useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ShoppingCart, Briefcase, Users, Check, ArrowLeft, Settings } from 'lucide-react';
+import { ShoppingCart, Briefcase, Users, Check, ArrowLeft, Settings, QrCode } from 'lucide-react';
 import cartService from '../services/cartService';
 import AddToCartModal from '../components/AddToCartModal';
 import api from '../api/api';
@@ -16,6 +16,7 @@ import {
   BRANDABLE,
   BRANDABLE_TAGLINE,
   DEFAULT_SELECTION,
+  GREET_ME_CATEGORIES,
   SELECTOR_ROW,
   filterByPrice,
   priceBounds,
@@ -38,6 +39,8 @@ import ManageCatalogModal from '../components/founderCatalog/ManageCatalogModal'
 // view model and renders through the same card and the same grid — a provider is a projector, never
 // a second grid.
 import { GiftProductGrid } from '../components/giftPlace/GiftProductCard';
+import QrCashAmountPanel from '../components/giftPlace/QrCashAmountPanel';
+import { qrCashGiftSettings } from '../utils/qrCashAmount';
 import {
   actionLabelFor, fromCatalogProduct, fromCuratedProduct, giftTypeForSelector, GIFT_SOURCES, withOptionsNote, withLiveAvailability, requiresOptions, OPTIONS_UNAVAILABLE_NOTE,
   projectGiftCards,
@@ -89,6 +92,9 @@ export default function Merch() {
   const [error, setError] = useState(null);
   // GIFTS — the marketplace opens on Brandable Goods, the leading selector.
   const [selectedCategory, setSelectedCategory] = useState(DEFAULT_SELECTION);
+  // QR Cash is a tab beside the categories (founder 2026-10-22). It is not a catalogue category, so it has its own
+  // state: the catalogue selection underneath is kept, and Cancel returns to it.
+  const [qrOpen, setQrOpen] = useState(false);
 
   // CANONICAL CATALOG (Founder-authorized 2026-09-25, "AUTHORIZED CANONICAL CUSTOMER CATALOG
   // CORRECTION"). GET /api/gifts/catalog is the canonical source for View All and every curated
@@ -311,6 +317,16 @@ export default function Merch() {
       }), giftBasketsProviderProducts)
       : projectGiftCards(visibleProducts, fromCatalogProduct)
   ), [isCuratedSelection, visibleProducts, flowersLiveState, flowersProviderProducts, giftBasketsLiveState, giftBasketsProviderProducts]);
+
+  // Each card's category label (gallery cards): Branded Goods for the merch catalogue, otherwise the product's first
+  // Gift Place category. Display only.
+  const chipFor = (card) => {
+    if (!card) return '';
+    if (card.source === GIFT_SOURCES.CATALOG) return 'Branded Goods';
+    const raw = (visibleProducts || []).find((x) => String(x && x.id) === card.id);
+    const first = raw && Array.isArray(raw.greetMeCategories) ? raw.greetMeCategories[0] : null;
+    return (GREET_ME_CATEGORIES.find((c) => c.id === first) || {}).label || '';
+  };
 
   // The grid's state, from whichever source is feeding it.
   const gridState = isCuratedSelection
@@ -621,253 +637,129 @@ export default function Merch() {
     navigate('/dashboard/send?returnTo=send');
   };
 
+  // QR CASH IS ALWAYS ATTACHED TO A GREETING. Choosing an amount charges, orders and sends nothing: it is written into
+  // the greeting's own saved state (the same record the send page restores on `returnTo=send`, as every Gift Place
+  // pick already is), and the greeting's existing review, payment and consent steps do the rest.
+  // From a greeting: its recipients, occasion, words, photos and other settings are kept; only the gift becomes
+  // QR Cash at this amount, and the existing return path (with Report 135's Back/refresh protections) is used.
+  // With no greeting yet: the greeting flow opens with this amount already chosen.
+  const confirmQrCash = (dollars) => {
+    let saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem('sendGreetingState') || 'null'); } catch { saved = null; }
+    if (cameFromSendGreeting) {
+      const kept = saved && typeof saved === 'object' ? saved : {};
+      sessionStorage.setItem('sendGreetingState', JSON.stringify({ ...kept, giftSettings: qrCashGiftSettings(dollars, kept.giftSettings || {}) }));
+      handleReturnToGreeting();
+      return;
+    }
+    sessionStorage.setItem('sendGreetingState', JSON.stringify({ giftSettings: qrCashGiftSettings(dollars) }));
+    navigate('/dashboard/send?returnTo=send');
+  };
+
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
-      {/* Recipient Gift Session Header - show when in recipient context */}
-      {returnRecipientId && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0.75rem 1rem',
-          background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(102, 126, 234, 0.05) 100%)',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid rgba(102, 126, 234, 0.2)',
-          marginBottom: '1.5rem'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '1rem' }}>🎁</span>
-            <span style={{
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              color: '#667eea'
-            }}>
-              Shopping for Recipient
-            </span>
-          </div>
-          <button
-            onClick={handleReturnToRecipient}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.5rem 1rem',
-              background: '#667eea',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              transition: 'all 0.2s'
-            }}
-          >
-            <ArrowLeft size={14} />
-            Return to Recipient Settings
-          </button>
-        </div>
-      )}
-
-      {/* SendGreeting Session Header - show when coming from Just Because page */}
-      {cameFromSendGreeting && !returnRecipientId && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '0.75rem',
-          flexWrap: 'wrap',
-          padding: '0.75rem 1rem',
-          background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%)',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid rgba(236, 72, 153, 0.2)',
-          marginBottom: '1.5rem'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', minWidth: 0 }}>
-            <span style={{ fontSize: '1rem' }}>💝</span>
-            <span style={{
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              color: '#ec4899'
-            }}>
-              Shopping for Your Greeting
-            </span>
-            {/* Report 135: who, what for and when, carried from the greeting being composed. */}
-            {greetingGiftContext ? (
-              <span data-testid="gift-place-greeting-context" style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#6b21a8' }}>
-                {[greetingGiftContext.recipientName ? `for ${greetingGiftContext.recipientName}` : '', greetingGiftContext.label, greetingGiftContext.timing].filter(Boolean).join(' · ')}
-              </span>
-            ) : null}
-          </div>
-          <button
-            onClick={handleReturnToGreeting}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.5rem 1rem',
-              background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              transition: 'all 0.2s'
-            }}
-          >
-            <ArrowLeft size={14} />
-            Return to Greeting
-          </button>
-        </div>
-      )}
-
-      {/* CHECKPOINT 2 — founder-only entry point. A non-founder never renders this control, and
-          the backend refuses them regardless. */}
-      {founder && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
-          <button
-            type="button"
-            data-testid="manage-catalog-button"
-            onClick={() => setCatalogOpen(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.5rem',
-              padding: '0.5rem 1rem', borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border)', background: 'var(--bg-primary)',
-              color: 'var(--text-secondary)', fontSize: '0.8125rem', fontWeight: 600,
-              cursor: 'pointer', fontFamily: 'inherit',
-            }}
-          >
-            <Settings size={14} />
-            Manage Catalog
-          </button>
-        </div>
-      )}
-
       {/* Background Frame for Page Body */}
-      <div style={{
-        background: '#f8fafc',
-        borderRadius: 'var(--radius-xl)',
-        border: '1px solid #e2e8f0',
-        padding: '2rem',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
-      }}>
-        {/* Banner Header */}
-        <div style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          borderRadius: 'var(--radius-lg)',
-          padding: isNarrow ? '1.5rem 1.25rem' : '2rem 1.5rem',
-          marginBottom: '1rem',
-          color: 'white',
-          textAlign: 'center',
-          boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
-        }}>
-          {/* AGP-04 — flag hero emblem (top of tile) */}
+      <div data-testid="gift-place-body">
+        {/* COMPACT BRANDED HEADER (founder 2026-10-22, Base44 reference): the emblem, title and line in one band, with
+            the category tabs on the strip beneath it, so the first row of gifts is in view on arrival. */}
+        <div data-testid="gift-place-header" style={{ borderRadius: '0.875rem', overflow: 'hidden', marginBottom: '0.75rem', boxShadow: '0 10px 28px -22px rgba(31, 42, 92, 0.8)' }}>
           <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            marginBottom: '0.75rem'
+            display: 'flex', alignItems: 'center', gap: isNarrow ? '0.625rem' : '0.875rem',
+            padding: isNarrow ? '0.625rem 0.75rem' : '0.75rem 1.25rem',
+            background: 'linear-gradient(100deg, #1f2a5c 0%, #2b2d6e 55%, #4a2c79 100%)', color: 'white'
           }}>
-            <img
-              src={greetmeFlags}
-              alt="Greet-Me™ American Made"
-              style={{
-                height: isNarrow ? '100px' : '120px',
-                width: 'auto',
-                objectFit: 'contain'
-              }}
-            />
+            {/* AGP-04 — flag emblem, now a compact mark beside the title */}
+            <img src={greetmeFlags} alt="Greet-Me™ American Made" style={{
+              width: isNarrow ? '2.5rem' : '3rem', height: isNarrow ? '2.5rem' : '3rem', borderRadius: '50%', objectFit: 'cover',
+              border: '2px solid rgba(255, 255, 255, 0.85)', background: 'white', flex: 'none'
+            }} />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <h1 style={{ margin: 0, color: 'white', fontFamily: '"Playfair Display", Georgia, serif', fontSize: isNarrow ? '1.125rem' : '1.375rem', fontWeight: 700, lineHeight: 1.2 }}>
+                American Gift Place™
+              </h1>
+              {/* Shopping for a recipient or a greeting: the context sits in the band (it used to be its own bar above
+                  the page), so the first row of gifts stays in view. Report 135's context label is unchanged. */}
+              {returnRecipientId ? (
+                <p style={{ margin: '0.125rem 0 0', fontSize: isNarrow ? '0.75rem' : '0.8125rem', lineHeight: 1.4, color: 'rgba(255, 255, 255, 0.92)', fontWeight: 600 }}>
+                  🎁 Shopping for Recipient
+                </p>
+              ) : cameFromSendGreeting ? (
+                <p style={{ margin: '0.125rem 0 0', fontSize: isNarrow ? '0.75rem' : '0.8125rem', lineHeight: 1.4, color: 'rgba(255, 255, 255, 0.92)', display: 'flex', flexWrap: 'wrap', columnGap: '0.5rem' }}>
+                  <span style={{ fontWeight: 700, color: '#EBD07A' }}>💝 Shopping for Your Greeting</span>
+                  {/* Report 135: who, what for and when, carried from the greeting being composed. */}
+                  {greetingGiftContext ? (
+                    <span data-testid="gift-place-greeting-context" style={{ fontWeight: 600 }}>
+                      {[greetingGiftContext.recipientName ? `for ${greetingGiftContext.recipientName}` : '', greetingGiftContext.label, greetingGiftContext.timing].filter(Boolean).join(' · ')}
+                    </span>
+                  ) : null}
+                </p>
+              ) : (
+                <p style={{ margin: '0.125rem 0 0', fontSize: isNarrow ? '0.75rem' : '0.8125rem', lineHeight: 1.4, color: 'rgba(255, 255, 255, 0.88)' }}>
+                  Supporting American businesses, veterans, and first responders through meaningful giving.
+                </p>
+              )}
+            </div>
+            {(returnRecipientId || cameFromSendGreeting) && (
+              <button
+                type="button"
+                onClick={returnRecipientId ? handleReturnToRecipient : handleReturnToGreeting}
+                style={{
+                  flex: 'none', display: 'flex', alignItems: 'center', gap: '0.375rem',
+                  padding: isNarrow ? '0.4375rem 0.625rem' : '0.5rem 0.875rem', borderRadius: '9999px', border: 'none',
+                  background: 'white', color: '#2C1D46', fontSize: isNarrow ? '0.75rem' : '0.8125rem', fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap'
+                }}
+              >
+                <ArrowLeft size={14} />
+                {returnRecipientId ? 'Return to Recipient Settings' : 'Return to Greeting'}
+              </button>
+            )}
+            {/* CHECKPOINT 2 — founder-only entry point. A non-founder never renders this control, and
+                the backend refuses them regardless. */}
+            {founder && (
+              <button
+                type="button"
+                data-testid="manage-catalog-button"
+                onClick={() => setCatalogOpen(true)}
+                style={{
+                  flex: 'none', display: 'flex', alignItems: 'center', gap: '0.375rem',
+                  padding: '0.4375rem 0.875rem', borderRadius: '9999px',
+                  border: '1px solid rgba(255, 255, 255, 0.5)', background: 'rgba(255, 255, 255, 0.08)',
+                  color: 'white', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap'
+                }}
+              >
+                <Settings size={13} />
+                {isNarrow ? 'Catalog' : 'Manage Catalog'}
+              </button>
+            )}
           </div>
-          <h1 style={{
-            fontSize: isNarrow ? '1.5rem' : '1.875rem',
-            fontWeight: 700,
-            margin: '0 0 0.5rem'
-          }}>
-            American Gift Place™
-          </h1>
-          <p style={{
-            fontSize: isNarrow ? '0.9375rem' : '1rem',
-            color: 'white',
-            opacity: 1,
-            fontWeight: 500,
-            lineHeight: 1.5,
-            margin: '0 auto',
-            maxWidth: '520px',
-            textShadow: '0 1px 2px rgba(0, 0, 0, 0.15)'
-          }}>
-            Supporting American businesses, veterans, and first responders through meaningful giving.
-          </p>
-        </div>
 
-      {/* AGP-02 — QR Cash™ featured tile (mirrors dashboard QR Cash card) */}
-      <div style={{
-        background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-        borderRadius: 'var(--radius-lg)',
-        padding: isNarrow ? '1.5rem 1.25rem' : '2rem 1.5rem',
-        color: 'white',
-        boxShadow: '0 4px 12px rgba(251, 191, 36, 0.25)',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
-        marginBottom: '1rem',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h3 style={{ fontSize: isNarrow ? '1rem' : '1.125rem', fontWeight: 700, margin: 0 }}>QR Cash™</h3>
-            <p style={{ fontSize: isNarrow ? '0.6875rem' : '0.75rem', opacity: 0.9, margin: '0.125rem 0 0', letterSpacing: '0.025em' }}>Send • Claim • Spend</p>
-          </div>
-        </div>
-        <button
-          // TEAM 1 — canonical QR Cash entry contract. Was: opens the localStorage-only
-          // QRCashGiftModal simulation. Now: the real, backend-wired composer flow.
-          onClick={() => navigate('/dashboard/send?giftType=qrcash')}
-          style={{
-            marginTop: '0.75rem',
-            width: '100%',
-            padding: '0.5rem 0.75rem',
-            background: 'white',
-            color: '#f59e0b',
-            border: 'none',
-            borderRadius: 'var(--radius-md)',
-            fontSize: isNarrow ? '0.8125rem' : '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontFamily: 'inherit'
-          }}
-        >
-          Send QR Cash™
-        </button>
-      </div>
-
-      {/* GIFTS — UNIFIED SELECTOR ROW, directly beneath QR Cash.
-          ONE row, EIGHT controls, Brandable Goods first and selected by default.
+      {/* GIFTS — UNIFIED SELECTOR ROW, on the header's strip.
+          ONE row, Brandable Goods first and selected by default; QR Cash™ sits beside Gift Cards (founder
+          2026-10-22: a gift type chosen here, not a catalogue category — it opens the amount screen in place
+          of the product area).
 
           Brandable Goods is a COLLECTION rather than a stored category (see merchSelection.js):
           membership is the server's `brandable` boolean and no product ever carries this id. It
-          is emphasised more strongly than the six categories, but it is a control in THIS SAME
-          ROW — it opens no second surface and renders no second grid. Everything it shows comes
-          from the one shared product area below.
+          opens no second surface and renders no second grid.
 
           View All follows a separator because it is a UTILITY control and never a stored
           category, exactly as before.
 
-          Responsive: one clear horizontal row wherever the width allows, and the same single row
-          becomes horizontally scrollable below that. No selector is stacked into its own panel,
-          none is hidden, and the row cannot widen the page. */}
-      <div style={{
+          Responsive: one horizontal row that scrolls on narrow screens. No selector is stacked into its own
+          panel, none is hidden, and the row cannot widen the page. */}
+          <div style={{ background: '#3b2163', padding: isNarrow ? '0.4375rem 0.5rem' : '0.5rem 1rem' }}>
+      <div data-testid="gift-place-tabs" style={{
         display: 'flex',
-        gap: '0.5rem',
+        gap: '0.375rem',
         alignItems: 'center',
         overflowX: 'auto',
         WebkitOverflowScrolling: 'touch',
-        maxWidth: '100%',
-        padding: '0 0 0.75rem',
-        marginBottom: '1rem'
+        scrollbarWidth: 'none',
+        maxWidth: '100%'
       }}>
         {SELECTOR_ROW.map((sel) => {
-          const isSelected = selectedCategory === sel.id;
+          const isSelected = selectedCategory === sel.id && !qrOpen;
           const isCollection = sel.kind === 'collection';
           const isUtility = sel.kind === 'utility';
           return (
@@ -878,7 +770,7 @@ export default function Merch() {
                   flexShrink: 0,
                   width: '1px',
                   alignSelf: 'stretch',
-                  background: 'var(--border)',
+                  background: 'rgba(255, 255, 255, 0.25)',
                   margin: '0 0.25rem'
                 }} />
               )}
@@ -890,6 +782,7 @@ export default function Merch() {
                   // catalog. Switching category returns to the full range of whatever is next.
                   setPriceRange(null);
                   setSelectedCategory(sel.id);
+                  setQrOpen(false);
                 }}
                 aria-pressed={isSelected}
                 style={{
@@ -897,25 +790,13 @@ export default function Merch() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.375rem',
-                  padding: '0.5rem 1rem',
-                  borderRadius: isUtility ? 'var(--radius-md)' : '9999px',
-                  border: isUtility
-                    ? (isSelected ? '1px solid var(--primary)' : '1px dashed var(--border)')
-                    : (isCollection ? '1px solid var(--primary)' : '1px solid var(--border)'),
-                  background: isSelected
-                    ? (isCollection
-                        ? 'linear-gradient(135deg, #1e3a8a 0%, #312e81 100%)'
-                        : (isUtility ? 'transparent' : 'var(--primary)'))
-                    : (isUtility ? 'transparent' : 'var(--bg-primary)'),
-                  color: isSelected
-                    ? (isUtility ? 'var(--primary)' : 'white')
-                    : (isCollection
-                        ? 'var(--primary)'
-                        : (isUtility ? 'var(--text-tertiary)' : 'var(--text-secondary)')),
+                  padding: isNarrow ? '0.375rem 0.75rem' : '0.375rem 0.875rem',
+                  borderRadius: '9999px',
+                  border: isSelected ? '1px solid white' : (isUtility ? '1px dashed rgba(255, 255, 255, 0.4)' : '1px solid transparent'),
+                  background: isSelected ? 'white' : 'transparent',
+                  color: isSelected ? '#2C1D46' : 'rgba(255, 255, 255, 0.86)',
                   fontSize: '0.8125rem',
-                  fontWeight: (isCollection || isUtility) ? 700 : 600,
-                  letterSpacing: isUtility ? '0.02em' : 'normal',
-                  textTransform: isUtility ? 'uppercase' : 'none',
+                  fontWeight: isSelected || isCollection ? 700 : 600,
                   cursor: 'pointer',
                   fontFamily: 'inherit',
                   whiteSpace: 'nowrap'
@@ -924,25 +805,92 @@ export default function Merch() {
                 {isCollection && <Briefcase size={14} />}
                 {sel.label}
               </button>
+              {sel.id === 'gift_cards' && (
+                <button
+                  type="button"
+                  data-testid="gift-place-qrcash-tab"
+                  onClick={() => setQrOpen(true)}
+                  aria-pressed={qrOpen}
+                  style={{
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    padding: isNarrow ? '0.375rem 0.75rem' : '0.375rem 0.875rem',
+                    borderRadius: '9999px',
+                    border: '1px solid #EBD07A',
+                    background: qrOpen ? '#E0BE55' : 'transparent',
+                    color: qrOpen ? '#2C1D46' : '#EBD07A',
+                    fontSize: '0.8125rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <QrCode size={14} />
+                  QR Cash™
+                </button>
+              )}
             </Fragment>
           );
         })}
       </div>
+          </div>
+        </div>
 
       {/* GIFTS — PRICE RANGE, directly beneath the selector row and above everything it filters.
-          One compact control, not a panel and not a second surface. It is hidden for Gift Cards,
-          whose panel is deliberately non-purchasable — offering to price-filter a paused card
-          would imply it can be bought. */}
-      {selectedCategory !== 'gift_cards' && bounds && (
-        <PriceRangeFilter
-          floor={bounds.floor}
-          ceiling={bounds.ceiling}
-          minCents={minCents}
-          maxCents={maxCents}
-          onChange={(min, max) => setPriceRange({ min, max })}
-          onReset={() => setPriceRange(null)}
-          isNarrow={isNarrow}
-        />
+          One compact row, not a panel. It is hidden for Gift Cards, whose panel is deliberately
+          non-purchasable — offering to price-filter a paused card would imply it can be bought.
+          Branded Goods' line and its Brand for My Company action share this row on desktop (founder 2026-10-22:
+          the first row of gifts stays in view); on phones they sit in a slim line beneath it. */}
+      {!qrOpen && ((selectedCategory !== 'gift_cards' && bounds) || selectedCategory === BRANDABLE) && (
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', alignItems: 'center',
+          columnGap: '0.75rem', rowGap: 0, marginBottom: isNarrow ? '0.5rem' : '0.625rem'
+        }}>
+          {selectedCategory !== 'gift_cards' && bounds && (
+            <div style={{ flex: '1 1 420px', minWidth: 0 }}>
+            <PriceRangeFilter
+              floor={bounds.floor}
+              ceiling={bounds.ceiling}
+              minCents={minCents}
+              maxCents={maxCents}
+              onChange={(min, max) => setPriceRange({ min, max })}
+              onReset={() => setPriceRange(null)}
+              isNarrow={isNarrow}
+              trailing={gridState === 'ready' ? `${cards.length} ${cards.length === 1 ? 'gift' : 'gifts'}` : null}
+            />
+            </div>
+          )}
+          {/* GIFTS — Brandable Goods line: the approved copy and the Brand for My Company action, and nothing else. */}
+          {selectedCategory === BRANDABLE && (
+            <div style={{
+              flex: isNarrow ? '1 1 100%' : '0 1 auto',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.625rem',
+              padding: '0.3125rem 0.3125rem 0.3125rem 0.875rem',
+              marginBottom: isNarrow ? 0 : '0.625rem',
+              borderRadius: '9999px',
+              background: 'linear-gradient(135deg, #1e3a8a 0%, #312e81 100%)',
+              color: 'white'
+            }}>
+              <p style={{ fontSize: isNarrow ? '0.75rem' : '0.8125rem', fontWeight: 600, margin: 0, lineHeight: 1.3, color: 'white' }}>
+                {BRANDABLE_TAGLINE}
+              </p>
+              <button
+                onClick={() => navigate('/business?contact=sales')}
+                style={{
+                  flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem',
+                  padding: '0.3125rem 0.75rem', background: 'white', color: '#1e3a8a', border: 'none',
+                  borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap'
+                }}
+              >
+                <Briefcase size={13} />
+                Brand for My Company
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* THE SEPARATE FLOWER SURFACE IS GONE. Provider-fulfilled categories now render through
@@ -950,57 +898,15 @@ export default function Merch() {
           same place. There is no button between the category and its products, no picker modal,
           and no second catalogue anywhere. */}
 
-      {/* GIFTS — Brandable Goods header: the approved copy and the Brand for My Company action,
-          and nothing else. The products themselves render in the ONE shared area below, through
-          the same grid and the same cart as every other selection. This is a header, not a
-          product surface. */}
-      {selectedCategory === BRANDABLE && (
-        <div style={{
-          display: 'flex',
-          alignItems: isNarrow ? 'flex-start' : 'center',
-          justifyContent: 'space-between',
-          flexDirection: isNarrow ? 'column' : 'row',
-          gap: '0.75rem',
-          padding: isNarrow ? '0.875rem 1rem' : '1rem 1.25rem',
-          marginBottom: '1rem',
-          borderRadius: 'var(--radius-lg)',
-          background: 'linear-gradient(135deg, #1e3a8a 0%, #312e81 100%)',
-          color: 'white',
-          boxShadow: '0 4px 12px rgba(30, 58, 138, 0.25)'
-        }}>
-          <p style={{
-            fontSize: isNarrow ? '0.875rem' : '0.9375rem',
-            fontWeight: 600,
-            margin: 0,
-            lineHeight: 1.4
-          }}>
-            {BRANDABLE_TAGLINE}
-          </p>
-          <button
-            onClick={() => navigate('/business?contact=sales')}
-            style={{
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.5rem 1rem',
-              background: 'white',
-              color: '#1e3a8a',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.8125rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              fontFamily: 'inherit'
-            }}
-          >
-            <Briefcase size={14} />
-            Brand for My Company
-          </button>
-        </div>
-      )}
-
-      {selectedCategory === 'gift_cards' ? (
+      {qrOpen ? (
+        <QrCashAmountPanel
+          mode={returnRecipientId ? 'recipient' : (cameFromSendGreeting ? 'greeting' : 'standalone')}
+          recipientName={greetingGiftContext && greetingGiftContext.recipientName ? greetingGiftContext.recipientName : ''}
+          onConfirm={confirmQrCash}
+          onCancel={() => setQrOpen(false)}
+          isNarrow={isNarrow}
+        />
+      ) : selectedCategory === 'gift_cards' ? (
         /* DIRECT DENOMINATION DISPLAY (Team C, 2026-09-23) — GIFT CARDS, SERVER-DECIDED
            PRESENTATION, NO INTERMEDIATE STEP.
            `giftCardTiles` is the fail-closed DEFAULT (`null`, showing "coming later") until the
@@ -1160,13 +1066,15 @@ export default function Merch() {
           onRetryAvailability={isCuratedSelection ? retryLiveAvailability : null}
           isNarrow={isNarrow}
           emptyLabel={selectedCategoryLabel}
+          variant="gallery"
+          chipFor={chipFor}
         />
       )}
       </div>
       {/* End Background Frame */}
 
-      {/* TEAM 1 — the QRCashGiftModal simulation was removed from here; "Send QR Cash™" above now
-          navigates to the real composer flow instead. */}
+      {/* TEAM 1 — the QRCashGiftModal simulation was removed from here. QR Cash is now the QR Cash™ tab above
+          (founder 2026-10-22): the amount is chosen in place and attached to a greeting. */}
 
 
       {/* A FLOWER RETURNS TO A GREETING ONLY WHEN THERE IS ONE.

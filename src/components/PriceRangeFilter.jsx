@@ -31,6 +31,7 @@ export default function PriceRangeFilter({
   onChange,
   onReset,
   isNarrow,
+  trailing = null,
 }) {
   // A catalog where everything costs the same gives the shopper nothing to choose between, and a
   // zero-width track would divide by zero below. Render nothing rather than an inert control.
@@ -55,11 +56,9 @@ export default function PriceRangeFilter({
         gap: isNarrow ? '0.5rem 0.75rem' : '1rem',
         maxWidth: '100%',
         boxSizing: 'border-box',
-        padding: isNarrow ? '0.625rem 0.75rem' : '0.625rem 1rem',
-        marginBottom: '1rem',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-lg)',
-        background: 'var(--bg-primary)',
+        // A light single row under the Gift Place header (founder 2026-10-22), not a boxed panel.
+        padding: isNarrow ? '0.125rem 0.125rem' : '0.125rem 0.25rem',
+        marginBottom: isNarrow ? '0.5rem' : '0.625rem',
       }}
     >
       <style>{`
@@ -154,6 +153,7 @@ export default function PriceRangeFilter({
       >
         Any price
       </button>
+      {trailing ? <span data-testid="price-range-trailing" style={{ flexShrink: 0, marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>{trailing}</span> : null}
     </div>
   );
 }

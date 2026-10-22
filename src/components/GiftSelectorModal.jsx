@@ -2,7 +2,7 @@
 import Modal from './Modal';
 import { DollarSign } from 'lucide-react';
 import {
-  validateQrCashDollars, qrCashQuote, centsToDollarString, QR_CASH_MIN_DOLLARS, QR_CASH_MAX_DOLLARS,
+  validateQrCashDollars, qrCashQuote, centsToDollarString, QR_CASH_MIN_DOLLARS, QR_CASH_MAX_DOLLARS, QR_CASH_PRESET_DOLLARS,
 } from '../utils/qrCashAmount';
 import { SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_QRCASH_UNAVAILABLE_COPY } from '../config/scheduledQrCash';
 
@@ -38,7 +38,7 @@ const GIFT_OPTIONS = [
   { value: 'marketplace', label: 'Greet-Me Gift Place', description: 'Browse gifts, flowers and more' },
   { value: 'curated', label: 'Greet-Me\u2122 Select', description: 'We\'ll select something thoughtful within your limit' },
 ];
-const QR_CASH_PRESETS = [10, 25, 50, 100];
+const QR_CASH_PRESETS = QR_CASH_PRESET_DOLLARS;
 const CURATED_MAX_TIERS = [25, 50, 75, 100, 150];
 
 export default function GiftSelectorModal({

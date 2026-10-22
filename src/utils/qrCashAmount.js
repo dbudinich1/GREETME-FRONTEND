@@ -30,3 +30,19 @@ export function qrCashQuote(dollars) {
 }
 
 export const centsToDollarString = (cents) => `$${(cents / 100).toFixed(2)}`;
+
+/** The preset QR Cash amounts offered wherever an amount is chosen (the send page's chooser and the Gift Place). */
+export const QR_CASH_PRESET_DOLLARS = Object.freeze([10, 25, 50, 100]);
+
+/**
+ * A QR Cash choice in the send page's own giftSettings shape. A preset is stored as `amount`; any other whole-dollar
+ * amount as `amount: 0` + `customAmount` (the send page reads `amount === 0 ? customAmount : amount`). Every other
+ * field of `base` (the greeting's existing gift settings) is kept.
+ */
+export function qrCashGiftSettings(dollars, base = {}) {
+  const preset = QR_CASH_PRESET_DOLLARS.includes(dollars);
+  return {
+    amount: 25, customAmount: '', maxSpend: 50, autoGift: false, ...base,
+    type: 'qrcash', ...(preset ? { amount: dollars, customAmount: '' } : { amount: 0, customAmount: String(dollars) }),
+  };
+}

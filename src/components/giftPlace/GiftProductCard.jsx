@@ -49,8 +49,9 @@ const IMAGE_FIT = {
   backgroundColor: 'var(--bg-secondary, #f8fafc)',
 };
 
-export function GiftProductCard({ card, actionLabel, onAction, selected = false, isNarrow = false, disabled: disabledProp = false, onRetryAvailability = null }) {
+export function GiftProductCard({ card, actionLabel, onAction, selected = false, isNarrow = false, disabled: disabledProp = false, onRetryAvailability = null, variant = 'standard', chip = '' }) {
   if (!card) return null;
+  if (variant === 'gallery') return <GalleryCard card={card} actionLabel={actionLabel} onAction={onAction} selected={selected} isNarrow={isNarrow} disabled={disabledProp || Boolean(card.unavailableNote)} onRetryAvailability={onRetryAvailability} chip={chip} />;
   // A card that cannot be chosen here (e.g. a gift box whose provider requires options) says why and cannot be acted on.
   const disabled = disabledProp || Boolean(card.unavailableNote);
   const isSelect = actionLabel === 'Select Gift';
@@ -199,6 +200,61 @@ export function GiftProductCard({ card, actionLabel, onAction, selected = false,
   );
 }
 
+// The Gift Place's gallery card (founder 2026-10-22, Base44 reference): image with its category label, name and price
+// on one line, a two-line description, and one full-width action. Same test hooks and the same behaviour as the
+// standard card (which the scheduled-gift picker keeps); only the arrangement differs.
+const GALLERY_IMAGE_HEIGHT = { narrow: 128, wide: 148 };
+function GalleryCard({ card, actionLabel, onAction, selected, isNarrow, disabled, onRetryAvailability, chip }) {
+  const isSelect = actionLabel === 'Select Gift';
+  return (
+    <div data-testid={`gift-card-${card.id}`} data-gift-source={card.source} style={{
+      background: '#fff', border: selected ? '2px solid #2C1D46' : '1px solid #e7e0f0', borderRadius: '0.875rem', overflow: 'hidden',
+      position: 'relative', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 24px -22px rgba(44,29,70,.55)',
+    }}>
+      <div data-testid={`gift-card-image-${card.id}`} style={{
+        position: 'relative', width: '100%', height: isNarrow ? GALLERY_IMAGE_HEIGHT.narrow : GALLERY_IMAGE_HEIGHT.wide, flexShrink: 0,
+        padding: '0.375rem', boxSizing: 'border-box',
+        ...(card.imageUrl ? { backgroundImage: `url(${card.imageUrl})`, ...IMAGE_FIT } : { background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' }),
+        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isNarrow ? '2.25rem' : '3rem',
+      }}>
+        {!card.imageUrl && '🎁'}
+        {chip ? (
+          <span data-testid={`gift-card-chip-${card.id}`} style={{ position: 'absolute', top: '0.5rem', left: '0.5rem', maxWidth: 'calc(100% - 1rem)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            background: 'rgba(255,255,255,.94)', color: '#2C1D46', fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+            padding: '0.1875rem 0.5rem', borderRadius: '9999px', boxShadow: '0 1px 2px rgba(44,29,70,.12)' }}>{chip}</span>
+        ) : null}
+      </div>
+      <div style={{ padding: isNarrow ? '0.625rem' : '0.75rem 0.875rem 0.875rem', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem' }}>
+          <h3 style={{ margin: 0, minWidth: 0, fontFamily: '"Playfair Display", Georgia, serif', fontSize: isNarrow ? '0.875rem' : '1rem', fontWeight: 700, color: '#2C1D46', lineHeight: 1.25 }}>{card.name}</h3>
+          <span data-testid={`gift-card-price-${card.id}`} style={{ flex: 'none', fontFamily: '"Playfair Display", Georgia, serif', fontSize: isNarrow ? '0.875rem' : '1rem', fontWeight: 700, color: '#b4232f', whiteSpace: 'nowrap' }}>{card.priceLabel}</span>
+        </div>
+        <p data-testid={`gift-card-desc-${card.id}`} style={{
+          fontSize: '0.75rem', color: '#6B6079', lineHeight: 1.4, margin: '0.25rem 0 0.625rem', minHeight: '2.1em',
+          display: '-webkit-box', WebkitLineClamp: card.unavailableNote ? 3 : 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        }}>
+          {card.availability === 'failed' && onRetryAvailability
+            ? <span data-testid="gift-card-unavailable" style={{ color: '#b45309', fontWeight: 600 }}>{AVAILABILITY_FAILED_LEAD}{' '}
+                <button type="button" data-testid={`gift-card-availability-retry-${card.id}`} onClick={(e) => { e.stopPropagation(); onRetryAvailability(); }}
+                  style={{ padding: 0, margin: 0, border: 'none', background: 'none', color: 'var(--primary)', font: 'inherit', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', minHeight: 0 }}>{AVAILABILITY_RETRY_LABEL}</button></span>
+            : card.unavailableNote ? <span data-testid="gift-card-unavailable" style={{ color: '#b45309', fontWeight: 600 }}>{card.unavailableNote}</span> : (card.description || '\u00a0')}
+        </p>
+        <button type="button" data-testid={`gift-card-action-${card.id}`} disabled={disabled}
+          onClick={(e) => { e.stopPropagation(); if (!disabled) onAction(card); }}
+          style={{
+            marginTop: 'auto', width: '100%', height: isNarrow ? '2.25rem' : '2.375rem', minHeight: 0, padding: '0 0.75rem', borderRadius: '9999px', border: 'none',
+            background: selected ? '#2C6A4B' : '#2C1D46', color: '#fff', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
+            fontFamily: 'inherit', fontWeight: 600, fontSize: isNarrow ? '0.75rem' : '0.8125rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', whiteSpace: 'nowrap',
+          }}>
+          {selected
+            ? <><Check size={14} />{isNarrow ? '✓' : 'Selected'}</>
+            : <>{isSelect ? <Gift size={14} /> : <ShoppingCart size={14} />}{isNarrow ? (isSelect ? 'Select' : 'Add') : actionLabel}</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * THE ONE GRID, with the one set of states.
  *
@@ -209,6 +265,7 @@ export function GiftProductCard({ card, actionLabel, onAction, selected = false,
 export function GiftProductGrid({
   cards, state, actionLabel, onAction, onRetry,
   selectedId = null, isNarrow = false, emptyLabel = 'This collection', onRetryAvailability = null,
+  variant = 'standard', chipFor = null,
 }) {
   if (state === 'loading') {
     // Skeletons in the real grid, at the real card size, so the layout does not jump when they
@@ -267,7 +324,7 @@ export function GiftProductGrid({
   }
 
   return (
-    <div data-testid="gift-grid" style={gridStyle(isNarrow)}>
+    <div data-testid="gift-grid" style={variant === 'gallery' ? galleryGridStyle(isNarrow) : gridStyle(isNarrow)}>
       {cards.map((card) => (
         <GiftProductCard
           key={`${card.source}:${card.id}`}
@@ -277,11 +334,23 @@ export function GiftProductGrid({
           selected={selectedId != null && selectedId === card.id}
           isNarrow={isNarrow}
           onRetryAvailability={onRetryAvailability}
+          variant={variant}
+          chip={chipFor ? chipFor(card) || '' : ''}
         />
       ))}
     </div>
   );
 }
+
+/** The Gift Place's gallery grid (founder 2026-10-22): four across on desktop, two on phones. */
+const galleryGridStyle = (isNarrow) => ({
+  display: 'grid',
+  gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(auto-fill, minmax(220px, 1fr))',
+  gap: isNarrow ? '0.625rem' : '1rem',
+  maxWidth: '100%',
+  overflowX: 'hidden',
+  alignItems: 'stretch',
+});
 
 /** One grid definition. Every category gets these columns and this gap — including Flowers. */
 const gridStyle = (isNarrow) => ({
