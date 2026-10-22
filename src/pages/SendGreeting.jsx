@@ -19,6 +19,11 @@
 //   re-asking the gift type; the banner shows the selected occasion instead of a fixed "Just Because". Affected locked
 //   milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regression: an entry without a recipient or
 //   occasion falls back to the chooser exactly as before. Verification gate, review, payment and send unchanged.
+// 2026-10-22 (Report 135, Team 5 M1 fix 76ca4d2, preview): leaving for the Gift Place replaces the one-time entry
+//   URL in history and records its marker under its own session key (gm_giftplace_entries_v1, not cleared by the
+//   restore); a used entry reached again stays on this page with the same recipient/occasion and drops the gift
+//   request. Affected locked milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regression: Back from the
+//   restored page lands on the dashboard instead of the entry URL. Verification gate, review, payment and send unchanged.
 
 import { useState, useEffect } from 'react';
 import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff, dashboardGiftPlaceEntry, markGiftPlaceEntryUsed, giftPlaceEntryUsed } from '../utils/dashboardSendHandoff';
