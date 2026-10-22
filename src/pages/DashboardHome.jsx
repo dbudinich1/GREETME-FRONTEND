@@ -93,7 +93,7 @@ const SLIDES = [
   { key: 'card', src: giftCard, title: 'Greet-Me gift card', line: 'A gift card tucked inside the greeting.' },
   { key: 'stack', src: giftBoxStack, title: 'Stack of wrapped gifts', line: 'Browse every gift in the Gift Place.' },
   { key: 'smartcard', src: smartEGiftCardArt, title: 'Greet-Me Smart eGift Card', line: 'One card, spent at the brands they love (Prezzee).' },
-  { key: 'qrcash', src: null, title: 'QR Cash™', line: 'Send • Claim • Spend' },
+  { key: 'qrcash', src: null, title: 'QR Cash™', line: 'Send • Claim • Spend — choose it in your greeting’s gift options' },
 ];
 const SMARTCARD_UNAVAILABLE_LINE = 'Coming later — not yet available';
 

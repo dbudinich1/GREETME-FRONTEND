@@ -335,8 +335,11 @@ test("founder render (Report 135): My Celebrations; centred Section 1 / Section 
   await click(tid("cx-add-gift")); await wait(20);
   assert.ok(tid("gift-place"), "Add a gift opens the Gift Place");
   await open("/dashboard/contacts");
+  // Founder 2026-10-22: a standalone purchase, worded as such (no promise to attach it to a scheduled occasion).
+  assert.equal(tid("cx-moment-add-gift").textContent.trim(), "Visit the Gift Place");
+  { const box = tid("cx-moment-add-gift").parentElement.textContent; assert.ok(box.includes("Send a separate gift") && box.includes("standalone purchase") && !box.includes("Complete the moment"), box); }
   await click(tid("cx-moment-add-gift")); await wait(20);
-  assert.ok(tid("gift-place"), "Complete the moment opens the Gift Place");
+  assert.ok(tid("gift-place"), "Visit the Gift Place opens the Gift Place");
   await open("/dashboard/contacts", { state: { celebrations: { path: "occasions", occasion: "christmas" } } });
   assert.equal(tid("cx-path-occasions").getAttribute("aria-selected"), "true");
   assert.equal(tid("cx-occ-christmas").getAttribute("aria-selected"), "true");

@@ -286,8 +286,8 @@ export default function CelebrationsWorkspace({
       <GiftStrip onAddGift={onAddGift} />
       {scheduleCard}
       <div className="moment" data-testid="cx-moment">
-        <span><b>Complete the moment</b> — remember to add a thoughtful Greet-Me gift to any occasion you schedule.</span>
-        <button type="button" className="linkbtn" data-testid="cx-moment-add-gift" onClick={onAddGift}>Add a gift</button>
+        <span><b>Send a separate gift</b> — a standalone purchase from the Greet-Me Gift Place.</span>
+        <button type="button" className="linkbtn" data-testid="cx-moment-add-gift" onClick={onAddGift}>Visit the Gift Place</button>
       </div>
     </div>
   );
@@ -300,7 +300,7 @@ const STRIP = [
   { key: 'flowers', src: giftBouquet, title: 'Flower bouquet', line: 'Fresh flowers for the day itself.' },
   { key: 'card', src: giftCard, title: 'Greet-Me gift card', line: 'A gift card tucked inside the greeting.' },
   { key: 'stack', src: giftBoxStack, title: 'Stack of wrapped gifts', line: 'Browse every gift in the Gift Place.' },
-  { key: 'qrcash', src: null, title: 'QR Cash™', line: 'Send cash they can spend the moment it lands.' },
+  { key: 'qrcash', src: null, title: 'QR Cash™', line: 'Send cash they can spend the moment it lands. Choose it in your greeting’s gift options.' },
 ];
 function GiftStrip({ onAddGift }) {
   const [i, setI] = useState(0);
