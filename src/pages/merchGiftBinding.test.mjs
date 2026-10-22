@@ -113,7 +113,10 @@ test("returning from Merch preserves the draft and reopens the same gift mode", 
   assert.match(SEND, /returnTo === 'send' \|\| restoredGiftLink/);
   assert.match(SEND, /!hasRestoredStateRef\.current/);
   // Still ONE record and ONE restore — no second storage system was introduced.
-  assert.equal((SEND.match(/sessionStorage\.getItem\('sendGreetingState'\)/g) || []).length, 1);
+  // Report 135 adds one READ-ONLY look at the same record (the dashboard's Add a gift entry seen again must not
+  // reopen shopping); it restores through this same returnTo=send path, so there is still one record and one restore.
+  assert.equal((SEND.match(/sessionStorage\.getItem\('sendGreetingState'\)/g) || []).length, 2);
+  assert.match(SEND, /kept\.giftContext\.entry === want\.entry\) \{ navigate\('\/dashboard\/send\?returnTo=send', \{ replace: true \}\); return; \}/);
   assert.match(SEND, /setGiftSettings\(\{ \.\.\.parsed\.giftSettings, type: giftType \}\)/);
 });
 

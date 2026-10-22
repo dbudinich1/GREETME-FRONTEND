@@ -218,7 +218,7 @@ test("B3: existing personal navigation entries are unchanged in label and order"
   const names = [...block.matchAll(/name:\s*'([^']+)'/g)].map((m) => m[1]);
   assert.deepEqual(names, [
     "Home",
-    "Recipients",
+    "Celebrations", // Report 135: the Recipients page, renamed (same path, same place)
     "Plans & Pricing",
     "Greet-Me Gifts",
     "❤️ Hearts Hub",

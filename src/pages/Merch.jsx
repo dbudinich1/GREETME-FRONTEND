@@ -106,15 +106,14 @@ export default function Merch() {
   const returnRecipientId = searchParams.get('returnRecipientId');
   const returnTo = searchParams.get('returnTo');
   const cameFromSendGreeting = returnTo === 'send';
-  // The greeting this visit is shopping for (SendGreeting keeps it in sendGreetingState before coming here): the
-  // recipient, occasion and timing it shows in the session header. Display only; read once.
+  // The greeting this visit is shopping for (SendGreeting keeps it in sendGreetingState before coming here): who,
+  // what it is for and when, shown in the session header. Display only; read once. (Kept as a plain label: this page
+  // has no per-moment filtering.)
   const [greetingGiftContext] = useState(() => {
     if (!cameFromSendGreeting) return null;
     try {
-      const saved = JSON.parse(sessionStorage.getItem('sendGreetingState') || '{}');
-      const ctx = saved && saved.giftContext;
-      if (ctx && typeof ctx === 'object') return { recipientName: String(ctx.recipientName || ''), occasion: String(ctx.occasion || (saved.formData && saved.formData.occasionType) || ''), timing: String(ctx.timing || '') };
-      return saved && saved.formData && saved.formData.occasionType ? { recipientName: '', occasion: String(saved.formData.occasionType), timing: '' } : null;
+      const ctx = (JSON.parse(sessionStorage.getItem('sendGreetingState') || '{}') || {}).giftContext;
+      return ctx && typeof ctx === 'object' ? { recipientName: String(ctx.recipientName || ''), label: String(ctx.label || ''), timing: String(ctx.timing || '') } : null;
     } catch { return null; }
   });
 
@@ -690,10 +689,10 @@ export default function Merch() {
             }}>
               Shopping for Your Greeting
             </span>
-            {/* Report 135: who, which occasion and when, carried from the greeting being composed. */}
+            {/* Report 135: who, what for and when, carried from the greeting being composed. */}
             {greetingGiftContext ? (
               <span data-testid="gift-place-greeting-context" style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#6b21a8' }}>
-                {[greetingGiftContext.recipientName ? `for ${greetingGiftContext.recipientName}` : '', greetingGiftContext.occasion, greetingGiftContext.timing].filter(Boolean).join(' · ')}
+                {[greetingGiftContext.recipientName ? `for ${greetingGiftContext.recipientName}` : '', greetingGiftContext.label, greetingGiftContext.timing].filter(Boolean).join(' · ')}
               </span>
             ) : null}
           </div>

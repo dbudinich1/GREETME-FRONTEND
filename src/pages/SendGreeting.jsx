@@ -799,7 +799,7 @@ export default function SendGreeting() {
     if (String(formData.contactId) !== want.contactId || formData.occasionType !== want.occasion) return;
     giftPlaceEntryRef.current = null;
     const person = contacts.find((c) => String(c.id ?? c._id) === want.contactId);
-    browseGiftPlaceForGreeting({ recipientName: person ? person.name : '', occasion: want.occasion, timing: 'Send now', entry: want.entry || '' }, 'marketplace');
+    browseGiftPlaceForGreeting({ recipientName: person ? person.name : '', label: want.occasion, timing: 'Send now', entry: want.entry || '' }, 'marketplace');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, formData.contactId, formData.occasionType, contacts]);
 
@@ -4017,7 +4017,7 @@ if (typeof window !== "undefined") {
           setIsGiftModalOpen(false);
           if (type === 'marketplace' || type === 'merch') {
             const person = contacts.find((c) => String(c.id ?? c._id) === String(formData.contactId));
-            browseGiftPlaceForGreeting({ recipientName: person ? person.name : '', occasion: formData.occasionType, timing: 'Send now' });
+            browseGiftPlaceForGreeting({ recipientName: person ? person.name : '', label: formData.occasionType, timing: 'Send now' });
           }
         }}
       />
