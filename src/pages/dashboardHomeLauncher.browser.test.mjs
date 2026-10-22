@@ -191,7 +191,7 @@ async function mount({ contacts = CONTACTS(), upcoming = UPCOMING(), sent = SENT
 
 test("renders the sections; occasions are the Recipients page's list and groups plus the send page's own; Quick Gift only in the welcome banner; Upcoming asks for 60 days", async () => {
   await mount();
-  for (const id of ["gx-hero", "gx-modes", "gx-step-1", "gx-step-2", "gx-step-3", "gx-step-4", "gx-footbar", "gx-lower", "gx-install"]) {
+  for (const id of ["gx-hero", "gx-modes", "gx-step-1", "gx-step-2", "gx-step-3", "gx-step-4", "gx-footbar", "gx-manager", "gx-schedule", "gx-install"]) {
     assert.ok($(`[data-testid=${id}]`), id);
   }
   assert.equal($("[data-testid=gx-resolver]"), null, "Dates & gifts is a modal, not part of the page");
@@ -994,42 +994,54 @@ test("Save in 'Who is it for?': for schedules it opens Dates & gifts with every 
   assert.equal(globalThis.__saves.length, 0, "Save in Step 2 saves no schedule");
 });
 
-test("Lower card (Report 135): Recipients | Occasions; Individuals / Friends / Family / Professional above the search; Upcoming | Past below Occasions; the composer's choices never change", async () => {
+test("Lower area (Report 135 layout): Celebration Manager (Recipients | Occasions, filters above its own search) and Celebration Schedule (Upcoming | Past, own search) are separate; switching or searching in one leaves the other untouched; the composer never changes", async () => {
   await mount();
   await click(byText(".mode", "Send Now"));
   await click(occ("Birthday"));
   await pickPerson("Margaret");
   await click($("[data-testid=gx-picker-done]"));
-  const names = () => $$("[data-testid=gx-tabbody] .row .name").map((e) => e.textContent);
-  assert.deepEqual($$("[role=tablist][aria-label='Your people and occasions'] [role=tab]").map((b) => b.textContent), ["Recipients", "Occasions"]);
-  assert.deepEqual($$("[data-testid=gx-recip-segments] button").map((b) => b.textContent), ["Individuals", "Friends", "Family", "Professional"]);
+  const mgr = $("[data-testid=gx-manager]"), sch = $("[data-testid=gx-schedule]");
+  assert.ok(mgr && sch && mgr !== sch);
+  assert.match(mgr.textContent, /Celebration Manager/); assert.match(sch.textContent, /Celebration Schedule/);
+  assert.deepEqual($$("[aria-label='Your people and occasions'] [role=tab]").map((b) => b.textContent), ["Recipients", "Occasions"]);
+  assert.deepEqual($$("[data-testid=gx-when] [role=tab]").map((b) => b.textContent), ["Upcoming Occasions", "Past Occasions"]);
+  const names = () => $$("[data-testid=gx-manager-recipients] .row .name").map((e) => e.textContent);
   const seg = $("[data-testid=gx-recip-segments]");
-  assert.ok(seg.compareDocumentPosition($("[data-testid=gx-tabbody] input")) & window.Node.DOCUMENT_POSITION_FOLLOWING, "the filter row is above the search");
-  assert.equal($("[data-testid=gx-recip-filter-all]").getAttribute("aria-selected"), "true", "Individuals by default");
-  assert.deepEqual(names(), ["Theresa Morgan", "Margaret Rivera", "Daniel Okafor"]);
-  await click($("[data-testid=gx-recip-filter-friend]"));
-  assert.deepEqual(names(), ["Theresa Morgan"]);
-  assert.equal($$("[data-testid=gx-tabbody] [data-testid=gx-edit-recipient]").length, 1, "edit stays on each row");
-  await click($("[data-testid=gx-recip-filter-professional]"));
-  assert.deepEqual(names(), ["Daniel Okafor"]);
-  await setValue($("[data-testid=gx-tabbody] input"), "zz");
+  assert.deepEqual([...seg.querySelectorAll("button")].map((b) => b.textContent), ["Individuals", "Friends", "Family", "Professional"]);
+  assert.ok(seg.compareDocumentPosition($("[data-testid=gx-manager-recipients] input")) & window.Node.DOCUMENT_POSITION_FOLLOWING, "the filter row is above the search");
+  assert.deepEqual(names(), ["Theresa Morgan", "Margaret Rivera", "Daniel Okafor"], "Individuals by default");
+  await click($("[data-testid=gx-recip-filter-friend]")); assert.deepEqual(names(), ["Theresa Morgan"]);
+  await click($("[data-testid=gx-recip-filter-professional]")); assert.deepEqual(names(), ["Daniel Okafor"]);
+  await setValue($("[data-testid=gx-manager-recipients] input"), "zz");
   assert.deepEqual(names(), []);
   assert.match($("[data-testid=gx-recip-filter-empty]").textContent, /No professional contacts match that name/);
-  await setValue($("[data-testid=gx-tabbody] input"), "");
-  await click($("[data-testid=gx-recip-filter-family]"));
-  assert.deepEqual(names(), ["Margaret Rivera"]);
-  await click($("[data-testid=gx-recip-filter-all]"));
-  assert.equal(names().length, 3);
-  await click($("[data-testid=gx-lower-occasions]"));
-  assert.equal($("[data-testid=gx-recip-segments]"), null);
-  assert.deepEqual($$("[data-testid=gx-when] button").map((b) => b.textContent), ["Upcoming Occasions", "Past Occasions"]);
-  assert.ok($$("[data-testid=gx-up-row]").length > 0, "Upcoming by default");
+  await setValue($("[data-testid=gx-manager-recipients] input"), "");
+  await click($("[data-testid=gx-recip-filter-family]")); assert.deepEqual(names(), ["Margaret Rivera"]);
+  // the Schedule: set its own state, then work the Manager hard; the Schedule must not change
   await click(byText("[data-testid=gx-when] button", "Past Occasions"));
-  assert.equal($$("[data-testid=gx-past-row]").length, 2);
-  await click($("[data-testid=gx-lower-recipients]"));
+  await setValue($("[data-testid=gx-sched-search]"), "priya");
+  const schedBody = $("[data-testid=gx-schedbody]"); const schedHtml = schedBody.innerHTML;
+  assert.equal($$("[data-testid=gx-past-row]").length, 1, "the schedule's own search");
   await click($("[data-testid=gx-lower-occasions]"));
-  assert.equal($$("[data-testid=gx-past-row]").length, 2, "Occasions reopens where it was left");
-  assert.deepEqual(state().picks, ["MRMargaret Rivera"], "the composer's choice is unchanged by the lower card");
+  assert.ok($$("[data-testid=gx-occ-row]").length > 10, "the occasion list");
+  await setValue($("[data-testid=gx-occ-search]"), "christ");
+  assert.deepEqual($$("[data-testid=gx-occ-row]").map((r) => r.dataset.type), ["christmas"]);
+  await click($("[data-testid=gx-lower-recipients]"));
+  assert.equal($("[data-testid=gx-schedbody]"), schedBody, "the Schedule's viewport was never replaced");
+  assert.equal(schedBody.innerHTML, schedHtml, "and its content is unchanged");
+  assert.equal(byText("[data-testid=gx-when] button", "Past Occasions").getAttribute("aria-selected"), "true");
+  assert.equal($("[data-testid=gx-sched-search]").value, "priya");
+  // the Manager kept its own state (both views mounted) and the Schedule's switch leaves it untouched
+  assert.equal($("[data-testid=gx-recip-filter-family]").getAttribute("aria-selected"), "true");
+  assert.equal($("[data-testid=gx-occ-search]").value, "christ");
+  const mgrBody = $("[data-testid=gx-tabbody]"); const mgrHtml = mgrBody.innerHTML;
+  await click(byText("[data-testid=gx-when] button", "Upcoming Occasions")); await setValue($("[data-testid=gx-sched-search]"), "");
+  assert.equal($("[data-testid=gx-tabbody]"), mgrBody); assert.equal(mgrBody.innerHTML, mgrHtml);
+  // Occasions -> the Celebrations page's Occasions path at that occasion
+  await click($("[data-testid=gx-lower-occasions]"));
+  await click($$("[data-testid=gx-occ-row]")[0].querySelector("[data-testid=gx-occ-open]"));
+  assert.deepEqual(globalThis.__nav.at(-1), { to: "/dashboard/contacts", opts: { state: { celebrations: { path: "occasions", occasion: "christmas" } } } });
+  assert.deepEqual(state().picks, ["MRMargaret Rivera"], "the composer's choice is unchanged by the lower area");
 });
 
 test("composer heading is centred; the compact presentation keeps body text at its approved sizes", async () => {

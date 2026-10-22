@@ -495,4 +495,25 @@ export const DASHBOARD_HOME_CSS = `
   .gx .footbar .fine { min-height:4.4em; }
   .gx .footbar .btn-primary { width:100%; min-width:0; }
 }
+/* Report 135 layout adjustment: Celebration Manager and Celebration Schedule, each a bounded card that scrolls inside. */
+.gx .ctitle { font:600 19px var(--serif); color:var(--ink); }
+.gx .ctabs { display:inline-flex; margin-top:10px; }
+.gx .cbody { display:flex; flex-direction:column; overflow:hidden; padding-right:0; height:380px; }
+.gx .cbody > .search { flex:none; margin:0 0 6px; }
+.gx .cview { display:flex; flex-direction:column; height:100%; min-height:0; }
+.gx .cview[hidden] { display:none; }
+.gx .cview > .search { flex:none; margin:8px 0 6px; }
+.gx .cview > .segrow { flex:none; }
+.gx .cview > .row, .gx .cview > .rempty { flex:none; }
+.gx .cscroll { flex:1 1 0; min-height:0; overflow:auto; padding-right:4px; }
+.gx .orow { display:flex; align-items:center; gap:12px; padding:8px 0; border-top:1px solid var(--line); }
+.gx .orow:first-child { border-top:none; }
+.gx .oic { width:36px; height:36px; flex:none; border-radius:12px; background:var(--p50); display:grid; place-items:center; font-size:18px; }
+.gx .oname { font:600 15px var(--sans); color:var(--ink); }
+.gx .ometa { font-size:13px; color:var(--muted); }
+@media (max-width: 640px) {
+  .gx .ctabs { display:flex; width:100%; }
+  .gx .ctabs button { flex:1 1 0; }
+  .gx .cbody { height:420px; }
+}
 `;

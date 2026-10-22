@@ -51,6 +51,7 @@ import G1G1Badge from '../components/G1G1Badge';
 import { qrCashQuote, centsToDollarString } from '../utils/qrCashAmount';
 import { DASHBOARD_HOME_CSS } from './dashboardHomeStyles';
 import { OCCASION_CHIPS, OCCASION_MENUS } from '../utils/dashboardOccasions';
+import { occasionSummaries, OCCASION_GROUPS } from '../utils/celebrationsModel';
 import ScheduledGiftPicker from '../components/scheduledGift/ScheduledGiftPicker';
 import ScheduledGiftEntry from '../components/scheduledGift/ScheduledGiftEntry';
 import { SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from '../config/scheduledPhysicalGift';
@@ -223,10 +224,13 @@ export default function DashboardHome() {
   const [smartCardAvailable, setSmartCardAvailable] = useState(false);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth <= 768);
   const [term, setTerm] = useState('');
-  const [tab, setTab] = useState('recipients');
+  // Report 135 layout: the Celebration Manager's tab and the Celebration Schedule's tab are independent.
+  const [mgrTab, setMgrTab] = useState('recipients');
+  const [schedTab, setSchedTab] = useState('upcoming');
+  const [occTerm, setOccTerm] = useState('');
+  const [schedTerm, setSchedTerm] = useState('');
   // The lower card's Recipients filter. Display only: it never changes who is chosen in the composer.
   const [recipFilter, setRecipFilter] = useState('all');
-  const lastWhen = useRef('upcoming');
 
   useEffect(() => {
     const onResize = () => setIsNarrow(window.innerWidth <= 768);
@@ -670,6 +674,13 @@ export default function DashboardHome() {
   };
   const bannerText = SUB_BANNER_TEXT[user?.subscriptionStatus];
   const pastItems = sentGreetings.map(g => ({ ...g, type: 'greeting' }));
+  const schedQ = schedTerm.trim().toLowerCase();
+  const schedHit = (name, occType) => !schedQ || String(name || '').toLowerCase().includes(schedQ) || OCC_LABEL(occType).toLowerCase().includes(schedQ);
+  const shownUpcoming = upcomingOccasions.filter((o) => schedHit(o.contactName, o.occasionType));
+  const shownPast = pastItems.filter((g) => schedHit(g.recipientName, g.occasionType));
+  const occSummaries = occasionSummaries(contacts, upcomingOccasions, sentGreetings);
+  const occQ = occTerm.trim().toLowerCase();
+  const occasionRowsShown = OCCASION_GROUPS.flatMap((g) => g.types).map((t) => occSummaries[t]).filter((o) => !occQ || o.label.toLowerCase().includes(occQ));
 
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
@@ -994,36 +1005,21 @@ export default function DashboardHome() {
           </div>
         </section>
 
-        {/* 3. One full-width card: Recipients | Upcoming Occasions | Past Occasions (fixed size, scrolls inside) */}
-        <section className="card tabcard" data-testid="gx-lower">
+        {/* 3. Report 135 layout adjustment (founder 2026-10-22): two separate cards, each with its own bounded viewport
+            and internal scrolling, both always mounted with independent state. Celebration Manager: Recipients |
+            Occasions. Celebration Schedule: Upcoming Occasions | Past Occasions, with its own search. */}
+        <section className="card tabcard" data-testid="gx-manager">
           <div className="tabhead">
-            {/* Report 135: Recipients | Occasions, the Celebrations page's two paths; Upcoming | Past sits below it. */}
-            <div className="tabs" role="tablist" aria-label="Your people and occasions">
-              <button type="button" role="tab" id="gx-tab-recipients" data-testid="gx-lower-recipients" aria-selected={tab === 'recipients'} aria-controls="gx-tabpanel" onClick={() => setTab('recipients')}>Recipients</button>
-              <button type="button" role="tab" id="gx-tab-occasions" data-testid="gx-lower-occasions" aria-selected={tab !== 'recipients'} aria-controls="gx-tabpanel" onClick={() => setTab((t) => (t === 'recipients' ? lastWhen.current : t))}>Occasions</button>
-            </div>
-            <div className="tabact">
-              {tab === 'recipients' ? <button type="button" className="btn btn-sm btn-primary" style={{ height: 38 }} onClick={goAddRecipient}><UserPlus size={15} /> Add Recipient</button>
-                : tab === 'past' ? <button type="button" className="link" onClick={() => navigate('/dashboard/sent')}>See all</button>
-                  : <span className="sub" style={{ marginTop: 0 }}>From Occasion Schedulers</span>}
-            </div>
+            <div className="ctitle">Celebration Manager</div>
+            <div className="tabact"><button type="button" className="btn btn-sm btn-primary" style={{ height: 38 }} onClick={goAddRecipient}><UserPlus size={15} /> Add Recipient</button></div>
           </div>
-          {tab === 'recipients' ? (
-            <div className="segrow" role="tablist" aria-label="Show recipients" data-testid="gx-recip-segments">
-              {RECIPIENT_FILTERS.map((f) => (
-                <button key={f.key} type="button" role="tab" aria-selected={recipFilter === f.key} data-testid={`gx-recip-filter-${f.key}`} onClick={() => setRecipFilter(f.key)}>{f.label}</button>
-              ))}
-            </div>
-          ) : (
-            <div className="segrow" role="tablist" aria-label="Upcoming or past occasions" data-testid="gx-when">
-              {[['upcoming', 'Upcoming Occasions'], ['past', 'Past Occasions']].map(([k, t]) => (
-                <button key={k} type="button" role="tab" id={`gx-tab-${k}`} aria-selected={tab === k} aria-controls="gx-tabpanel" onClick={() => { lastWhen.current = k; setTab(k); }}>{t}</button>
-              ))}
-            </div>
-          )}
-          <div className="tabbody" id="gx-tabpanel" role="tabpanel" aria-labelledby={`gx-tab-${tab}`} data-testid="gx-tabbody">
-            {tab === 'recipients' ? (
-              contacts.length === 0 ? (
+          <div className="tabs ctabs" role="tablist" aria-label="Your people and occasions">
+            <button type="button" role="tab" id="gx-tab-recipients" data-testid="gx-lower-recipients" aria-selected={mgrTab === 'recipients'} aria-controls="gx-tabpanel" onClick={() => setMgrTab('recipients')}>Recipients</button>
+            <button type="button" role="tab" id="gx-tab-occasions" data-testid="gx-lower-occasions" aria-selected={mgrTab === 'occasions'} aria-controls="gx-tabpanel" onClick={() => setMgrTab('occasions')}>Occasions</button>
+          </div>
+          <div className="tabbody cbody" id="gx-tabpanel" role="tabpanel" aria-labelledby={`gx-tab-${mgrTab}`} data-testid="gx-tabbody">
+            <div className="cview" hidden={mgrTab !== 'recipients'} data-testid="gx-manager-recipients">
+              {contacts.length === 0 ? (
                 <div className="empty" data-testid="gx-lower-recipients-empty" style={{ marginTop: 0 }}>
                   <div className="ico"><UserPlus size={20} /></div>
                   <div className="t">No recipients yet</div>
@@ -1032,7 +1028,13 @@ export default function DashboardHome() {
                 </div>
               ) : (
                 <>
-                  <div className="search" style={{ marginTop: 0 }}><Search size={16} color="#8a8199" /><input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Find someone…" aria-label="Find a recipient" /></div>
+                  <div className="segrow" role="tablist" aria-label="Show recipients" data-testid="gx-recip-segments" style={{ marginTop: 0 }}>
+                    {RECIPIENT_FILTERS.map((f) => (
+                      <button key={f.key} type="button" role="tab" aria-selected={recipFilter === f.key} data-testid={`gx-recip-filter-${f.key}`} onClick={() => setRecipFilter(f.key)}>{f.label}</button>
+                    ))}
+                  </div>
+                  <div className="search"><Search size={16} color="#8a8199" /><input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Find someone…" aria-label="Find a recipient" /></div>
+                  <div className="cscroll" data-testid="gx-recipient-list">
                   {shownRecipients.length === 0 ? (
                     <p className="rempty" data-testid="gx-recip-filter-empty">{recipFilter === 'all' ? 'No one matches that name yet.' : `No ${RECIPIENT_FILTERS.find((f) => f.key === recipFilter).people} ${term ? 'match that name' : 'yet — set a relationship on a recipient'}.`}</p>
                   ) : null}
@@ -1047,9 +1049,45 @@ export default function DashboardHome() {
                       <button type="button" className="iconbtn" data-testid="gx-edit-recipient" aria-label={`Edit ${c.name}`} title="Edit" onClick={() => goEdit(c.id)}><Pencil size={16} /></button>
                     </div>
                   ))}
+                  </div>
                 </>
-              )
-            ) : tab === 'upcoming' ? (
+              )}
+            </div>
+            <div className="cview" hidden={mgrTab !== 'occasions'} data-testid="gx-manager-occasions">
+              <div className="search" style={{ marginTop: 0 }}><Search size={16} color="#8a8199" /><input value={occTerm} onChange={(e) => setOccTerm(e.target.value)} placeholder="Find an occasion…" aria-label="Find an occasion" data-testid="gx-occ-search" /></div>
+              <div className="cscroll">
+                {occasionRowsShown.length === 0 ? <p className="rempty">No occasion matches that search.</p> : occasionRowsShown.map((o) => (
+                  <div className="orow" key={o.type} data-testid="gx-occ-row" data-type={o.type}>
+                    <span className="oic" aria-hidden="true">{o.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="oname">{o.label}</div>
+                      <div className="ometa">{o.kind === 'personal' ? 'Each person’s own date' : o.sharedDate ? `Shared date · ${new Date(`${o.sharedDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Shared date · entered per person'} · {o.heldCount} {o.heldCount === 1 ? 'person' : 'people'}{o.soonest ? ` · next ${new Date(`${o.soonest.date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</div>
+                    </div>
+                    <button type="button" className="btn btn-sm btn-line" style={{ height: 34 }} data-testid="gx-occ-open" onClick={() => { keepChoices(); navigate('/dashboard/contacts', { state: { celebrations: { path: 'occasions', occasion: o.type } } }); }}>Open</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="card tabcard" data-testid="gx-schedule">
+          <div className="tabhead">
+            <div className="ctitle">Celebration Schedule</div>
+            <div className="tabact">
+              {schedTab === 'past' ? <button type="button" className="link" onClick={() => navigate('/dashboard/sent')}>See all</button>
+                : <span className="sub" style={{ marginTop: 0 }}>From Occasion Schedulers</span>}
+            </div>
+          </div>
+          <div className="tabs ctabs" role="tablist" aria-label="Upcoming or past occasions" data-testid="gx-when">
+            {[['upcoming', 'Upcoming Occasions'], ['past', 'Past Occasions']].map(([k, t]) => (
+              <button key={k} type="button" role="tab" id={`gx-tab-${k}`} aria-selected={schedTab === k} aria-controls="gx-schedpanel" onClick={() => setSchedTab(k)}>{t}</button>
+            ))}
+          </div>
+          <div className="tabbody cbody" id="gx-schedpanel" role="tabpanel" aria-labelledby={`gx-tab-${schedTab}`} data-testid="gx-schedbody">
+            <div className="search" style={{ marginTop: 0 }}><Search size={16} color="#8a8199" /><input value={schedTerm} onChange={(e) => setSchedTerm(e.target.value)} placeholder="Find a person or occasion…" aria-label="Find in the schedule" data-testid="gx-sched-search" /></div>
+            <div className="cscroll">
+            {schedTab === 'upcoming' ? (
               <>
                 {upcomingOccasions.length === 0 ? (
                   <div className="empty" data-testid="gx-upcoming-empty" style={{ marginTop: 0 }}>
@@ -1061,7 +1099,8 @@ export default function DashboardHome() {
                 ) : (
                   <>
                     <p className="nudge" data-testid="gx-nudge">Don&rsquo;t miss their moment.</p>
-                    {upcomingOccasions.map((occasion) => {
+                    {shownUpcoming.length === 0 ? <p className="rempty" data-testid="gx-sched-empty">Nothing upcoming matches that search.</p> : null}
+                    {shownUpcoming.map((occasion) => {
                       const d = new Date(`${String(occasion.date).slice(0, 10)}T12:00:00`);
                       const isUrgent = typeof occasion.daysUntil === 'number' && occasion.daysUntil <= 3;
                       // A row shows its real status once the scheduler holds one; otherwise "Auto-send on" (the scheduler
@@ -1094,7 +1133,7 @@ export default function DashboardHome() {
                   <div className="t">No Greet-Me sends yet</div>
                   <p>Once you add contacts and occasions, Greet-Me™ will handle the rest!</p>
                 </div>
-              ) : pastItems.map((g) => {
+              ) : shownPast.length === 0 ? <p className="rempty" data-testid="gx-sched-empty">No past occasion matches that search.</p> : shownPast.map((g) => {
                 const [label, tone] = PAST_STATUS[g.status] || ['Creating', 'amber'];
                 const when = g.completedAt || g.createdAt;
                 return (
@@ -1109,6 +1148,7 @@ export default function DashboardHome() {
                 );
               })
             )}
+            </div>
           </div>
         </section>
 
