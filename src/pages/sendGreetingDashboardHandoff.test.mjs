@@ -39,16 +39,25 @@ test("Baby and Season's Greetings reach the backend as its existing keys; everyt
   assert.match(SRC, /const payload = buildGreetingPayload\(\{/);
 });
 
-test("'Add a gift' from the dashboard reuses the canonical gift-chooser entry effect (no new opener)", () => {
-  const start = SRC.indexOf("The same entry also serves the dashboard's \"Add a gift\"");
+test("'Add a gift' from the dashboard opens the Gift Place with this greeting kept (Report 135); without a recipient and occasion, the chooser as before", () => {
+  const start = SRC.indexOf("The dashboard's \"Add a gift\" (gift carousel, ?gift=choose)");
   assert.ok(start > -1);
   const block = SRC.slice(start, SRC.indexOf("}, [location.search]);", start));
   assert.match(block, /const dashboardChooseEntry = params\.get\('gift'\) === 'choose' && !params\.get\('giftType'\);/);
+  assert.match(block, /const want = dashboardGiftPlaceEntry\(params\);\s*if \(want\) \{ giftPlaceEntryRef\.current = want; return; \}/, "a recipient + occasion entry does not open the chooser");
   assert.match(block, /if \(qrCashEntry\) setGiftSettings\(prev => \(\{ \.\.\.prev, type: 'qrcash' \}\)\);/, "only the QR Cash entry pre-sets a gift");
+  assert.match(SRC, /navigate\('\/dashboard\/gifts\?returnTo=send&giftType=marketplace'\);/, "the one Gift Place destination with the return-to-greeting contract");
+  assert.equal((SRC.match(/navigate\('\/dashboard\/gifts\?returnTo=send/g) || []).length, 1, "one shared opener for the chooser's Gift Place option and the dashboard entry");
   assert.equal((SRC.match(/setIsGiftModalOpen\(true\)/g) || []).length, 3, "still exactly three chooser open paths");
+});
+
+test("the banner names this greeting's occasion, never a fixed 'Just Because' (Report 135)", () => {
+  assert.match(SRC, /data-testid="send-banner-occasion">\{[^}]*\}\{formData\.occasionType \|\| 'Just Because'\}<\/p>/);
+  assert.doesNotMatch(SRC, /\}\}>Just Because<\/p>/, "no fixed banner text");
 });
 
 test("protected-subsystem header records this change and its affected locked milestones", () => {
   assert.match(SRC, /2026-10-18 \(dashboard package, Report 103\)/);
+  assert.match(SRC, /2026-10-22 \(Report 135, preview, not released\)/);
   for (const sha of ["4c29ace8", "01d93f5f", "1c43a750", "f98ffdb5"]) assert.ok(SRC.includes(sha), sha);
 });

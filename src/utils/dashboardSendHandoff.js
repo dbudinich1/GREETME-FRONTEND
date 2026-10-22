@@ -42,6 +42,18 @@ export function matchSendOccasion(value) {
   return byValue ? byValue.label : '';
 }
 
+/**
+ * The dashboard's "Add a gift" hand-off (?gift=choose with ?contactId= and ?occasion=, Report 135): the recipient and
+ * the send page's own occasion option the Gift Place round trip keeps, or null when either is missing (the send page
+ * then opens its gift chooser, as before).
+ */
+export function dashboardGiftPlaceEntry(params) {
+  if (!params || params.get('gift') !== 'choose' || params.get('giftType')) return null;
+  const contactId = String(params.get('contactId') || '').trim();
+  const occasion = matchSendOccasion(params.get('occasion'));
+  return contactId && occasion ? { contactId, occasion } : null;
+}
+
 export const DASHBOARD_HANDOFF_KEY = 'gm_dashboard_send_handoff_v1';
 const HANDOFF_MAX_AGE_MS = 30 * 60 * 1000;
 export const HANDOFF_MAX_WORDS = 280;      // the send flow's personal-message limit

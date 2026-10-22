@@ -14,9 +14,14 @@
 //   ?contactId= (matched to this page's own options), four approved occasions are added to the list, and the
 //   dashboard's optional words/memory photos are read once. Affected locked milestones: 4c29ace8, 01d93f5f,
 //   1c43a750, f98ffdb5. The verification gate, voice-missing recovery, review, payment and send paths are unchanged.
+// 2026-10-22 (Report 135, preview, not released): the dashboard's "Add a gift" (?gift=choose with a recipient and
+//   occasion) keeps this greeting and opens the Gift Place, as the chooser's own Gift Place option does, instead of
+//   re-asking the gift type; the banner shows the selected occasion instead of a fixed "Just Because". Affected locked
+//   milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regression: an entry without a recipient or
+//   occasion falls back to the chooser exactly as before. Verification gate, review, payment and send unchanged.
 
 import { useState, useEffect } from 'react';
-import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff } from '../utils/dashboardSendHandoff';
+import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff, dashboardGiftPlaceEntry } from '../utils/dashboardSendHandoff';
 import { buildGreetingPayload, qrCashGiftForPayload } from '../utils/sendGreetingPayload';
 import { getPhotoSrc } from '../utils/getPhotoSrc';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -742,17 +747,54 @@ export default function SendGreeting() {
   // gift from a full greeting composition. Fires once per arrival; does not re-fire on an
   // in-composer state change.
   //
-  // The same entry also serves the dashboard's "Add a gift" (gift carousel, ?gift=choose): the chooser opens with
-  // nothing pre-set, exactly as this composer's own "Add a Gift" button opens it. Nothing is chosen or charged here.
+  // The dashboard's "Add a gift" (gift carousel, ?gift=choose) is a request for a gift from the Gift Place, so it
+  // goes there (Report 135), with this greeting's recipient, occasion, words and photos kept for the return. It used
+  // to open this page's gift-type chooser (None / QR Cash / Gift Place / Select) and ask the type again. Without a
+  // recipient and occasion to keep, the chooser opens as before. Nothing is chosen or charged here.
+  const giftPlaceEntryRef = useRef(null);
+  // ONE DESTINATION. The Gift Place holds every category, flowers included, and /dashboard/merch is a redirect to
+  // it. This greeting is kept in sessionStorage first; `returnTo=send` is the existing return-to-greeting contract:
+  // the Gift Place reads it to show the "shopping for your greeting" context and to come back here. `giftContext`
+  // only labels that context (who, which occasion, when); the restore reads formData as before.
+  const browseGiftPlaceForGreeting = (giftContext, giftTypeForVisit = null) => {
+    const stateToSave = {
+      formData,
+      // The dashboard's entry records the visit exactly as choosing "Greet-Me Gift Place" in the chooser does.
+      giftSettings: giftTypeForVisit ? { ...giftSettings, type: giftTypeForVisit } : giftSettings,
+      defaultPhoto,
+      memoryPhotos,
+      useMemoryPhotos,
+      excludedMemoryPhotos: Array.from(excludedMemoryPhotos),
+      giftContext,
+    };
+    // If this greeting can't be kept on this device, stay here: nothing is lost, and the sender is told why.
+    try { sessionStorage.setItem('sendGreetingState', JSON.stringify(stateToSave)); }
+    catch { showManualToast('Gift Place not opened', 'This greeting couldn’t be kept on this device while you shop, so it stays open here. Use Add a Gift on this page.', COMMS_CATEGORIES.SYSTEM); return; }
+    navigate('/dashboard/gifts?returnTo=send&giftType=marketplace');
+  };
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const qrCashEntry = params.get('giftType') === 'qrcash';
     const dashboardChooseEntry = params.get('gift') === 'choose' && !params.get('giftType');
     if (!qrCashEntry && !dashboardChooseEntry) return;
+    if (dashboardChooseEntry && params.get('returnTo') !== 'send') {
+      const want = dashboardGiftPlaceEntry(params);
+      if (want) { giftPlaceEntryRef.current = want; return; }
+    }
     if (qrCashEntry) setGiftSettings(prev => ({ ...prev, type: 'qrcash' }));
     setIsGiftModalOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
+  // Once this page holds that recipient and occasion (and the hand-off's words and photos), keep them and go.
+  useEffect(() => {
+    const want = giftPlaceEntryRef.current;
+    if (!want || loading) return;
+    if (String(formData.contactId) !== want.contactId || formData.occasionType !== want.occasion) return;
+    giftPlaceEntryRef.current = null;
+    const person = contacts.find((c) => String(c.id ?? c._id) === want.contactId);
+    browseGiftPlaceForGreeting({ recipientName: person ? person.name : '', occasion: want.occasion, timing: 'Send now' }, 'marketplace');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, formData.contactId, formData.occasionType, contacts]);
 
   // Detect referral code from URL and validate
   useEffect(() => {
@@ -2562,7 +2604,7 @@ if (typeof window !== "undefined") {
             opacity: 0.9,
             marginTop: '0.25rem',
             fontStyle: 'italic'
-          }}>Just Because</p>
+          }} data-testid="send-banner-occasion">{/* The occasion this greeting is for (Report 135): it read "Just Because" for every greeting. */}{formData.occasionType || 'Just Because'}</p>
         </div>
         {contacts.length === 0 && !showInlineAdd && (
           <div style={{
@@ -3964,25 +4006,11 @@ if (typeof window !== "undefined") {
         getOccasionEmoji={() => '💝'}
         context="oneoff"
         onBrowse={(type) => {
-          // Save current state to sessionStorage before navigating
-          const stateToSave = {
-            formData,
-            giftSettings,
-            defaultPhoto,
-            memoryPhotos,
-            useMemoryPhotos,
-            excludedMemoryPhotos: Array.from(excludedMemoryPhotos)
-          };
-          sessionStorage.setItem('sendGreetingState', JSON.stringify(stateToSave));
-
           // Close the modal and navigate to the appropriate page
           setIsGiftModalOpen(false);
-          // ONE DESTINATION. The Gift Place holds every category, flowers included, and
-          // /dashboard/merch is a redirect to it — which is why offering both was offering the same
-          // page twice. `returnTo=send` is the existing return-to-greeting contract: the Gift Place
-          // reads it to show the "shopping for your greeting" context and to come back here.
           if (type === 'marketplace' || type === 'merch') {
-            navigate('/dashboard/gifts?returnTo=send&giftType=marketplace');
+            const person = contacts.find((c) => String(c.id ?? c._id) === String(formData.contactId));
+            browseGiftPlaceForGreeting({ recipientName: person ? person.name : '', occasion: formData.occasionType, timing: 'Send now' });
           }
         }}
       />

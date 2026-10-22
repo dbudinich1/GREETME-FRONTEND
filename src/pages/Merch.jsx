@@ -106,6 +106,17 @@ export default function Merch() {
   const returnRecipientId = searchParams.get('returnRecipientId');
   const returnTo = searchParams.get('returnTo');
   const cameFromSendGreeting = returnTo === 'send';
+  // The greeting this visit is shopping for (SendGreeting keeps it in sendGreetingState before coming here): the
+  // recipient, occasion and timing it shows in the session header. Display only; read once.
+  const [greetingGiftContext] = useState(() => {
+    if (!cameFromSendGreeting) return null;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('sendGreetingState') || '{}');
+      const ctx = saved && saved.giftContext;
+      if (ctx && typeof ctx === 'object') return { recipientName: String(ctx.recipientName || ''), occasion: String(ctx.occasion || (saved.formData && saved.formData.occasionType) || ''), timing: String(ctx.timing || '') };
+      return saved && saved.formData && saved.formData.occasionType ? { recipientName: '', occasion: String(saved.formData.occasionType), timing: '' } : null;
+    } catch { return null; }
+  });
 
   // Fetch curated products from /api/merch/products on mount
   useEffect(() => {
@@ -662,13 +673,15 @@ export default function Merch() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          gap: '0.75rem',
+          flexWrap: 'wrap',
           padding: '0.75rem 1rem',
           background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%)',
           borderRadius: 'var(--radius-lg)',
           border: '1px solid rgba(236, 72, 153, 0.2)',
           marginBottom: '1.5rem'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', minWidth: 0 }}>
             <span style={{ fontSize: '1rem' }}>💝</span>
             <span style={{
               fontSize: '0.875rem',
@@ -677,6 +690,12 @@ export default function Merch() {
             }}>
               Shopping for Your Greeting
             </span>
+            {/* Report 135: who, which occasion and when, carried from the greeting being composed. */}
+            {greetingGiftContext ? (
+              <span data-testid="gift-place-greeting-context" style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#6b21a8' }}>
+                {[greetingGiftContext.recipientName ? `for ${greetingGiftContext.recipientName}` : '', greetingGiftContext.occasion, greetingGiftContext.timing].filter(Boolean).join(' · ')}
+              </span>
+            ) : null}
           </div>
           <button
             onClick={handleReturnToGreeting}

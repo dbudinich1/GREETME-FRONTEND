@@ -85,3 +85,15 @@ test("when the photos do not fit, the words are still carried", () => {
   assert.equal(writeDashboardHandoff(tight, { contactId: "c1", occasion: "Birthday", words: "Happy day", memoryPhotos: ["data:" + "x".repeat(500)] }, 1), "words");
   assert.deepEqual(takeDashboardHandoff(tight, { contactId: "c1", occasion: "Birthday" }, 2), { words: "Happy day", memoryPhotos: [] });
 });
+
+test("Report 135: dashboardGiftPlaceEntry keeps the recipient and the send page's own occasion; anything missing means the chooser", async () => {
+  const { dashboardGiftPlaceEntry } = await import("./dashboardSendHandoff.js");
+  const q = (s) => new URLSearchParams(s);
+  assert.deepEqual(dashboardGiftPlaceEntry(q("contactId=c1&occasion=Birthday&from=dashboard&gift=choose")), { contactId: "c1", occasion: "Birthday" });
+  assert.deepEqual(dashboardGiftPlaceEntry(q("contactId=c1&occasion=mothers_day&gift=choose")), { contactId: "c1", occasion: "Mother's Day" }, "a scheduler identifier maps to the page's label");
+  assert.equal(dashboardGiftPlaceEntry(q("contactId=c1&gift=choose")), null, "no occasion");
+  assert.equal(dashboardGiftPlaceEntry(q("occasion=Birthday&gift=choose")), null, "no recipient");
+  assert.equal(dashboardGiftPlaceEntry(q("contactId=c1&occasion=Hanukkah%20Party&gift=choose")), null, "not one of the page's occasions");
+  assert.equal(dashboardGiftPlaceEntry(q("contactId=c1&occasion=Birthday&gift=choose&giftType=qrcash")), null, "the QR Cash entry is its own");
+  assert.equal(dashboardGiftPlaceEntry(q("contactId=c1&occasion=Birthday")), null, "no gift request");
+});
