@@ -368,3 +368,20 @@ test("Team 5: Escape during the gift-commission confirmation does not close the 
   await act(async () => { window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape" })); }); await flush();
   assert.equal(tid("fcc-detail-modal"), null, "Escape closes it once the confirmation is gone");
 });
+
+test("founder 2026-10-21: the pop-up sits on the page body above the site header, with × pinned and a Close button", async () => {
+  const a = api(); await mount(a);
+  await click(tid("fcc-row-amir-yates"));
+  const modal = tid("fcc-detail-modal");
+  assert.equal(modal.parentElement, document.body, "rendered on document.body, outside any page layer");
+  assert.ok(Number(modal.style.zIndex) > 60, `above the site header (layers 50-60): ${modal.style.zIndex}`);
+  assert.equal(tid("fcc-detail-titlebar").style.position, "sticky", "the title row with × stays visible while scrolling");
+  assert.ok(tid("fcc-detail-titlebar").contains(tid("fcc-detail-close")));
+  await click(tid("fcc-disable"));
+  assert.equal(tid("fcc-confirm").parentElement, document.body);
+  assert.ok(Number(tid("fcc-confirm").style.zIndex) > Number(modal.style.zIndex), "the confirmation is above the pop-up");
+  await click(tid("fcc-confirm-cancel"));
+  await click(tid("fcc-detail-close-bottom"));
+  assert.equal(tid("fcc-detail-modal"), null, "the Close button at the bottom closes the pop-up");
+  assert.equal(writes(a).length, 0);
+});

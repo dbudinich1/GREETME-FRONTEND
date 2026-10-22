@@ -213,7 +213,7 @@ export default function AccountAccessPanel({ api, salesperson }) {
       {pending ? (
         <div role="dialog" aria-modal="true" aria-labelledby="acc-confirm-title" data-testid="acc-confirm"
           onKeyDown={(e) => { if (e.key === "Escape" && !busy) setPending(null); }}
-          style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: 50 }}>
+          style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: 1010 }}>
           <div style={{ ...card, maxWidth: 460, width: "100%" }}>
             <h2 id="acc-confirm-title" style={{ fontSize: "1.05rem", margin: "0 0 .5rem" }}>{pending.title}</h2>
             <p data-testid="acc-confirm-body" style={{ margin: "0 0 .8rem", color: "var(--text-secondary)", fontSize: ".88rem" }}>{pending.body}</p>

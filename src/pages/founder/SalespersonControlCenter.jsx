@@ -16,6 +16,7 @@
 // intended behaviour and is asserted in test.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { salesAdminApi, salesAdminErrorMessage } from "../../api/salesAdmin.js";
 import { AssignedLinksPanel, GiftSalesPanel, ShareQr } from "./commandCenter/ProfilePanels.jsx";
 import GiftCommissionPanel from "./commandCenter/GiftCommissionPanel.jsx";
@@ -144,6 +145,10 @@ function topmostConfirmation() {
   if (alert) return { el: alert, cancel: [...alert.querySelectorAll("button")].find((b) => /cancel/i.test(b.getAttribute("data-testid") || "") || /^\s*cancel\s*$/i.test(b.textContent || "")) || null };
   return null;
 }
+
+// Layers above the site header (DashboardLayout uses 50-60): the details pop-up, then any confirmation on top of it.
+const POPUP_LAYER = 1000;
+const CONFIRM_LAYER = 1010;
 
 export default function SalespersonControlCenter({ api = salesAdminApi, user: injectedUser, origin: originOverride } = {}) {
   const user = injectedUser !== undefined ? injectedUser : readUser();
@@ -753,13 +758,15 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
       </div>
 
       {/* ── DETAIL ── */}
-      {selectedId ? (
+      {/* Founder 2026-10-21: the pop-up is rendered on document.body, above the site header (header layers 50-60),
+          so the header can never cover it or its close control. */}
+      {selectedId ? createPortal(
         <div data-testid="fcc-detail-modal" role="dialog" aria-modal="true" aria-labelledby="fcc-detail-title"
           onMouseDown={(e) => { if (e.target === e.currentTarget && !hasUnsavedEdits()) closeDetail(); }}
-          style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "2.5vh 1rem", zIndex: 40, overflowY: "auto" }}>
+          style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "2.5vh 1rem", zIndex: POPUP_LAYER, overflowY: "auto" }}>
         <UnsavedEditsContext.Provider value={reportDirty}>
         <section style={{ ...card, width: "100%", maxWidth: 980, margin: "0 auto", position: "relative" }} data-testid="fcc-detail">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: ".75rem", margin: "0 0 .75rem" }}>
+          <div data-testid="fcc-detail-titlebar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: ".75rem", margin: "-1.1rem -1.1rem .75rem", padding: "1.1rem 1.1rem .6rem", position: "sticky", top: "-2.5vh", zIndex: 2, background: "var(--surface, #fff)", borderRadius: "var(--radius-lg, 14px) var(--radius-lg, 14px) 0 0" }}>
             <h2 id="fcc-detail-title" style={{ fontSize: "1rem", margin: 0, minWidth: 0, overflowWrap: "anywhere" }}>
               {detail && detail.displayName ? detail.displayName : "Details"}
             </h2>
@@ -1139,6 +1146,9 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
 
               {/* ── DESTRUCTIVE ACTIONS, deliberately set apart ── */}
               <div style={{ marginTop: "1.1rem", display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
+                <button type="button" className="btn-secondary" data-testid="fcc-detail-close-bottom" onClick={closeDetail}>
+                  Close
+                </button>
                 <button type="button" className="btn-secondary" data-testid="fcc-rotate"
                   disabled={busy !== null}
                   onClick={() => setConfirm({ kind: "rotate", salespersonId: detail.salespersonId, name: detail.displayName })}>
@@ -1163,17 +1173,18 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
 
         </section>
         </UnsavedEditsContext.Provider>
-        </div>
+        </div>,
+        document.body,
       ) : null}
 
       {/* ── DESTRUCTIVE CONFIRMATION ──
           One dialog for all three actions. Cancel is the safe default, Escape dismisses, and
           NOTHING is requested until the explicit confirm button is pressed. */}
-      {confirm ? (
+      {confirm ? createPortal(
         <div role="dialog" aria-modal="true" aria-labelledby="fcc-confirm-title"
           data-testid="fcc-confirm"
           onKeyDown={(e) => { if (e.key === "Escape") setConfirm(null); }}
-          style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: 50 }}>
+          style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: CONFIRM_LAYER }}>
           <div style={{ ...card, maxWidth: 460, width: "100%" }}>
             <h2 id="fcc-confirm-title" style={{ fontSize: "1.05rem", margin: "0 0 .5rem" }}>
               {confirm.kind === "rotate" ? `Rotate the attribution link for “${confirm.name}”?`
@@ -1198,7 +1209,8 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );
