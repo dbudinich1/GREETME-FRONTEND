@@ -90,6 +90,7 @@ test("Report 135: dashboardGiftPlaceEntry keeps the recipient and the send page'
   const { dashboardGiftPlaceEntry } = await import("./dashboardSendHandoff.js");
   const q = (s) => new URLSearchParams(s);
   assert.deepEqual(dashboardGiftPlaceEntry(q("contactId=c1&occasion=Birthday&from=dashboard&gift=choose")), { contactId: "c1", occasion: "Birthday" });
+  assert.deepEqual(dashboardGiftPlaceEntry(q("contactId=c1&occasion=Birthday&gift=choose&entry=k9x")), { contactId: "c1", occasion: "Birthday", entry: "k9x" }, "the one-time press marker is kept");
   assert.deepEqual(dashboardGiftPlaceEntry(q("contactId=c1&occasion=mothers_day&gift=choose")), { contactId: "c1", occasion: "Mother's Day" }, "a scheduler identifier maps to the page's label");
   assert.equal(dashboardGiftPlaceEntry(q("contactId=c1&gift=choose")), null, "no occasion");
   assert.equal(dashboardGiftPlaceEntry(q("occasion=Birthday&gift=choose")), null, "no recipient");

@@ -51,7 +51,10 @@ export function dashboardGiftPlaceEntry(params) {
   if (!params || params.get('gift') !== 'choose' || params.get('giftType')) return null;
   const contactId = String(params.get('contactId') || '').trim();
   const occasion = matchSendOccasion(params.get('occasion'));
-  return contactId && occasion ? { contactId, occasion } : null;
+  // entry: the dashboard's one-time marker for this Add a gift press, so a repeat of the same URL (Back, refresh)
+  // is recognised and never reopens shopping after a gift was chosen.
+  const entry = String(params.get('entry') || '').trim().slice(0, 40);
+  return contactId && occasion ? { contactId, occasion, ...(entry ? { entry } : {}) } : null;
 }
 
 export const DASHBOARD_HANDOFF_KEY = 'gm_dashboard_send_handoff_v1';

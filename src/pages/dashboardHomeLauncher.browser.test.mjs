@@ -406,28 +406,28 @@ test("Send Now: one person + one occasion hands off to the existing send flow, w
   await pickPerson("Margaret");
   await click($("[data-testid=gx-who-done]"));
   await setValue($("[data-testid=gx-words]"), "Welcome, little one");
-  await click($("[data-testid=gx-add-gift]"));
   assert.equal(state().cont.disabled, false);
   await click(state().cont);
   const nav = globalThis.__nav.at(-1).to;
-  assert.equal(nav, "/dashboard/send?contactId=c2&occasion=Just+Because&from=dashboard&gift=choose");
+  assert.equal(nav, "/dashboard/send?contactId=c2&occasion=Just+Because&from=dashboard", "Send carries no gift request: it never reopens gift shopping (Report 135)");
   const h = JSON.parse(window.sessionStorage.getItem("gm_dashboard_send_handoff_v1"));
   assert.equal(new URLSearchParams(nav.split("?")[1]).get("occasion"), "Just Because", "the send page reads the occasion back exactly");
   assert.equal(h.contactId, "c2"); assert.equal(h.occasion, "Just Because"); assert.equal(h.words, "Welcome, little one");
   assert.equal(globalThis.__saves.length, 0, "the dashboard itself saves nothing");
 });
 
-test("Send Now with QR Cash attached uses the existing ?giftType=qrcash entry", async () => {
+test("Send Now with QR Cash: Add QR Cash goes straight to the existing ?giftType=qrcash entry, with words kept", async () => {
   await mount();
   await click(byText(".mode", "Send Now"));
   await click(occ("Birthday"));
   await pickPerson("Theresa");
   await click($("[data-testid=gx-who-done]"));
+  await setValue($("[data-testid=gx-words]"), "Happy birthday");
   // advance the carousel to the QR Cash slide
   await click($$(".dot").at(-1));
   await click($("[data-testid=gx-add-qr]"));
-  await click(state().cont);
   assert.equal(globalThis.__nav.at(-1).to, "/dashboard/send?contactId=c1&occasion=Birthday&from=dashboard&giftType=qrcash");
+  assert.equal(JSON.parse(window.sessionStorage.getItem("gm_dashboard_send_handoff_v1")).words, "Happy birthday");
 });
 
 test("resolver: one person + several occasions -> prefilled rows, blocked until every row has a date and a gift choice, Send Now explained", async () => {
@@ -853,24 +853,42 @@ test("Faith and secular holidays schedule with the scheduler's own identifiers a
   assert.equal(new URLSearchParams(globalThis.__nav.at(-1).to.split("?")[1]).get("occasion"), "Season's Greetings", "handed to the send flow as Season's Greetings, never Christmas");
 });
 
-test("Add a gift: a second tap never silently removes it; Remove does; the note says where the gift is chosen", async () => {
+test("Add a gift (Report 135): one person + one occasion opens the Gift Place at once with recipient, occasion, timing and words kept; Send never asks for a gift again; incomplete choices are named, nothing is marked", async () => {
+  await mount();
+  await click($("[data-testid=gx-add-gift]"));
+  assert.equal(globalThis.__nav.length, 0, "nothing chosen yet: it stays");
+  assert.match($("[data-testid=gx-fine]").textContent, /Choose Send Now or Schedule the Love first/);
+  assert.equal($("[data-testid=gx-add-gift]").getAttribute("aria-pressed"), "false", "nothing is marked");
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await click($("[data-testid=gx-add-gift]"));
+  assert.match($("[data-testid=gx-fine]").textContent, /Choose who it’s for first/);
+  assert.equal(globalThis.__nav.length, 0);
+  await pickPerson("Theresa");
+  await click($("[data-testid=gx-who-done]"));
+  await setValue($("[data-testid=gx-words]"), "Thinking of you");
+  await click($("[data-testid=gx-add-gift]"));
+  assert.match(globalThis.__nav.at(-1).to, /^\/dashboard\/send\?contactId=c1&occasion=Birthday&from=dashboard&gift=choose&entry=[0-9a-z]+$/, "the send flow keeps the greeting and opens the Gift Place, marked for this one press");
+  assert.equal(JSON.parse(window.sessionStorage.getItem("gm_dashboard_send_handoff_v1")).words, "Thinking of you");
+  await click(state().cont);
+  assert.equal(globalThis.__nav.at(-1).to, "/dashboard/send?contactId=c1&occasion=Birthday&from=dashboard", "Send carries no gift request");
+});
+
+test("Add a gift for a group (Send Now): marked for everyone, a second tap never removes it, Remove does; each person's gift is set at the group review", async () => {
   await mount();
   await click(byText(".mode", "Send Now"));
   await click(occ("Birthday"));
-  await pickPerson("Theresa");
+  await pickPerson("Theresa"); await pickPerson("Margaret");
   await click($("[data-testid=gx-who-done]"));
   await click($("[data-testid=gx-add-gift]"));
   await click($("[data-testid=gx-add-gift]"));
   assert.equal($("[data-testid=gx-add-gift]").getAttribute("aria-pressed"), "true", "still added after a second tap");
-  assert.match($("[data-testid=gx-summary]").textContent, /gift/);
-  assert.match($("[data-testid=gx-fine]").textContent, /Send takes you to the Gift Place to choose it, with this greeting kept\. Nothing is charged until you confirm\./);
-  assert.equal($("[data-testid=gx-gift-remove]").style.visibility, "visible");
+  assert.equal(globalThis.__nav.length, 0, "a group never leaves for the Gift Place");
+  assert.match($("[data-testid=gx-summary]").textContent, /gift for everyone/);
+  assert.match($("[data-testid=gx-fine]").textContent, /for each person at review/);
   await click($("[data-testid=gx-gift-remove]"));
   assert.equal($("[data-testid=gx-add-gift]").getAttribute("aria-pressed"), "false");
   assert.doesNotMatch($("[data-testid=gx-summary]").textContent, /gift/);
-  await click($("[data-testid=gx-add-gift]"));
-  await click(state().cont);
-  assert.match(globalThis.__nav.at(-1).to, /&gift=choose$/, "the send flow takes this greeting to the Gift Place (Report 135)");
 });
 
 test("After editing a recipient, the dashboard comes back with the in-progress choices; another account's are never restored", async () => {

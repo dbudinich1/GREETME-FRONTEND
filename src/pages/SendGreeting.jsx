@@ -779,7 +779,14 @@ export default function SendGreeting() {
     if (!qrCashEntry && !dashboardChooseEntry) return;
     if (dashboardChooseEntry && params.get('returnTo') !== 'send') {
       const want = dashboardGiftPlaceEntry(params);
-      if (want) { giftPlaceEntryRef.current = want; return; }
+      if (want) {
+        // The same entry seen again (Back from the Gift Place, a refresh): the gift choice already made is kept and
+        // shopping is not reopened; the kept greeting is restored through the existing return path.
+        let kept = null;
+        try { kept = JSON.parse(sessionStorage.getItem('sendGreetingState') || 'null'); } catch { kept = null; }
+        if (want.entry && kept && kept.giftContext && kept.giftContext.entry === want.entry) { navigate('/dashboard/send?returnTo=send', { replace: true }); return; }
+        giftPlaceEntryRef.current = want; return;
+      }
     }
     if (qrCashEntry) setGiftSettings(prev => ({ ...prev, type: 'qrcash' }));
     setIsGiftModalOpen(true);
@@ -792,7 +799,7 @@ export default function SendGreeting() {
     if (String(formData.contactId) !== want.contactId || formData.occasionType !== want.occasion) return;
     giftPlaceEntryRef.current = null;
     const person = contacts.find((c) => String(c.id ?? c._id) === want.contactId);
-    browseGiftPlaceForGreeting({ recipientName: person ? person.name : '', occasion: want.occasion, timing: 'Send now' }, 'marketplace');
+    browseGiftPlaceForGreeting({ recipientName: person ? person.name : '', occasion: want.occasion, timing: 'Send now', entry: want.entry || '' }, 'marketplace');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, formData.contactId, formData.occasionType, contacts]);
 

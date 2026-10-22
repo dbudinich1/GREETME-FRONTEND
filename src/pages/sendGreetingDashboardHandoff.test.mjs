@@ -44,7 +44,9 @@ test("'Add a gift' from the dashboard opens the Gift Place with this greeting ke
   assert.ok(start > -1);
   const block = SRC.slice(start, SRC.indexOf("}, [location.search]);", start));
   assert.match(block, /const dashboardChooseEntry = params\.get\('gift'\) === 'choose' && !params\.get\('giftType'\);/);
-  assert.match(block, /const want = dashboardGiftPlaceEntry\(params\);\s*if \(want\) \{ giftPlaceEntryRef\.current = want; return; \}/, "a recipient + occasion entry does not open the chooser");
+  assert.match(block, /const want = dashboardGiftPlaceEntry\(params\);/);
+  assert.match(block, /giftPlaceEntryRef\.current = want; return;/, "a recipient + occasion entry does not open the chooser");
+  assert.match(block, /kept\.giftContext\.entry === want\.entry\) \{ navigate\('\/dashboard\/send\?returnTo=send', \{ replace: true \}\); return; \}/, "the same press seen again restores instead of reopening shopping");
   assert.match(block, /if \(qrCashEntry\) setGiftSettings\(prev => \(\{ \.\.\.prev, type: 'qrcash' \}\)\);/, "only the QR Cash entry pre-sets a gift");
   assert.match(SRC, /navigate\('\/dashboard\/gifts\?returnTo=send&giftType=marketplace'\);/, "the one Gift Place destination with the return-to-greeting contract");
   assert.equal((SRC.match(/navigate\('\/dashboard\/gifts\?returnTo=send/g) || []).length, 1, "one shared opener for the chooser's Gift Place option and the dashboard entry");

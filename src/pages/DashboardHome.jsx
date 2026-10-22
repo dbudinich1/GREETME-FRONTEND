@@ -604,14 +604,22 @@ export default function DashboardHome() {
     if (!canContinue) return;
     if (resolverOn || groupSchedOn) { if (datesComplete) saveDates(); else setDatesOpen(true); return; }
     if (sendNowGroup) { setResumeRun(null); setGroupReviewOpen(true); return; }
+    // Send goes to the send flow's own review, pricing and consent. It never reopens gift shopping (Report 135): a
+    // gift is chosen when Add a gift is pressed, so nothing here asks for one again.
+    goSendFlow(null);
+  };
+  // One person + one occasion (Send Now) to the existing send flow, with words and memory photos carried once.
+  // giftEntry: null (Send), 'gift' (Add a gift: the send flow keeps this greeting and opens the Gift Place) or
+  // 'qrcash' (Add QR Cash: the send flow's canonical QR Cash entry, where the amount is set).
+  const goSendFlow = (giftEntry) => {
     const person = chosen[0];
     const occasion = occasions[0];
     const carried = writeDashboardHandoff(window.sessionStorage, { contactId: person.id, occasion, words, memoryPhotos });
     if (carried === 'words') showManualToast('Photos not carried over', 'Your memory photos were too large to carry to the next step on this device. You can add them there.', COMMS_CATEGORIES.SYSTEM);
     else if (carried === 'none' && (words.trim() || memoryPhotos.length)) showManualToast('Not carried over', 'Your words and photos couldn’t be carried to the next step on this device. You can add them there.', COMMS_CATEGORIES.SYSTEM);
     const p = new URLSearchParams({ contactId: person.id, occasion, from: 'dashboard' });
-    if (gift === 'qrcash') p.set('giftType', 'qrcash');
-    else if (gift === 'gift') p.set('gift', 'choose');
+    if (giftEntry === 'qrcash') p.set('giftType', 'qrcash');
+    else if (giftEntry === 'gift') { p.set('gift', 'choose'); p.set('entry', Date.now().toString(36)); }
     navigate(`/dashboard/send?${p.toString()}`);
   };
 
@@ -622,7 +630,7 @@ export default function DashboardHome() {
   const occLabel = occasions.length === 0 ? 'no occasion yet' : occasions.length <= 2 ? occasions.join(' + ') : `${occasions.length} occasions`;
   const whoLabel = chosen.length === 0 ? 'no one yet' : chosen.length === 1 ? first(chosen[0].name) : `${chosen.length} people`;
   const summary = !mode ? 'Choose Send Now or Schedule the Love'
-    : [mode === 'now' ? 'Send Now' : 'Schedule the Love', occLabel, whoLabel, gift && !resolverOn && !groupSchedOn ? `${gift === 'qrcash' ? 'QR Cash' : 'gift'}${chosen.length > 1 ? ' for everyone · change per person at review' : ''}` : null].filter(Boolean).join(' · ');
+    : [mode === 'now' ? 'Send Now' : 'Schedule the Love', occLabel, whoLabel, gift && sendNowGroup ? `${gift === 'qrcash' ? 'QR Cash' : 'gift'} for everyone · change per person at review` : null].filter(Boolean).join(' · ');
   const fineText = saveMsg ? saveMsg.text
     : giftNote ? giftNote
     : overCap ? `A group is up to ${GROUP_MAX} people.`
@@ -934,17 +942,27 @@ export default function DashboardHome() {
           </div>
 
           <div className="giftband" id="gx-gifts" data-testid="gx-step-4">
-            <StepHead n={4} label="Add a gift (optional)" isDone={Boolean(gift) && !resolverOn} />
+            <StepHead n={4} label="Add a gift (optional)" isDone={Boolean(gift) && sendNowGroup} />
             <GiftCarousel
-              chosen={resolverOn || groupSchedOn ? null : gift}
+              chosen={sendNowGroup ? gift : null}
               smartCardAvailable={smartCardAvailable}
               onAdd={(g) => {
                 // Scheduled Greet-Mes take each occasion's gift from Dates & gifts (the Occasion Scheduler's own gift choice).
                 if (resolverOn || groupSchedOn) { setGiftNote('For scheduled Greet-Mes, each gift is chosen in Dates & gifts.'); setDatesOpen(true); return; }
-                setGift(g);
-                setGiftNote(isGroup && g === 'gift' ? 'For a group, choose a gift box (or QR Cash) for each person at review, before anything is charged.'
-                  : g === 'qrcash' ? 'QR Cash added. You set the amount on the next screen, before anything is charged.'
-                    : 'Gift added. Send takes you to the Gift Place to choose it, with this greeting kept. Nothing is charged until you confirm.');
+                // Report 135: one person + one occasion (Send Now): Add a gift opens the Gift Place now, with the
+                // recipient, occasion, timing, words and photos kept (Add QR Cash opens the QR Cash amount step).
+                if (sendNowSingle && !overCap && !notSchedulable) { setGiftNote(''); goSendFlow(g); return; }
+                if (sendNowGroup) {
+                  setGift(g);
+                  setGiftNote(g === 'gift' ? 'For a group, choose a gift box (or QR Cash) for each person at review, before anything is charged.'
+                    : 'QR Cash for everyone. You set each amount at review, before anything is charged.');
+                  return;
+                }
+                // Not enough chosen yet to keep the gift with the greeting: say what is missing; nothing is marked.
+                setGiftNote(!mode ? 'Choose Send Now or Schedule the Love first. Then Add a gift opens the Gift Place with your choices kept.'
+                  : mode === 'occasion' ? 'Choose an occasion and who it’s for first. Each scheduled gift is then chosen in Dates & gifts.'
+                    : occasions.length !== 1 ? 'Choose one occasion and who it’s for first. Then Add a gift opens the Gift Place with them kept.'
+                      : 'Choose who it’s for first. Then Add a gift opens the Gift Place with them kept.');
               }}
               onRemove={() => { setGift(null); setGiftNote(''); }}
               onLearnQr={() => setShowHowItWorksModal(true)}

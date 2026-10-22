@@ -228,7 +228,7 @@ async function mountAt(url) {
   return { host, unmount: () => act(() => root.unmount()) };
 }
 const HANDOFF_KEY = "gm_dashboard_send_handoff_v1";
-const DASH = "/dashboard/send?contactId=c1&occasion=Birthday&from=dashboard&gift=choose";
+const DASH = "/dashboard/send?contactId=c1&occasion=Birthday&from=dashboard&gift=choose&entry=e1";
 
 test("Add a gift from the dashboard opens the Gift Place (not the gift-type chooser) with the recipient, occasion, timing and words kept", async () => {
   window.sessionStorage.setItem(HANDOFF_KEY, JSON.stringify({ contactId: "c1", occasion: "Birthday", words: "Happy birthday, Dana", memoryPhotos: [], at: Date.now() }));
@@ -275,4 +275,27 @@ test("without a recipient and occasion, ?gift=choose still opens the chooser as 
     assert.equal(location(m.host).split("?")[0], "/dashboard/send");
     assert.match(text(m.host), /Choose a Gift \(Optional\)/);
   } finally { await m.unmount(); }
+});
+
+test("after a gift is chosen, the same entry again (Back, refresh) never reopens gift shopping: the chosen gift is kept and no chooser opens", async () => {
+  const m = await mountAt(DASH);
+  try {
+    assert.equal(location(m.host), "/dashboard/gifts?returnTo=send&giftType=marketplace");
+    await click(buttonsByText(m.host, /^Gift Baskets$/)[0]);
+    await settle(6);
+    await click(m.host.querySelector('[data-testid^="gift-card-action-"]'));
+    const picked = JSON.parse(window.sessionStorage.getItem("sendGreetingState"));
+    assert.equal(picked.giftSettings.type, "gift_boxes", "a gift box was chosen in the Gift Place");
+    assert.equal(picked.giftContext.entry, "e1");
+  } finally { await m.unmount(); }
+  mod.__visited.length = 0;
+  const again = await mountAt(DASH);
+  try {
+    assert.equal(location(again.host).split("?")[0], "/dashboard/send", "stays on the send page");
+    assert.ok(!mod.__visited.some((v) => v.startsWith("/dashboard/gifts")), "the Gift Place was not reopened");
+    assert.doesNotMatch(text(again.host), /Choose a Gift \(Optional\)/, "no chooser");
+    assert.match(text(again.host), /Round Trip Gift Box/, "the chosen gift is kept");
+    assert.equal(text(again.host.querySelector('[data-testid="send-banner-occasion"]')), "Birthday");
+    assert.equal(mod.__sends.length, 0);
+  } finally { await again.unmount(); }
 });
