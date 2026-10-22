@@ -121,7 +121,7 @@ export const CELEBRATIONS_CSS = `
   .cx .occgrid { grid-template-columns:minmax(0,1fr); }
   .cx .occlist { height:auto; max-height:300px; }
   .cx .roster { padding:12px 10px; }
-  .cx .rrow { grid-template-columns:auto minmax(0,1fr) auto; }
-  .cx .rrow .stat { grid-column:2 / -1; }
+  .cx .rrow { grid-template-columns:auto auto minmax(0,1fr); }
+  .cx .rrow .stat { grid-column:1 / -1; justify-content:flex-start !important; padding-left:28px; }
 }
 `;
