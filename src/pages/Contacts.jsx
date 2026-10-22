@@ -119,6 +119,8 @@ export default function Recipients() {
   // dashboard restores the sender's in-progress choices (utils/dashboardLauncherState.js). Read once on arrival —
   // the deep-link effects below clear location.state.
   const returnToDashboardRef = useRef(location.state?.returnTo === 'dashboard');
+  // Report 135: the dashboard's Celebration Manager opens an occasion here ({ celebrations: { path, occasion } }), read once.
+  const celebrationsEntryRef = useRef({ path: location.state?.celebrations?.path === 'occasions' ? 'occasions' : 'recipients', occasion: /^[a-z_]{1,40}$/.test(location.state?.celebrations?.occasion || '') ? location.state.celebrations.occasion : 'birthday' });
   const backToDashboard = (savedMessage) => {
     if (!returnToDashboardRef.current) return false;
     returnToDashboardRef.current = false;
@@ -1327,7 +1329,9 @@ export default function Recipients() {
         onDelete={(c) => setDeleteConfirm(c)}
         onAddRecipient={openAddRecipient}
         onImport={openImport}
-        onSendGreeting={() => navigate('/dashboard/send')}
+        onAddGift={() => navigate('/dashboard/gifts')}
+        initialPath={celebrationsEntryRef.current.path}
+        initialOccasion={celebrationsEntryRef.current.occasion}
         onScheduleGroup={scheduleGroupFromOccasion}
       />
       </>

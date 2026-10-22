@@ -13,8 +13,8 @@
 //   * Celebration Schedule — Upcoming Occasions | Past Occasions, its own search and results: saved dates and real
 //     statuses only; Past lists real sends only (utils/celebrationsModel.js).
 // This component schedules, sends and saves nothing itself.
-import { useMemo, useState } from 'react';
-import { Send, Pencil, Trash2, Search, UserPlus, Upload, Plus, CalendarDays } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Send, Pencil, Trash2, Search, Upload, Plus, CalendarDays, ChevronLeft, ChevronRight, Gift } from 'lucide-react';
 import {
   RECIPIENT_SEGMENTS, CATEGORY_LABELS, filterRecipients, segmentCounts, OCCASION_GROUPS, occasionSummaries, occasionRoster,
   upcomingForContact, nextUp, occasionLabel, occasionIcon, scheduleUpcoming, schedulePast, scheduleMatches,
@@ -23,6 +23,9 @@ import { isSchedulerOccasion } from '../../utils/occasionResolver';
 import { GROUP_MAX } from '../../utils/groupSend';
 import { CELEBRATIONS_CSS } from './celebrationsStyles';
 import giftBoxStack from '../../assets/gifts/gift-box-stack.png';
+import giftLuxuryBox from '../../assets/gifts/gift-luxury-box.png';
+import giftBouquet from '../../assets/gifts/gift-bouquet.png';
+import giftCard from '../../assets/gifts/gift-card.png';
 
 const AV = ['#5A3E8A', '#7C63AE', '#4A3273', '#8A5A2B', '#3E5A7C', '#6B3E6B'];
 const avBg = (n) => { let h = 0; for (const c of n || '') h = (h * 31 + c.charCodeAt(0)) >>> 0; return AV[h % AV.length]; };
@@ -46,7 +49,7 @@ const titleCase = (v) => String(v || '').replace(/_/g, ' ').replace(/\b\w/g, (x)
 
 export default function CelebrationsWorkspace({
   contacts = [], upcomingRows = [], sent = [], now = new Date(), scopeToggle = null, initialPath = 'recipients', initialOccasion = 'birthday',
-  onOpenScheduler, onSend, onDelete, onAddRecipient, onImport, onSendGreeting, onScheduleGroup,
+  onOpenScheduler, onSend, onDelete, onAddRecipient, onImport, onScheduleGroup, onAddGift,
 }) {
   // Celebration Manager state.
   const [path, setPath] = useState(initialPath === 'occasions' ? 'occasions' : 'recipients');
@@ -78,13 +81,14 @@ export default function CelebrationsWorkspace({
     <div className="mgrview" data-testid="cx-recipients">
       {scopeToggle}
       {/* Founder: Individuals / Friends / Family / Professional below the primary toggle and above the search. */}
+      <div className="circle"><span className="eyebrow">Your circle</span>
       <div className="chips" role="tablist" aria-label="Show recipients" data-testid="cx-segments">
         {RECIPIENT_SEGMENTS.map((s) => (
           <button key={s.key} type="button" role="tab" aria-selected={segment === s.key} data-testid={`cx-seg-${s.key}`} onClick={() => setSegment(s.key)}>
             {s.label}<span className="n">{counts[s.key]}</span>
           </button>
         ))}
-      </div>
+      </div></div>
       <label className="search"><Search size={16} color="#8a8199" /><input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Find someone…" aria-label="Find someone" data-testid="cx-manager-search" /></label>
       <div className="rows" data-testid="cx-rows">
         {shown.length === 0 ? (
@@ -205,44 +209,51 @@ export default function CelebrationsWorkspace({
   const schedUp = upcomingAll.filter((u) => scheduleMatches(u, schedTerm));
   const schedPast = pastAll.filter((p) => scheduleMatches(p, schedTerm));
   const scheduleCard = (
-    <section className="card listcard schedcard" data-testid="cx-schedule">
-      <div className="cardhead">
-        <div><h2>Celebration Schedule</h2><p>Saved dates and their real status. Nothing is shown as sent unless it was.</p></div>
-      </div>
-      <div className="seg small" role="tablist" aria-label="When" data-testid="cx-when" style={{ marginTop: 12 }}>
-        <button type="button" role="tab" aria-selected={when === 'upcoming'} data-testid="cx-when-upcoming" onClick={() => setWhen('upcoming')}>Upcoming Occasions</button>
-        <button type="button" role="tab" aria-selected={when === 'past'} data-testid="cx-when-past" onClick={() => setWhen('past')}>Past Occasions</button>
-      </div>
-      <label className="search"><Search size={16} color="#8a8199" /><input value={schedTerm} onChange={(e) => setSchedTerm(e.target.value)} placeholder="Find a person or occasion…" aria-label="Find in the schedule" data-testid="cx-schedule-search" /></label>
-      <div className="schedbody" data-testid="cx-schedule-body">
-        {when === 'upcoming' ? (
-          schedUp.length === 0 ? <p className="empty" data-testid="cx-schedule-empty">{schedTerm ? `Nothing upcoming matches “${schedTerm}”.` : 'No upcoming occasions saved yet.'}</p>
-            : schedUp.map((u) => (
-              <div className="srow" key={u.id} data-testid="cx-sched-row" data-contact={u.contact.id} data-status={u.status.key}>
-                <span className="datebox">{u.date ? <><span>{day(u.date, { month: 'short' }).toUpperCase()}</span><b>{new Date(`${u.date}T12:00:00`).getDate()}</b></> : <span>DATE</span>}</span>
-                <div className="who">
-                  <div className="pname" style={{ fontSize: 14.5 }}>{u.contact.name}</div>
-                  <div className="line">{u.icon} {u.label}{u.date ? ` · ${day(u.date)} · ${inDays(u.daysUntil)}` : ' · date needed'} · {giftText(u.gift)}</div>
+    <section className="card section" data-testid="cx-schedule">
+      <div className="sechead"><span className="eyebrow">Section 2</span><h2>Celebration Schedule</h2></div>
+      <div className="viewport schedvp">
+        <div className="segrow-c">
+          <div className="seg small" role="tablist" aria-label="When" data-testid="cx-when">
+            <button type="button" role="tab" aria-selected={when === 'upcoming'} data-testid="cx-when-upcoming" onClick={() => setWhen('upcoming')}>Upcoming Occasions</button>
+            <button type="button" role="tab" aria-selected={when === 'past'} data-testid="cx-when-past" onClick={() => setWhen('past')}>Past Occasions</button>
+          </div>
+        </div>
+        <label className="search"><Search size={16} color="#8a8199" /><input value={schedTerm} onChange={(e) => setSchedTerm(e.target.value)} placeholder="Find an occasion…" aria-label="Find in the schedule" data-testid="cx-schedule-search" /></label>
+        <div className="schedbody" data-testid="cx-schedule-body">
+          {when === 'upcoming' ? (
+            schedUp.length === 0 ? <p className="empty" data-testid="cx-schedule-empty">{schedTerm ? `Nothing upcoming matches “${schedTerm}”.` : 'No upcoming occasions saved yet.'}</p>
+              : schedUp.map((u) => (
+                <div className="srow" key={u.id} data-testid="cx-sched-row" data-contact={u.contact.id} data-status={u.status.key}>
+                  <span className="oicon" aria-hidden="true">{u.icon}</span>
+                  <div className="who">
+                    <div className="pname" style={{ fontSize: 14.5 }}>{u.label}</div>
+                    <div className="line">{u.contact.name} · {u.date ? `${day(u.date)} · ${inDays(u.daysUntil)}` : 'date needed'} · {giftText(u.gift)}</div>
+                  </div>
+                  <div className="stat">
+                    <button type="button" className="iconbtn" aria-label={`Edit ${u.contact.name}'s ${u.label}`} title="Edit" onClick={() => onOpenScheduler(u.contact, u.type)}><Pencil size={15} /></button>
+                    {/* A real status only; with none, the action to schedule it (never a made-up state). */}
+                    {u.status.key === 'open' ? (
+                      <button type="button" className="pill pill-act" data-testid="cx-sched-status" onClick={() => onOpenScheduler(u.contact, u.type)}><CalendarDays size={13} /> Schedule the love</button>
+                    ) : (
+                      <span className={`pill ${chipClass(u)}`} data-testid="cx-sched-status" data-note={chipNote(u)}>{u.status.label}</span>
+                    )}
+                  </div>
                 </div>
-                <div className="stat">
-                  <span className={`chip ${chipClass(u)}`} data-testid="cx-sched-status" data-note={chipNote(u)}><span className="dot" />{u.status.label}</span>
-                  <button type="button" className="btn btn-out btn-sm" onClick={() => onOpenScheduler(u.contact, u.type)}>Open scheduler</button>
+              ))
+          ) : (
+            schedPast.length === 0 ? <p className="empty" data-testid="cx-schedule-empty">{schedTerm ? `No past occasion matches “${schedTerm}”.` : 'No sends recorded yet.'}</p>
+              : schedPast.map((p) => (
+                <div className="srow" key={p.id} data-testid="cx-past-row" data-status={p.status.key} data-contact={p.contact ? p.contact.id : ''}>
+                  <span className="oicon" aria-hidden="true">{p.icon}</span>
+                  <div className="who">
+                    <div className="pname" style={{ fontSize: 14.5 }}>{p.label}</div>
+                    <div className="line">{p.contact ? p.contact.name : p.name} · {day(p.when, { month: 'short', day: 'numeric', year: 'numeric' })} · passed{p.kind === 'passed' ? ' · no Greet-Me send is recorded for it' : ''}</div>
+                  </div>
+                  <div className="stat"><span className={`pill ${pastClass(p)}`} data-testid="cx-past-status">{p.status.label}</span></div>
                 </div>
-              </div>
-            ))
-        ) : (
-          schedPast.length === 0 ? <p className="empty" data-testid="cx-schedule-empty">{schedTerm ? `No past occasion matches “${schedTerm}”.` : 'No sends recorded yet.'}</p>
-            : schedPast.map((p) => (
-              <div className="srow" key={p.id} data-testid="cx-past-row" data-status={p.status.key} data-contact={p.contact ? p.contact.id : ''}>
-                <span className="datebox"><span>{day(p.when, { month: 'short' }).toUpperCase()}</span><b>{p.when ? new Date(`${String(p.when).slice(0, 10)}T12:00:00`).getDate() : ''}</b></span>
-                <div className="who">
-                  <div className="pname" style={{ fontSize: 14.5 }}>{p.contact ? p.contact.name : p.name}</div>
-                  <div className="line">{p.icon} {p.label} · {day(p.when, { month: 'short', day: 'numeric', year: 'numeric' })}{p.kind === 'passed' ? ' · no Greet-Me send is recorded for it' : ''}</div>
-                </div>
-                <div className="stat"><span className={`chip ${pastClass(p)}`} data-testid="cx-past-status"><span className="dot" />{p.status.label}</span></div>
-              </div>
-            ))
-        )}
+              ))
+          )}
+        </div>
       </div>
     </section>
   );
@@ -251,38 +262,66 @@ export default function CelebrationsWorkspace({
     <div className="cx" data-testid="cx-root">
       <style>{CELEBRATIONS_CSS}</style>
       {next ? <p className="nextup" data-testid="cx-nextup">Next up: <b>{next.label} for {next.contact.name}</b> — {day(next.date)}</p> : null}
-      <section className="card head" data-testid="cx-head">
-        <span className="thumb" aria-hidden="true"><img src={giftBoxStack} alt="" /></span>
-        <div style={{ minWidth: 0, flex: '1 1 320px' }}>
-          <div className="titlerow"><h1>My People</h1><span className="script">Forget Them Not!™</span></div>
-          <p className="sub">Automate personalized Greet-Me greetings, gifts and unforgettable moments for the people who matter most.</p>
-        </div>
-        <div className="hacts">
-          <button type="button" className="btn btn-out" onClick={onSendGreeting}><Send size={15} /> Send Greet-Me</button>
-          <button type="button" className="btn btn-out" onClick={onAddRecipient}><UserPlus size={15} /> Add Recipient</button>
-          <button type="button" className="btn btn-out" onClick={onImport}><Upload size={15} /> Import Wizard</button>
-        </div>
-      </section>
-      <section className="card listcard mgrcard" data-testid="cx-manager">
-        <div className="cardhead">
-          <div><h2>Celebration Manager</h2><p>{contacts.length} {contacts.length === 1 ? 'person' : 'people'} in your circle</p></div>
-          <button type="button" className="btn btn-pri" data-testid="add-recipient" onClick={onAddRecipient}><Plus size={16} /> Add Recipient</button>
-        </div>
-        <div className="navrow" style={{ marginTop: 12 }}>
-          <span className="eyebrow">Start from</span>
-          <div className="seg" role="tablist" aria-label="Start from" data-testid="cx-path">
-            <button type="button" role="tab" aria-selected={path === 'recipients'} data-testid="cx-path-recipients" onClick={() => setPath('recipients')}>Recipients</button>
-            <button type="button" role="tab" aria-selected={path === 'occasions'} data-testid="cx-path-occasions" onClick={() => setPath('occasions')}>Occasions</button>
+      <div className="titlerow pagetitle" data-testid="cx-head"><h1>My Celebrations</h1><span className="script">Forget Them Not!™</span></div>
+      <section className="card section" data-testid="cx-manager">
+        <div className="sechead"><span className="eyebrow">Section 1</span><h2>Celebration Manager</h2></div>
+        <div className="viewport mgrvp">
+          <div className="vtop">
+            <div className="seg" role="tablist" aria-label="Recipients or occasions" data-testid="cx-path">
+              <button type="button" role="tab" aria-selected={path === 'recipients'} data-testid="cx-path-recipients" onClick={() => setPath('recipients')}>Recipients</button>
+              <button type="button" role="tab" aria-selected={path === 'occasions'} data-testid="cx-path-occasions" onClick={() => setPath('occasions')}>Occasions</button>
+            </div>
+            <div className="hacts">
+              <button type="button" className="btn btn-out btn-sm" onClick={onImport}><Upload size={15} /> Import Wizard</button>
+              <button type="button" className="btn btn-pri btn-sm" data-testid="add-recipient" onClick={onAddRecipient}><Plus size={15} /> Add Recipient</button>
+            </div>
           </div>
-          <span className="hint">{path === 'recipients' ? 'Start with someone, then add their occasions.' : 'Start with an occasion, then choose who it’s for.'}</span>
-        </div>
-        {/* Both views stay mounted (each keeps its filter, search and scroll); only the selected one is shown. */}
-        <div className="mgrbody" data-testid="cx-manager-body">
-          <div hidden={path !== 'recipients'} style={{ height: '100%' }}>{recipientsView}</div>
-          <div hidden={path !== 'occasions'} style={{ height: '100%' }}>{occasionsView}</div>
+          {/* Both views stay mounted (each keeps its filter, search and scroll); only the selected one is shown. */}
+          <div className="mgrbody" data-testid="cx-manager-body">
+            <div hidden={path !== 'recipients'} style={{ height: '100%' }}>{recipientsView}</div>
+            <div hidden={path !== 'occasions'} style={{ height: '100%' }}>{occasionsView}</div>
+          </div>
         </div>
       </section>
+      <GiftStrip onAddGift={onAddGift} />
       {scheduleCard}
+      <div className="moment" data-testid="cx-moment">
+        <span><b>Complete the moment</b> — remember to add a thoughtful Greet-Me gift to any occasion you schedule.</span>
+        <button type="button" className="linkbtn" data-testid="cx-moment-add-gift" onClick={onAddGift}>Add a gift</button>
+      </div>
     </div>
+  );
+}
+
+// "The Greet-Me Gift Place" strip between the sections (founder render 2026-10-22): the dashboard's gift slides, slim,
+// with the one gold Add a gift in the same place on every slide (no separate Add QR Cash).
+const STRIP = [
+  { key: 'box', src: giftLuxuryBox, title: 'Luxury gift box', line: 'Something to unwrap, delivered to their door.' },
+  { key: 'flowers', src: giftBouquet, title: 'Flower bouquet', line: 'Fresh flowers for the day itself.' },
+  { key: 'card', src: giftCard, title: 'Greet-Me gift card', line: 'A gift card tucked inside the greeting.' },
+  { key: 'stack', src: giftBoxStack, title: 'Stack of wrapped gifts', line: 'Browse every gift in the Gift Place.' },
+  { key: 'qrcash', src: null, title: 'QR Cash™', line: 'Send cash they can spend the moment it lands.' },
+];
+function GiftStrip({ onAddGift }) {
+  const [i, setI] = useState(0);
+  const paused = useRef(false);
+  useEffect(() => { const id = setInterval(() => { if (!paused.current) setI((x) => (x + 1) % STRIP.length); }, 4500); return () => clearInterval(id); }, []);
+  const s = STRIP[i];
+  const step = (d) => setI((x) => (x + d + STRIP.length) % STRIP.length);
+  return (
+    <section className="giftstrip" data-testid="cx-giftstrip" onMouseEnter={() => { paused.current = true; }} onMouseLeave={() => { paused.current = false; }}>
+      <span className="gart" aria-hidden="true">{s.src ? <img src={s.src} alt="" /> : <span className="gqr">QR Cash™</span>}</span>
+      <div className="gtext" aria-live="polite">
+        <span className="eyebrow gold">The Greet-Me Gift Place</span>
+        <b>{s.title}</b>
+        <span className="gline">{s.line}</span>
+      </div>
+      <div className="gnav" role="group" aria-label="Gift slides">
+        <button type="button" className="garrow" aria-label="Previous gift" onClick={() => step(-1)}><ChevronLeft size={15} /></button>
+        {STRIP.map((x, k) => <button key={x.key} type="button" className="gdot" aria-label={x.title} aria-current={k === i} onClick={() => setI(k)} />)}
+        <button type="button" className="garrow" aria-label="Next gift" onClick={() => step(1)}><ChevronRight size={15} /></button>
+      </div>
+      <button type="button" className="btn btn-gold btn-sm" data-testid="cx-add-gift" onClick={onAddGift}><Gift size={15} /> Add a gift</button>
+    </section>
   );
 }

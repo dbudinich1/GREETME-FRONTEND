@@ -96,7 +96,8 @@ async function open(url, { mountOnly = false, state } = {}) {
     root.render(React.createElement(M.MemoryRouter, { initialEntries: [state ? { pathname, search: search ? `?${search}` : "", state } : url] },
       React.createElement(M.Routes, null,
         React.createElement(M.Route, { path: "/dashboard/contacts", element: React.createElement(React.Fragment, null, React.createElement(M.Contacts), React.createElement(Probe)) }),
-        React.createElement(M.Route, { path: "/dashboard", element: React.createElement("span", { "data-testid": "dashboard-home" }, "dashboard") }))));
+        React.createElement(M.Route, { path: "/dashboard", element: React.createElement("span", { "data-testid": "dashboard-home" }, "dashboard") }),
+        React.createElement(M.Route, { path: "/dashboard/gifts", element: React.createElement("span", { "data-testid": "gift-place" }, "gift place") }))));
   });
   for (let i = 0; i < 6; i += 1) await wait(0);
   await wait(150); // the form's focus timer
@@ -134,7 +135,7 @@ test("Recipients path: Individuals / Friends / Family / Professional sit below t
   await click(tid("cx-seg-family")); assert.deepEqual(names(), ["Blake Other"]);
   await click(tid("cx-seg-professional")); assert.deepEqual(names(), ["Casey Third"]);
   await click(tid("cx-seg-individuals")); assert.equal(names().length, 3);
-  for (const b of ["Send Greet-Me", "Add Recipient", "Import Wizard"]) assert.ok($$('[data-testid="cx-head"] button').some((x) => x.textContent.includes(b)), `header keeps ${b}`);
+  for (const b of ["Import Wizard", "Add Recipient"]) assert.ok($$('[data-testid="cx-manager"] .vtop button').some((x) => x.textContent.includes(b)), `the Manager's viewport keeps ${b}`);
 });
 
 test("person path: selecting a person opens THEIR Occasion Scheduler; saving sends that full record with every other occasion, gift and the address kept", async () => {
@@ -316,4 +317,27 @@ test("Report 135 layout: Celebration Manager and Celebration Schedule are separa
   const mgrHtml = tid("cx-manager-body").innerHTML;
   await click(tid("cx-when-upcoming")); await setValue(tid("cx-schedule-search"), "");
   assert.equal(tid("cx-manager-body").innerHTML, mgrHtml);
+});
+
+test("founder render (Report 135): My Celebrations; centred Section 1 / Section 2 headings; one gold Add a gift in the Gift Place strip and the Complete-the-moment link, both to the Gift Place; the dashboard can open an occasion here", async () => {
+  await open("/dashboard/contacts");
+  assert.match(tid("cx-head").textContent, /My Celebrations/);
+  assert.equal(document.body.textContent.includes("My People"), false);
+  assert.equal(tid("cx-nav"), null, "no separate Start from band");
+  for (const [id, eb, t] of [["cx-manager", "Section 1", "Celebration Manager"], ["cx-schedule", "Section 2", "Celebration Schedule"]]) {
+    const h = tid(id).querySelector(".sechead");
+    assert.ok(h, `${id} heading`); assert.match(h.textContent, new RegExp(`${eb}\s*${t}`));
+  }
+  const strip = tid("cx-giftstrip");
+  assert.ok(tid("cx-manager").compareDocumentPosition(strip) & window.Node.DOCUMENT_POSITION_FOLLOWING && strip.compareDocumentPosition(tid("cx-schedule")) & window.Node.DOCUMENT_POSITION_FOLLOWING, "the strip sits between the sections");
+  assert.equal(strip.querySelectorAll(".btn").length, 1, "one button");
+  assert.match(strip.textContent, /Add a gift/); assert.doesNotMatch(strip.textContent, /Add QR Cash/);
+  await click(tid("cx-add-gift")); await wait(20);
+  assert.ok(tid("gift-place"), "Add a gift opens the Gift Place");
+  await open("/dashboard/contacts");
+  await click(tid("cx-moment-add-gift")); await wait(20);
+  assert.ok(tid("gift-place"), "Complete the moment opens the Gift Place");
+  await open("/dashboard/contacts", { state: { celebrations: { path: "occasions", occasion: "christmas" } } });
+  assert.equal(tid("cx-path-occasions").getAttribute("aria-selected"), "true");
+  assert.equal(tid("cx-occ-christmas").getAttribute("aria-selected"), "true");
 });
