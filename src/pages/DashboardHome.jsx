@@ -96,8 +96,8 @@ const SLIDES = [
   { key: 'qrcash', src: null, title: 'QR Cash™', line: 'Send • Claim • Spend — choose the amount in the Gift Place’s QR Cash™ tab' },
 ];
 const SMARTCARD_UNAVAILABLE_LINE = 'Coming later — not yet available';
-// The QR Cash "How it works" button. Its label is the founder's choice (2026-10-23: kept for now; "Add QR Cash" offered).
-const QR_HOW_IT_WORKS_CTA = 'Send QR Cash Now';
+// The QR Cash "How it works" button. Its label is the founder's choice (2026-10-23: "Add QR Cash", was "Send QR Cash Now").
+const QR_HOW_IT_WORKS_CTA = 'Add QR Cash';
 
 // Occasions: the Recipients page's own list and groups (utils/dashboardOccasions.js — OCCASION_CHIPS, OCCASION_MENUS),
 // plus the send page's Thank You, Congratulations, Just Because and the generic Season's Greetings. GREETING_RULES untouched.

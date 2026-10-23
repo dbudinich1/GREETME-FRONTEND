@@ -881,7 +881,7 @@ const openQrHowItWorks = async () => {
   await click(byText("[data-testid=gx-carousel] .link", "How it works"));
   const cta = $("[data-testid=qr-howitworks-cta]");
   assert.ok(cta, "the How it works button");
-  assert.match(cta.textContent, /Send QR Cash Now/, "label unchanged (the founder is choosing it)");
+  assert.equal(cta.textContent.trim(), "Add QR Cash", "the founder's label (2026-10-23)");
   return cta;
 };
 
