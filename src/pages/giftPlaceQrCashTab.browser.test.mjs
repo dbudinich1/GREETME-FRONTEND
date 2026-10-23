@@ -356,3 +356,27 @@ test("from a recipient's settings: QR Cash is set in their Occasion Scheduler, s
     assert.equal(qr(m.host, "qrcash-add"), null);
   } finally { await m.unmount(); }
 });
+
+test("the amount screen says plainly it joins a Greet-Me sent now, and where scheduled QR Cash lives", async () => {
+  const m = await mountGiftPlace();
+  try {
+    await click(qr(m.host, "gift-place-qrcash-tab"));
+    assert.equal(text(qr(m.host, "qrcash-send-now-note")),
+      "Send Now: QR Cash chosen here goes with a Greet-Me you send now. For a scheduled Greet-Me, set QR Cash in that person’s Occasion Scheduler.");
+  } finally { await m.unmount(); }
+});
+
+test("a greeting that is not sent now is never switched to Send Now: the amount screen points to the Occasion Scheduler and offers no Add", async () => {
+  window.sessionStorage.setItem("sendGreetingState", JSON.stringify({
+    formData: { contactId: "c2", occasionType: "Birthday" },
+    giftSettings: { type: "none", amount: 25, customAmount: "", maxSpend: 50, autoGift: false },
+    giftContext: { recipientName: "Margaret", label: "Birthday", timing: "On Mar 3" },
+  }));
+  const m = await mountGiftPlace({ search: "?returnTo=send&giftType=marketplace" });
+  try {
+    await click(qr(m.host, "gift-place-qrcash-tab"));
+    assert.ok(qr(m.host, "qrcash-recipient-note"));
+    assert.equal(qr(m.host, "qrcash-add"), null);
+    assert.equal(JSON.parse(window.sessionStorage.getItem("sendGreetingState")).giftSettings.type, "none", "nothing changed");
+  } finally { await m.unmount(); window.sessionStorage.removeItem("sendGreetingState"); }
+});

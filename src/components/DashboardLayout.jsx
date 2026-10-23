@@ -30,6 +30,8 @@ export default function DashboardLayout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState(null); // NAV-02 — desktop nested submenu (For Business)
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
+  // Report 136: below 360px the header shows the logo's G mark alone (the wordmark cannot fit beside the controls).
+  const [isTiny, setIsTiny] = useState(window.innerWidth < 360);
   // TEAM B B3 — server-derived partner-administrator signal for nav visibility only. Probes once per
   // mount, only when authenticated AND the fundraiser gate is on; fails closed; nothing persisted.
   // Re-probes exactly once per authentication transition; auth loss hides the entry immediately.
@@ -72,7 +74,7 @@ export default function DashboardLayout({ children }) {
 
   // Handle resize for mobile detection
   useEffect(() => {
-    const handleResize = () => setIsNarrow(window.innerWidth < 768);
+    const handleResize = () => { setIsNarrow(window.innerWidth < 768); setIsTiny(window.innerWidth < 360); };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -296,7 +298,7 @@ export default function DashboardLayout({ children }) {
             justifyContent: 'center',
             minWidth: 0
           }}>
-            <GreetMeLogo size={isNarrow ? 'small' : 'xlarge'} clickable={true} />
+            <GreetMeLogo size={isNarrow ? (isTiny ? 'mark' : 'small') : 'xlarge'} clickable={true} />
           </div>
 
           {/* Right side - Image Bank, Cart, User icon (equal spacing) */}
