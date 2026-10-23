@@ -120,7 +120,8 @@ test("both states are declared independently with useState, and both feed the dr
   assert.match(CODE, /const \[contactAlbumPhotosToAdd, setContactAlbumPhotosToAdd\] = useState\(\[\]\)/);
   // Sanity: the draft auto-save effect's dependency array carries both, confirming they are tracked
   // as genuinely separate pieces of state rather than one derived from the other.
-  const effectDeps = slice("}, [formData, defaultPhoto, memoryPhotos, useMemoryPhotos, excludedMemoryPhotos, contactAlbumPhotosToAdd]);", "\n", "draft-save effect deps");
+  // (Report 136, 2026-10-23: the draft also keeps a QR Cash choice, so giftSettings joins the end of this list.)
+  const effectDeps = slice("}, [formData, defaultPhoto, memoryPhotos, useMemoryPhotos, excludedMemoryPhotos, contactAlbumPhotosToAdd, giftSettings]);", "\n", "draft-save effect deps");
   assert.ok(effectDeps.includes("memoryPhotos") && effectDeps.includes("contactAlbumPhotosToAdd"));
 });
 
