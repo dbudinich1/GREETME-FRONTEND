@@ -188,7 +188,9 @@ export default function HeroProgram() {
               onOpenHeroHearts={() => setShowHeroHeartsModal(true)}
               // TEAM 1 — canonical QR Cash entry contract: the real composer flow, not the
               // localStorage-only QRCashGiftModal simulation this used to open.
-              onOpenQRCash={() => navigate('/dashboard/send?giftType=qrcash')}
+              // Founder 2026-10-23 ("please unify"): the Gift Place's QR Cash tab, like Celebrations — the amount is set
+              // there and Add to Greet-Me opens the greeting flow with it.
+              onOpenQRCash={() => navigate('/dashboard/gifts?tab=qrcash')}
               onOpenContact={(card) => { setContactCard(card || null); setShowContactModal(true); }}
             />
             {/* W20 / W23 — the LOWER recognition & ranking area (Community Leaderboard, Hero Status,

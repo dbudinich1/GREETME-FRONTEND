@@ -96,6 +96,8 @@ const SLIDES = [
   { key: 'qrcash', src: null, title: 'QR Cash™', line: 'Send • Claim • Spend — choose the amount in the Gift Place’s QR Cash™ tab' },
 ];
 const SMARTCARD_UNAVAILABLE_LINE = 'Coming later — not yet available';
+// The QR Cash "How it works" button. Its label is the founder's choice (2026-10-23: kept for now; "Add QR Cash" offered).
+const QR_HOW_IT_WORKS_CTA = 'Send QR Cash Now';
 
 // Occasions: the Recipients page's own list and groups (utils/dashboardOccasions.js — OCCASION_CHIPS, OCCASION_MENUS),
 // plus the send page's Thank You, Congratulations, Just Because and the generic Season's Greetings. GREETING_RULES untouched.
@@ -637,6 +639,30 @@ export default function DashboardHome() {
     }
     navigate(`/dashboard/send?${p.toString()}`);
   };
+  // The gift carousel's Add a gift. Founder 2026-10-23 ("please unify"): the QR Cash "How it works" button runs this
+  // same step for the QR Cash slide, so it follows the greeting's timing too (Schedule the Love never becomes Send Now).
+  const addGift = (g, slide) => {
+    // Scheduled Greet-Mes (founder 2026-10-22, Report 135): Add a gift opens the existing scheduled-gift path
+    // directly. One person + one occasion: the scheduled-gift picker for that occasion, with Dates & gifts
+    // behind it (its Save runs the scheduler's own card + consent step and saves). Several people or
+    // occasions: Dates & gifts, which lists each one with its gift step. Every choice is kept on cancel.
+    if (resolverOn || groupSchedOn) { setGiftNote(''); openScheduledGift(g); return; }
+    // Report 135: one person + one occasion (Send Now): Add a gift opens the Gift Place now, with the
+    // recipient, occasion, timing, words and photos kept (Add QR Cash opens the QR Cash amount step).
+    // Report 136: on the QR Cash slide it opens the Gift Place on its QR Cash tab, the greeting kept the same way.
+    if (sendNowSingle && !overCap && !notSchedulable) { setGiftNote(''); goSendFlow(g, slide === 'qrcash' ? 'qrcash' : null); return; }
+    if (sendNowGroup) {
+      setGift(g);
+      setGiftNote(g === 'gift' ? 'For a group, choose a gift box (or QR Cash) for each person at review, before anything is charged.'
+        : 'QR Cash for everyone. You set each amount at review, before anything is charged.');
+      return;
+    }
+    // Not enough chosen yet to keep the gift with the greeting: say what is missing; nothing is marked.
+    setGiftNote(!mode ? 'Choose Send Now or Schedule the Love first. Then Add a gift opens the Gift Place with your choices kept.'
+      : mode === 'occasion' ? 'Choose an occasion and who it’s for first. Each scheduled gift is then chosen in Dates & gifts.'
+        : occasions.length !== 1 ? 'Choose one occasion and who it’s for first. Then Add a gift opens the Gift Place with them kept.'
+          : 'Choose who it’s for first. Then Add a gift opens the Gift Place with them kept.');
+  };
 
   useEffect(() => { if (saveMsg && saveMsg.ok && datesOpen) setDatesOpen(false); }, [saveMsg]); // eslint-disable-line react-hooks/exhaustive-deps
   // Only once the recipients have loaded: a restored Dates & gifts waits for the people it belongs to.
@@ -968,28 +994,7 @@ export default function DashboardHome() {
             <GiftCarousel
               chosen={sendNowGroup ? gift : null}
               smartCardAvailable={smartCardAvailable}
-              onAdd={(g, slide) => {
-                // Scheduled Greet-Mes (founder 2026-10-22, Report 135): Add a gift opens the existing scheduled-gift path
-                // directly. One person + one occasion: the scheduled-gift picker for that occasion, with Dates & gifts
-                // behind it (its Save runs the scheduler's own card + consent step and saves). Several people or
-                // occasions: Dates & gifts, which lists each one with its gift step. Every choice is kept on cancel.
-                if (resolverOn || groupSchedOn) { setGiftNote(''); openScheduledGift(g); return; }
-                // Report 135: one person + one occasion (Send Now): Add a gift opens the Gift Place now, with the
-                // recipient, occasion, timing, words and photos kept (Add QR Cash opens the QR Cash amount step).
-                // Report 136: on the QR Cash slide it opens the Gift Place on its QR Cash tab, the greeting kept the same way.
-                if (sendNowSingle && !overCap && !notSchedulable) { setGiftNote(''); goSendFlow(g, slide === 'qrcash' ? 'qrcash' : null); return; }
-                if (sendNowGroup) {
-                  setGift(g);
-                  setGiftNote(g === 'gift' ? 'For a group, choose a gift box (or QR Cash) for each person at review, before anything is charged.'
-                    : 'QR Cash for everyone. You set each amount at review, before anything is charged.');
-                  return;
-                }
-                // Not enough chosen yet to keep the gift with the greeting: say what is missing; nothing is marked.
-                setGiftNote(!mode ? 'Choose Send Now or Schedule the Love first. Then Add a gift opens the Gift Place with your choices kept.'
-                  : mode === 'occasion' ? 'Choose an occasion and who it’s for first. Each scheduled gift is then chosen in Dates & gifts.'
-                    : occasions.length !== 1 ? 'Choose one occasion and who it’s for first. Then Add a gift opens the Gift Place with them kept.'
-                      : 'Choose who it’s for first. Then Add a gift opens the Gift Place with them kept.');
-              }}
+              onAdd={addGift}
               onRemove={() => { setGift(null); setGiftNote(''); }}
               onLearnQr={() => setShowHowItWorksModal(true)}
             />
@@ -1549,9 +1554,12 @@ export default function DashboardHome() {
 
               {/* CTA Button */}
               <button
+                data-testid="qr-howitworks-cta"
                 onClick={() => {
                   setShowHowItWorksModal(false);
-                  navigate('/dashboard/send?giftType=qrcash');
+                  // Founder 2026-10-23 ("please unify"): the same step as the QR Cash slide's Add a gift — the Gift Place's
+                  // QR Cash tab for a Send Now greeting, the scheduled-gift path for Schedule the Love, else a note.
+                  addGift('gift', 'qrcash');
                 }}
                 style={{
                   width: '100%',
@@ -1584,7 +1592,7 @@ export default function DashboardHome() {
                 })}
               >
                 <DollarSign size={20} />
-                Send QR Cash Now
+                {QR_HOW_IT_WORKS_CTA}
               </button>
             </div>
           </div>

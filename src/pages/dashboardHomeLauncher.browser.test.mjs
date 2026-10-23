@@ -875,6 +875,65 @@ test("Add a gift (Report 135): one person + one occasion opens the Gift Place at
   assert.equal(globalThis.__nav.at(-1).to, "/dashboard/send?contactId=c1&occasion=Birthday&from=dashboard", "Send carries no gift request");
 });
 
+// Founder 2026-10-23 ("please unify"): the QR Cash slide's How it works button runs the slide's own Add a gift step.
+const openQrHowItWorks = async () => {
+  await click($$(".dot").at(-1)); // the QR Cash slide is the last one
+  await click(byText("[data-testid=gx-carousel] .link", "How it works"));
+  const cta = $("[data-testid=qr-howitworks-cta]");
+  assert.ok(cta, "the How it works button");
+  assert.match(cta.textContent, /Send QR Cash Now/, "label unchanged (the founder is choosing it)");
+  return cta;
+};
+
+test("QR Cash How it works, nothing chosen: no page opens; the slide's own note says what is missing; the modal closes", async () => {
+  await mount();
+  await click(await openQrHowItWorks());
+  assert.equal(globalThis.__nav.length, 0, "never the send page");
+  assert.match($("[data-testid=gx-fine]").textContent, /Choose Send Now or Schedule the Love first/);
+  assert.equal($("[data-testid=qr-howitworks-cta]"), null, "modal closed");
+});
+
+test("QR Cash How it works, Send Now for one person: the Gift Place's QR Cash tab with the greeting kept (as the slide's Add a gift)", async () => {
+  await mount();
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await pickPerson("Theresa");
+  await click($("[data-testid=gx-who-done]"));
+  await setValue($("[data-testid=gx-words]"), "Happy birthday");
+  await click(await openQrHowItWorks());
+  const to = globalThis.__nav.at(-1).to;
+  assert.match(to, /^\/dashboard\/send\?contactId=c1&occasion=Birthday&from=dashboard&gift=choose&entry=[0-9a-z]+$/, "the greeting is kept and the Gift Place opens");
+  assert.doesNotMatch(to, /giftType=qrcash/, "not the send page's old QR Cash chooser");
+  const marker = JSON.parse(window.sessionStorage.getItem("gm_giftplace_tab_v1"));
+  assert.equal(marker.tab, "qrcash", "the Gift Place opens on its QR Cash tab");
+  assert.equal(marker.entry, new URLSearchParams(to.split("?")[1]).get("entry"), "only for this press");
+  assert.equal(JSON.parse(window.sessionStorage.getItem("gm_dashboard_send_handoff_v1")).words, "Happy birthday");
+});
+
+test("QR Cash How it works, Schedule the Love: stays scheduled — the scheduled-gift path opens; nothing switches to Send Now", async () => {
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday"));
+  await pickPerson("Theresa");
+  await click($("[data-testid=gx-who-done]"));
+  await click(await openQrHowItWorks());
+  assert.equal(globalThis.__nav.length, 0, "never the send page (Send Now)");
+  assert.equal(window.sessionStorage.getItem("gm_giftplace_tab_v1"), null, "no Send Now Gift Place entry");
+  assert.ok($("[data-testid=sg-picker]"), "the existing scheduled-gift picker, as the slide's Add a gift opens");
+  assert.equal($(".mode[aria-pressed=true]").textContent.includes("Schedule the Love"), true, "mode unchanged");
+});
+
+test("QR Cash How it works, Send Now for a group: marked for everyone with the group note; nothing opens", async () => {
+  await mount();
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await pickPerson("Theresa"); await pickPerson("Margaret");
+  await click($("[data-testid=gx-who-done]"));
+  await click(await openQrHowItWorks());
+  assert.equal(globalThis.__nav.length, 0);
+  assert.match($("[data-testid=gx-fine]").textContent, /For a group, choose a gift box \(or QR Cash\) for each person at review/);
+});
+
 test("Add a gift for a group (Send Now): marked for everyone, a second tap never removes it, Remove does; each person's gift is set at the group review", async () => {
   await mount();
   await click(byText(".mode", "Send Now"));

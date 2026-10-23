@@ -31,7 +31,7 @@ before(async () => {
   writeFileSync(ENTRY, [
     'export { default as Modal } from "./ContactSalesModal.jsx";',
     'export { default as Hero } from "../pages/HeroProgram.jsx";',
-    'export { MemoryRouter, Routes, Route } from "react-router-dom";',
+    'export { MemoryRouter, Routes, Route, useLocation } from "react-router-dom";',
     'export { __calls, __responses } from "../api/api";',
   ].join("\n"));
   await esbuild.build({
@@ -143,6 +143,8 @@ test("a filled honeypot is sent as filled (the server drops it); a person's is e
 });
 
 // ------------------------------------------------------------------------------------- Hero entries
+// Stand-in for the page a Hero button opens; shows the path and query it was opened with.
+function Landed({ id }) { const loc = M.useLocation(); return React.createElement("div", { "data-testid": id }, `${loc.pathname}${loc.search}`); }
 const HERO = { ok: true, hero: { status: { level: "gold", label: "Gold Hero" }, impact: { business: { totalActivities: 1, bySource: {} }, community: { totalActivities: 1, bySource: {} } }, recentActivity: [], history: [], recognition: { earned: [{ key: "x", label: "Founding Hero Badge" }], future: [] } } };
 async function mountHero() {
   T.responses.getHeroMe = HERO;
@@ -150,6 +152,8 @@ async function mountHero() {
   await mount(React.createElement(M.MemoryRouter, { initialEntries: ["/dashboard/hero"] }, React.createElement(M.Routes, null,
     React.createElement(M.Route, { path: "/dashboard/hero", element: React.createElement(M.Hero) }),
     React.createElement(M.Route, { path: "/business", element: React.createElement("div", { "data-testid": "business-page" }, "For Business page") }),
+    React.createElement(M.Route, { path: "/dashboard/gifts", element: React.createElement(Landed, { id: "gifts-page" }) }),
+    React.createElement(M.Route, { path: "/dashboard/send", element: React.createElement(Landed, { id: "send-page" }) }),
   )));
   for (let i = 0; i < 5 && !document.body.textContent.includes("Ways to Participate"); i += 1) await flush();
 }
@@ -186,4 +190,15 @@ test("Hero: one link to For Business works; the lower recognition/ranking area s
   assert.ok(!/merch/i.test(t), "no customer-visible Merch");
   await click(tid("hero-for-business-link").querySelector("button"));
   assert.ok(tid("business-page"));
+});
+
+test("Hero: Launch QR Cash opens the Gift Place's QR Cash tab (founder 2026-10-23 'please unify'), not the send page's old chooser", async () => {
+  await mountHero();
+  const h3 = [...document.querySelectorAll("h3")].find((h) => h.textContent === "QR Cash™");
+  assert.ok(h3, "QR Cash card");
+  const btn = [...h3.parentElement.parentElement.querySelectorAll("button")].find((b) => /Launch QR Cash/.test(b.textContent));
+  assert.ok(btn, "Launch QR Cash button (label unchanged)");
+  await click(btn);
+  assert.equal(tid("send-page"), null, "never the send page's ?giftType=qrcash chooser");
+  assert.equal(tid("gifts-page").textContent, "/dashboard/gifts?tab=qrcash");
 });
