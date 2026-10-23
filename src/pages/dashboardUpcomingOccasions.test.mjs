@@ -83,7 +83,10 @@ test("the populated branch renders real occasion data, not the placeholder copy"
   const populatedEnd = SRC.indexOf("{/* Mobile App QR Code", populatedStart);
   const populated = SRC.slice(populatedStart, populatedEnd);
 
-  assert.match(populated, /upcomingOccasions\.map\(\(occasion\) => \{/, "it maps the real fetched array");
+  // Report 135 (Celebration Schedule has its own search): the rows are the real fetched array, filtered by that search
+  // and nothing else. Pin the derivation and the mapping, so a placeholder or a second source cannot slip in.
+  assert.match(SRC, /const shownUpcoming = upcomingOccasions\.filter\(\(o\) => schedHit\(o\.contactName, o\.occasionType\)\);/, "shownUpcoming is the fetched array, filtered only by the schedule search");
+  assert.match(populated, /shownUpcoming\.map\(\(occasion\) => \{/, "it maps the (search-filtered) real fetched array");
   assert.match(populated, /\{occasion\.contactName\}/);
   assert.match(populated, /getOccasionIcon\(occasion\.occasionType\)/);
   assert.match(populated, /OCCASION_STATUS_LABELS\[occasion\.scheduleStatus\] \|\| OCCASION_STATUS_LABELS\[null\]/);

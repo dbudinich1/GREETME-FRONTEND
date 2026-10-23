@@ -1105,3 +1105,19 @@ test("Report 135: Celebrations' Occasions path hands several people to THIS Date
   assert.deepEqual(t.body.occasionGiftSettings.birthday, { type: "qrcash", autoGift: true, amount: 50 }, "and its gift");
   assert.ok(t.body.occasions.find((o) => o.type === "christmas").date.endsWith("-12-25"));
 });
+
+test("Celebration Schedule search filters the real fetched upcoming occasions (by name and by occasion), with an honest empty state", async () => {
+  await mount();
+  await click(byText("[data-testid=gx-when] button", "Upcoming Occasions"));
+  const names = () => $$("[data-testid=gx-up-row]").map((r) => r.querySelector(".name").textContent);
+  assert.equal(names().length, UPCOMING().length, "no search: every fetched upcoming occasion is listed");
+  await setValue($("[data-testid=gx-sched-search]"), "margaret");
+  assert.deepEqual(names(), ["Margaret Rivera", "Margaret Rivera"], "a name search narrows to that person's real occasions");
+  await setValue($("[data-testid=gx-sched-search]"), "christmas");
+  assert.deepEqual(names(), ["Daniel Okafor"], "an occasion search matches by its label");
+  await setValue($("[data-testid=gx-sched-search]"), "zz");
+  assert.equal(names().length, 0);
+  assert.match($("[data-testid=gx-sched-empty]").textContent, /Nothing upcoming matches that search\./);
+  await setValue($("[data-testid=gx-sched-search]"), "");
+  assert.equal(names().length, UPCOMING().length, "clearing the search restores the full real list");
+});
