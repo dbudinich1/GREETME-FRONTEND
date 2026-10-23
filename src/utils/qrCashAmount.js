@@ -31,6 +31,18 @@ export function qrCashQuote(dollars) {
 
 export const centsToDollarString = (cents) => `$${(cents / 100).toFixed(2)}`;
 
+/**
+ * The QR Cash dollars a send-page gift setting stands for (`amount`, or `customAmount` when `amount` is 0), or null when
+ * no valid amount has been chosen yet. Founder 2026-10-23 (Report 137): a new QR Cash choice has no amount until the
+ * sender picks one, so a missing amount is never read as $25.
+ */
+export function qrCashSettingDollars(gs) {
+  if (!gs || gs.amount === undefined || gs.amount === null || gs.amount === '') return null;
+  const raw = Number(gs.amount) === 0 ? (Number.isFinite(gs.customAmount) ? gs.customAmount : (gs.customAmount ?? '')) : gs.amount;
+  const v = validateQrCashDollars(raw);
+  return v.ok ? v.dollars : null;
+}
+
 /** The preset QR Cash amounts offered wherever an amount is chosen (the send page's chooser and the Gift Place). */
 export const QR_CASH_PRESET_DOLLARS = Object.freeze([10, 25, 50, 100]);
 

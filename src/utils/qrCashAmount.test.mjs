@@ -56,3 +56,14 @@ test("qrCashGiftSettings: a preset is `amount`; any other amount is amount 0 + c
   // The send page's own rule turns it back into the same dollars.
   for (const d of [5, 10, 25, 40, 99, 100]) { const g = qrCashGiftSettings(d); assert.equal(Number(g.amount === 0 ? g.customAmount : g.amount), d); }
 });
+
+test("Report 137: qrCashSettingDollars reads the send page's chosen amount and never assumes $25", async () => {
+  const { qrCashSettingDollars } = await import("./qrCashAmount.js");
+  for (const gs of [null, {}, { amount: null }, { amount: undefined }, { amount: "" }]) assert.equal(qrCashSettingDollars(gs), null, JSON.stringify(gs));
+  assert.equal(qrCashSettingDollars({ amount: 50 }), 50);
+  assert.equal(qrCashSettingDollars({ amount: 0, customAmount: 40 }), 40);
+  assert.equal(qrCashSettingDollars({ amount: 0, customAmount: "40" }), 40);
+  assert.equal(qrCashSettingDollars({ amount: 0, customAmount: "" }), null, "Custom with nothing typed");
+  assert.equal(qrCashSettingDollars({ amount: 0, customAmount: 3 }), null, "below $5");
+  assert.equal(qrCashSettingDollars({ amount: 0, customAmount: 150 }), null, "above $100");
+});

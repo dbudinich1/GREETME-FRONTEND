@@ -82,14 +82,30 @@ export function prefillRow(contact, label, now = new Date()) {
   };
 }
 
-/** A new gift choice for a row: unchanged type keeps the saved setting; a new type starts like the scheduler's own default. */
-export function chooseGift(row, giftType) {
+/**
+ * A new gift choice for a row: unchanged type keeps the saved setting; a new type starts like the scheduler's own default.
+ * `amountRequired` (founder 2026-10-23, Report 137 — the QR Cash buttons under Schedule the Love): a NEW QR Cash choice
+ * has no amount and is marked `needsAmount` until the sender picks one (withQrCashAmount); the row is not complete, so
+ * nothing is saved, before that. A row already holding QR Cash keeps its amount.
+ */
+export function chooseGift(row, giftType, { amountRequired = false } = {}) {
   if (row.gift && row.gift.type === giftType) return row.gift;
+  if (giftType === 'qrcash' && amountRequired) return { type: 'qrcash', autoGift: false, amount: null, needsAmount: true };
   // Exactly as the scheduler does when QR Cash is picked (ContactForm handleOccasionGiftChange): the amount it
   // displays by default is written, so nothing is saved that the sender was not shown.
   if (giftType === 'qrcash') return { type: 'qrcash', autoGift: false, amount: QRCASH_DEFAULT_DOLLARS };
   return { type: giftType, autoGift: false };
 }
+
+/** The scheduler's QR Cash amount shape for a chosen whole-dollar amount: a preset as `amount`, anything else as
+ *  `amount: 0` + `customAmount` (ContactForm's Custom). Clears `needsAmount`; every other field is kept. */
+export function withQrCashAmount(gift, dollars) {
+  const { needsAmount: _drop, customAmount: _old, ...rest } = gift || {};
+  const preset = QRCASH_PRESET_DOLLARS.includes(dollars);
+  return { ...rest, type: 'qrcash', ...(preset ? { amount: dollars } : { amount: 0, customAmount: dollars }) };
+}
+// The scheduler's own amount choices (ContactForm: $10 / $25 / $50 / $100, or Custom).
+export const QRCASH_PRESET_DOLLARS = Object.freeze([10, 25, 50, 100]);
 
 /**
  * The QR Cash amount a resolver row shows: exactly what the save will write (the same normaliser), so the screen and
@@ -97,13 +113,14 @@ export function chooseGift(row, giftType) {
  * figure. Returns null when the record will carry no usable amount — the row then shows no figure at all.
  */
 export function resolverGiftAmount(gift) {
-  if (!gift || gift.type !== 'qrcash') return null;
+  if (!gift || gift.type !== 'qrcash' || gift.needsAmount) return null;
   const saved = normalizeGiftSettingsForSave({ x: gift }).x;
   if (saved.amount === 0) return Number.isFinite(saved.customAmount) && saved.customAmount > 0 ? saved.customAmount : null;
   return typeof saved.amount === 'number' && saved.amount > 0 ? saved.amount : null;
 }
 
-export const rowComplete = (row) => Boolean(row && row.date && row.gift && row.gift.type);
+// A QR Cash choice still waiting for its amount (Report 137) is not complete.
+export const rowComplete = (row) => Boolean(row && row.date && row.gift && row.gift.type && !row.gift.needsAmount);
 
 /**
  * The complete contact payload for PUT /api/contacts/:id.

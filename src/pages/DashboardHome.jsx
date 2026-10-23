@@ -38,7 +38,7 @@ import SaveAuthorizationModal from '../components/w07Auth/SaveAuthorizationModal
 import { planAuthorization } from '../utils/scheduledQrCashConsent';
 import { normalizeGiftSettingsForSave } from '../utils/occasionGiftSave';
 import {
-  SCHEDULER_OCCASION_TYPES, isSchedulerOccasion, prefillRow, chooseGift, rowComplete, buildResolverContact, finalizeResolverSave,
+  SCHEDULER_OCCASION_TYPES, isSchedulerOccasion, prefillRow, chooseGift, withQrCashAmount, QRCASH_PRESET_DOLLARS, rowComplete, buildResolverContact, finalizeResolverSave,
   RESOLVER_GIFT_OPTIONS, resolverGiftStatus, resolverGiftAmount,
 } from '../utils/occasionResolver';
 import { writeDashboardHandoff, HANDOFF_MAX_WORDS, HANDOFF_MAX_PHOTOS, writeGiftPlaceTab } from '../utils/dashboardSendHandoff';
@@ -48,7 +48,7 @@ import { saveGroupSchedules } from '../utils/occasionResolver';
 import GroupReview from '../components/dashboard/GroupReview';
 import InfoTip from '../components/dashboard/InfoTip';
 import G1G1Badge from '../components/G1G1Badge';
-import { qrCashQuote, centsToDollarString } from '../utils/qrCashAmount';
+import { qrCashQuote, centsToDollarString, validateQrCashDollars } from '../utils/qrCashAmount';
 import { DASHBOARD_HOME_CSS } from './dashboardHomeStyles';
 import { OCCASION_CHIPS, OCCASION_MENUS } from '../utils/dashboardOccasions';
 import { occasionSummaries, OCCASION_GROUPS } from '../utils/celebrationsModel';
@@ -147,6 +147,32 @@ function ScheduledGiftLine({ gift }) {
       <span data-testid="gx-sched-status">{st.label}</span>
       <InfoTip label={`About: ${st.label}`} testid="gx-sched-info">{st.detail}{gift.type === 'qrcash' ? ' The QR Cash fee is $1.99 + 3% of the gift amount.' : ''}</InfoTip>
     </>
+  );
+}
+
+// Report 137 (founder 2026-10-23): a QR Cash choice made from the QR Cash buttons under Schedule the Love has no amount
+// until the sender picks one here — the scheduler's own $10 / $25 / $50 / $100 or Custom ($5 to $100 whole dollars).
+function QrCashAmountPick({ label, onPick }) {
+  const [custom, setCustom] = useState(null); // null: no Custom entry open
+  const check = custom === null ? null : validateQrCashDollars(custom);
+  return (
+    <div data-testid="gx-qr-amount" style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <span className="fieldlabel" style={{ margin: 0 }}>QR Cash amount</span>
+      <select aria-label={`QR Cash amount for ${label}`} data-testid="gx-qr-amount-select" className="rgift" value={custom === null ? '' : 'custom'}
+        onChange={(e) => { if (e.target.value === 'custom') setCustom(''); else if (e.target.value) onPick(Number(e.target.value)); }}>
+        <option value="" disabled>Choose an amount</option>
+        {QRCASH_PRESET_DOLLARS.map((d) => <option key={d} value={d}>${d}</option>)}
+        <option value="custom">Custom</option>
+      </select>
+      {custom !== null ? (
+        <>
+          <input type="number" min="5" max="100" step="1" inputMode="numeric" aria-label={`Custom QR Cash amount for ${label}`} data-testid="gx-qr-amount-custom"
+            value={custom} onChange={(e) => setCustom(e.target.value)} className="rdate" style={{ width: 90 }} />
+          <button type="button" className="btn btn-xs btn-primary" style={{ height: 30 }} data-testid="gx-qr-amount-use" disabled={!check.ok} onClick={() => onPick(check.dollars)}>Use amount</button>
+          {custom !== '' && !check.ok ? <span role="alert" style={{ fontSize: 12.5, color: '#b91c1c' }}>{check.message}</span> : null}
+        </>
+      ) : null}
+    </div>
   );
 }
 
@@ -605,11 +631,15 @@ export default function DashboardHome() {
 
   const openScheduledGift = (g) => {
     setDatesOpen(true);
+    // Report 137 (founder 2026-10-23): the QR Cash buttons under Schedule the Love open Dates & gifts with QR Cash
+    // selected for the occasion — a QR Cash amount already there is kept; a new selection waits for an explicit amount
+    // (Save stays off until then). The scheduler's own card, consent and save steps follow at Save, unchanged.
+    if (g === 'qrcash' && groupSchedOn) { setSaveMsg(null); setGroupResults({}); setGroupDefaultGift((d) => chooseGift({ gift: d }, 'qrcash', { amountRequired: true })); return; }
     if (!resolverOn || occasions.length !== 1) return;
     const o = occasions[0];
     const r = rowOf(o) || prefillRow(resolvePerson, o);
     if (!rows[`${resolvePerson.id}:${o}`]) setRow(o, r);
-    if (g === 'qrcash') { if (!r.gift || r.gift.type === 'none') setRow(o, { gift: chooseGift(r, 'qrcash') }); return; }
+    if (g === 'qrcash') { setRow(o, { gift: chooseGift(r, 'qrcash', { amountRequired: true }) }); return; }
     if (!SCHEDULED_PHYSICAL_GIFT_AVAILABLE) return;
     setSgPick({ person: resolvePerson, occasion: o, type: r.type, date: r.date, initial: sgChoosable(r.gift) ? r.gift : null, apply: (gift) => setRow(o, { gift }) });
   };
@@ -646,7 +676,8 @@ export default function DashboardHome() {
     // directly. One person + one occasion: the scheduled-gift picker for that occasion, with Dates & gifts
     // behind it (its Save runs the scheduler's own card + consent step and saves). Several people or
     // occasions: Dates & gifts, which lists each one with its gift step. Every choice is kept on cancel.
-    if (resolverOn || groupSchedOn) { setGiftNote(''); openScheduledGift(g); return; }
+    // Report 137: on the QR Cash slide that path is QR Cash itself (Dates & gifts with QR Cash selected), not the gift-box picker.
+    if (resolverOn || groupSchedOn) { setGiftNote(''); openScheduledGift(slide === 'qrcash' ? 'qrcash' : g); return; }
     // Report 135: one person + one occasion (Send Now): Add a gift opens the Gift Place now, with the
     // recipient, occasion, timing, words and photos kept (Add QR Cash opens the QR Cash amount step).
     // Report 136: on the QR Cash slide it opens the Gift Place on its QR Cash tab, the greeting kept the same way.
@@ -1196,12 +1227,13 @@ export default function DashboardHome() {
                         <span className={`num ${ok ? 'done' : ''}`} style={{ width: 22, height: 22 }}>{ok ? <Check size={12} /> : ''}</span>
                         <span className="rname">{o}{r.prefilled ? <span className="rpre">saved</span> : null}</span>
                         <input type="date" aria-label={`${o} date`} value={r.date || ''} onChange={(e) => setRow(o, { date: e.target.value })} className="rdate" />
-                        <select aria-label={`${o} gift`} value={r.gift ? r.gift.type : ''} onChange={(e) => setRow(o, { gift: chooseGift(r, e.target.value) })} className="rgift">
+                        <select aria-label={`${o} gift`} value={r.gift ? r.gift.type : ''} onChange={(e) => setRow(o, { gift: chooseGift(r, e.target.value, { amountRequired: true }) })} className="rgift">
                           {RESOLVER_GIFT_OPTIONS.map(([v, t]) => <option key={v} value={v} disabled={v === ''}>{t}</option>)}
                           {r.gift && r.gift.type === 'gift_boxes' ? <option value="gift_boxes">Gift box</option> : null}
                         </select>
                         <span className="rline"><ScheduledGiftLine gift={r.gift} />{r.gift && r.gift.type !== 'none' ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(resolvePerson.id, r.type)}>Gift details in their Occasion Scheduler</button></> : null}</span>
                         {sgChoosable(r.gift) ? <div style={{ gridColumn: '1 / -1' }}><ScheduledGiftEntry compact setting={r.gift} onChoose={() => setSgPick({ person: resolvePerson, occasion: o, type: r.type, date: r.date, initial: r.gift, apply: (g) => setRow(o, { gift: g }) })} onRemove={() => setRow(o, { gift: { type: 'none', autoGift: false } })} /></div> : null}
+                        {r.gift && r.gift.type === 'qrcash' && r.gift.needsAmount ? <QrCashAmountPick label={o} onPick={(d) => setRow(o, { gift: withQrCashAmount(r.gift, d) })} /> : null}
                       </div>
                     );
                   })}
@@ -1211,10 +1243,11 @@ export default function DashboardHome() {
                   <>
                     <label className="rgroupdefault">
                       <span className="fieldlabel">Gift for everyone</span>
-                      <select data-testid="gx-group-default-gift" aria-label="Gift for everyone" value={groupDefaultGift ? groupDefaultGift.type : ''} onChange={(e) => { setSaveMsg(null); setGroupResults({}); setGroupDefaultGift(e.target.value ? chooseGift({ gift: null }, e.target.value) : null); }} className="rgift">
+                      <select data-testid="gx-group-default-gift" aria-label="Gift for everyone" value={groupDefaultGift ? groupDefaultGift.type : ''} onChange={(e) => { setSaveMsg(null); setGroupResults({}); setGroupDefaultGift(e.target.value ? chooseGift({ gift: null }, e.target.value, { amountRequired: true }) : null); }} className="rgift">
                         {RESOLVER_GIFT_OPTIONS.map(([v, t]) => <option key={v} value={v} disabled={v === ''}>{t}</option>)}
                       </select>
                     </label>
+                    {groupDefaultGift && groupDefaultGift.type === 'qrcash' && groupDefaultGift.needsAmount ? <QrCashAmountPick label="everyone" onPick={(d) => { setSaveMsg(null); setGroupResults({}); setGroupDefaultGift(withQrCashAmount(groupDefaultGift, d)); }} /> : null}
                     <div className="rrows">
                       {chosen.map((p) => {
                         const r = groupRowOf(p);
@@ -1226,7 +1259,7 @@ export default function DashboardHome() {
                             <span className={`num ${ok ? 'done' : ''}`} style={{ width: 22, height: 22 }}>{ok ? <Check size={12} /> : ''}</span>
                             <span className="rname">{p.name}{raw.prefilled ? <span className="rpre">saved</span> : null}{res ? <span className={`tag ${res.status === 'saved' ? 'ok' : res.status === 'failed' ? 'muted' : 'amber'}`} data-testid="gx-group-row-status">{res.status === 'saved' ? 'Saved' : res.status === 'failed' ? 'Not saved' : 'Needs their scheduler'}</span> : null}</span>
                             <input type="date" aria-label={`${p.name} ${occasions[0]} date`} value={r.date || ''} onChange={(e) => setGroupRow(p, { date: e.target.value })} className="rdate" />
-                            <select aria-label={`${p.name} gift`} value={raw.chosen ? raw.chosen.type : 'default'} onChange={(e) => setGroupRow(p, { chosen: e.target.value === 'default' ? null : chooseGift({ gift: raw.gift }, e.target.value) })} className="rgift">
+                            <select aria-label={`${p.name} gift`} value={raw.chosen ? raw.chosen.type : 'default'} onChange={(e) => setGroupRow(p, { chosen: e.target.value === 'default' ? null : chooseGift({ gift: raw.gift }, e.target.value, { amountRequired: true }) })} className="rgift">
                               <option value="default">{raw.gift ? `Keep their saved gift (${(RESOLVER_GIFT_OPTIONS.find(([v]) => v === raw.gift.type) || [null, raw.gift.type])[1]})` : groupDefaultGift ? 'Same as everyone' : 'Choose a gift…'}</option>
                               {RESOLVER_GIFT_OPTIONS.filter(([v]) => v !== '').map(([v, t]) => <option key={v} value={v}>{t}</option>)}
                               {raw.chosen && raw.chosen.type === 'gift_boxes' ? <option value="gift_boxes">Gift box</option> : null}
@@ -1234,6 +1267,7 @@ export default function DashboardHome() {
                             <span className="rline">{res && res.status === 'failed' ? res.message : null}{res && res.status === 'needs_scheduler' ? (res.need && res.need.relationship ? 'Their relationship details need finishing in their Occasion Scheduler. '
                               : <>{res.need && res.need.address && !res.need.consent && !res.need.card ? 'Their delivery address is needed. ' : res.need && (res.need.consent || res.need.card || res.need.scheduledGiftConsent) && !res.need.address ? 'Your Auto-Gift authorization is needed. ' : 'Their delivery address and your Auto-Gift authorization are needed. '}<button type="button" className="btn btn-xs btn-primary" style={{ height: 30 }} data-testid="gx-group-finish" onClick={() => finishGroupPerson(p)}>Add missing details</button> </>) : null}{!res || res.status !== 'failed' ? <ScheduledGiftLine gift={r.gift} /> : null}{r.gift && r.gift.type !== 'none' || (res && res.status === 'needs_scheduler') ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(p.id, SCHEDULER_TYPE_OF(occasions[0]))}>Gift details in their Occasion Scheduler</button></> : null}</span>
                             {sgChoosable(r.gift) ? <div style={{ gridColumn: '1 / -1' }}><ScheduledGiftEntry compact setting={r.gift} onChoose={() => setSgPick({ person: p, occasion: occasions[0], type: SCHEDULER_TYPE_OF(occasions[0]), date: r.date, initial: r.gift, apply: (g) => setGroupRow(p, { chosen: g }) })} onRemove={() => setGroupRow(p, { chosen: { type: 'none', autoGift: false } })} /></div> : null}
+                            {raw.chosen && raw.chosen.type === 'qrcash' && raw.chosen.needsAmount ? <QrCashAmountPick label={p.name} onPick={(d) => setGroupRow(p, { chosen: withQrCashAmount(raw.chosen, d) })} /> : null}
                           </div>
                         );
                       })}

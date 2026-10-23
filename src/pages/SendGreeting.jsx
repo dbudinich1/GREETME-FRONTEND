@@ -29,6 +29,12 @@
 //   refresh. Affected locked milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regression: an unsent
 //   draft's QR Cash amount returns on a later visit for the same recipient and occasion (shown, never charged, before
 //   review); a sent draft never restores a gift. Verification gate, review, payment and send unchanged.
+// 2026-10-23 (Report 137, founder-authorized): a new QR Cash choice starts with no amount (no automatic $25); an
+//   amount the sender already chose (chooser, Gift Place return, draft) is kept. Send is refused, before review or
+//   payment, while a QR Cash gift has no valid amount (a note under the gift says why; Change Gift sets it); amount
+//   displays no longer fall back to $25. The chooser's open paths are unchanged. Affected locked
+//   milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regression: an old ?giftType=qrcash link opens the
+//   chooser with no amount picked. Verification gate, payment amounts for a chosen amount, and send unchanged.
 
 import { useState, useEffect } from 'react';
 import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff, dashboardGiftPlaceEntry, markGiftPlaceEntryUsed, giftPlaceEntryUsed } from '../utils/dashboardSendHandoff';
@@ -68,7 +74,7 @@ import EmailVerificationModal from '../components/EmailVerificationModal';
 import VoiceMissingModal from '../components/VoiceMissingModal';
 import '../styles/ceremony.css';
 import AttachmentIndicator from '../components/AttachmentIndicator';
-import { qrCashQuote, centsToDollarString } from '../utils/qrCashAmount';
+import { qrCashQuote, centsToDollarString, qrCashSettingDollars } from '../utils/qrCashAmount';
 import HeartsBurst from '../components/HeartsBurst';
 import cartService from '../services/cartService';
 import { useAuth } from '../context/AuthContext';
@@ -203,7 +209,8 @@ export default function SendGreeting() {
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
   const [giftSettings, setGiftSettings] = useState({
     type: 'none',
-    amount: 25,
+    amount: null, // Report 137: no QR Cash amount until the sender chooses one
+
     customAmount: '',
     maxSpend: 50,
     autoGift: false
@@ -1309,6 +1316,12 @@ export default function SendGreeting() {
       newErrors.photo = SENDER_PHOTO_REQUIRED_MESSAGE;
     }
 
+    // Report 137: a QR Cash gift goes to review and payment only with an amount the sender chose ($5 to $100).
+    const qrCashAmountMissing = giftSettings.type === 'qrcash' && qrCashSettingDollars(giftSettings) === null;
+    if (qrCashAmountMissing) {
+      newErrors.gift = 'Choose a QR Cash amount before sending.';
+    }
+
     setErrors(newErrors);
 
     // Fix 1 (Team 3 WP-C): errors were previously shown only as inline text \u2014
@@ -1960,7 +1973,7 @@ export default function SendGreeting() {
 
     const giftAmountDollars = giftSettings.amount === 0
       ? (giftSettings.customAmount || 0)
-      : (giftSettings.amount || 25);
+      : (giftSettings.amount || 0);
     const giftAmountCents = Math.round(giftAmountDollars * 100);
 
     // TEAM 1 — gift/entitlement safety. Silent when the sender has enough sends; blocks on the
@@ -2198,7 +2211,7 @@ if (typeof window !== "undefined") {
     setSending(false);
     setErrors({});
     // Reset gift state so next send starts fresh
-    setGiftSettings({ type: 'none', amount: 25, customAmount: '', maxSpend: 50, autoGift: false });
+    setGiftSettings({ type: 'none', amount: null, customAmount: '', maxSpend: 50, autoGift: false });
     setIsGiftModalOpen(false);
     setIsGiftConfirmOpen(false);
     setGiftCharging(false);
@@ -3895,7 +3908,7 @@ if (typeof window !== "undefined") {
               qrCashAmountCents={(() => {
                 const amt = giftSettings.amount === 0
                   ? (giftSettings.customAmount || 0)
-                  : (giftSettings.amount || 25);
+                  : (giftSettings.amount || 0);
                 return Math.round(amt * 100);
               })()}
               qrCashIsReferral={!!referralCode}
@@ -3921,7 +3934,10 @@ if (typeof window !== "undefined") {
                 }}>
                   {giftSettings.type === 'qrcash' && (
                     <>
-                      <span data-testid="qrcash-summary-line">Gift: QR Cash (${giftSettings.amount === 0 ? giftSettings.customAmount || '0' : giftSettings.amount})</span>
+                      <span data-testid="qrcash-summary-line">{qrCashSettingDollars(giftSettings) === null
+                        ? 'Gift: QR Cash (choose an amount)'
+                        : `Gift: QR Cash ($${giftSettings.amount === 0 ? giftSettings.customAmount || '0' : giftSettings.amount})`}</span>
+                      {errors.gift ? <span data-testid="qrcash-amount-required" role="alert" style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#b91c1c' }}>{errors.gift}</span> : null}
                       {(() => {
                         // Display only: the single parity-tested QR Cash quote (src/utils/qrCashAmount.js, proven equal
                         // to the backend calcGiftFees). A referral credit is not charged, so it gets no pay line.
@@ -4038,6 +4054,7 @@ if (typeof window !== "undefined") {
         occasionGiftSettings={{ just_because: giftSettings }}
         onGiftChange={(occasionType, field, value) => {
           setGiftSettings(prev => ({ ...prev, [field]: value }));
+          setErrors(prev => (prev.gift ? { ...prev, gift: undefined } : prev)); // Report 137: the amount note clears on a change
         }}
         // The chooser's heading names this greeting's occasion (it read "Just Because" for every greeting). The gift
         // itself is this composer's single gift setting, unchanged.
@@ -4069,7 +4086,7 @@ if (typeof window !== "undefined") {
             ? (() => {
                 const amt = giftSettings.amount === 0
                   ? (giftSettings.customAmount || 0)
-                  : (giftSettings.amount || 25);
+                  : (giftSettings.amount || 0);
                 const amtCents = Math.round(amt * 100);
                 const isReferral = !!referralCode;
                 return {
@@ -4166,19 +4183,19 @@ if (typeof window !== "undefined") {
         giftAmountCents={(() => {
           const amt = giftSettings.amount === 0
             ? (giftSettings.customAmount || 0)
-            : (giftSettings.amount || 25);
+            : (giftSettings.amount || 0);
           return Math.round(amt * 100);
         })()}
         feeCents={(() => {
           const amt = giftSettings.amount === 0
             ? (giftSettings.customAmount || 0)
-            : (giftSettings.amount || 25);
+            : (giftSettings.amount || 0);
           return 199 + Math.round(amt * 100 * 0.03);
         })()}
         totalCents={(() => {
           const amt = giftSettings.amount === 0
             ? (giftSettings.customAmount || 0)
-            : (giftSettings.amount || 25);
+            : (giftSettings.amount || 0);
           const amtCents = Math.round(amt * 100);
           return amtCents + 199 + Math.round(amtCents * 0.03);
         })()}

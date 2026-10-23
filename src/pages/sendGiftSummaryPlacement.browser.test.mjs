@@ -619,3 +619,46 @@ test("C4. this correction did not touch the cadence, the checkout or the send", 
     assert.ok(src.includes(needle), `${needle} must be unchanged by this correction`);
   }
 });
+
+// ===========================================================================
+// Report 137 (founder 2026-10-23): no automatic $25 — a QR Cash gift needs an amount the sender chose
+// ===========================================================================
+
+const QR_NO_AMOUNT_STATE = {
+  formData: { contactId: "c1", occasionType: "Birthday", tone: "Heartfelt" },
+  giftSettings: { type: "qrcash", amount: null, customAmount: "" },
+};
+
+// Done & Send is disabled in this harness (its api stub returns no contacts), so the form's own submit is fired: the
+// same handleSubmit -> validate() path the button runs.
+const submitForm = (host) => act(async () => { host.querySelector("form").dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true })); });
+
+test("R137-1. QR Cash with no amount chosen: the summary asks for one; Done & Send shows why and reaches no review or checkout", async () => {
+  const m = await mountSend({ search: "?returnTo=send", saved: QR_NO_AMOUNT_STATE });
+  try {
+    assert.equal(text(m.host.querySelector('[data-testid="qrcash-summary-line"]')), "Gift: QR Cash (choose an amount)", "never shown as $25");
+    assert.equal(m.host.querySelector('[data-testid="qrcash-summary-pay"]'), null, "no price for no amount");
+    await submitForm(m.host);
+    assert.equal(text(m.host.querySelector('[data-testid="qrcash-amount-required"]')), "Choose a QR Cash amount before sending.");
+    assert.equal(window.document.querySelector('[data-testid="review-occasion"]'), null, "no review");
+    assert.equal(m.host.querySelectorAll('[data-testid="provider-checkout-pay"]').length, 0, "no payment");
+  } finally { await m.unmount(); }
+});
+
+test("R137-2. an amount the sender chose is kept and shown (no gate)", async () => {
+  const m = await mountSend({ search: "?returnTo=send", saved: QR_STATE });
+  try {
+    assert.equal(text(m.host.querySelector('[data-testid="qrcash-summary-line"]')), "Gift: QR Cash ($25)");
+    await submitForm(m.host);
+    assert.equal(m.host.querySelector('[data-testid="qrcash-amount-required"]'), null);
+  } finally { await m.unmount(); }
+});
+
+test("R137-3. source: the amount gate runs in validate() (before the review opens); a new greeting starts with no QR Cash amount; no payment figure falls back to $25", () => {
+  const src = readFileSync(join(__dirname, "SendGreeting.jsx"), "utf8");
+  const v = src.slice(src.indexOf("const validate = () => {"), src.indexOf("const focusFirstInvalidField"));
+  assert.match(v, /giftSettings\.type === 'qrcash' && qrCashSettingDollars\(giftSettings\) === null/);
+  assert.match(src, /if \(!validate\(\)\) return;\s*\n[\s\S]{0,400}setIsPreSendReviewOpen\(true\)/, "review opens only after validate()");
+  assert.match(src, /useState\(\{\s*type: 'none',\s*amount: null,/, "no default amount");
+  assert.doesNotMatch(src, /giftSettings\.amount \|\| 25/, "no $25 fallback for the QR Cash amount");
+});

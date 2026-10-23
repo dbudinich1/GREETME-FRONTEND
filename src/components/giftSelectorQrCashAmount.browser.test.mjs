@@ -125,3 +125,39 @@ test("non-QR-Cash gift types are unaffected", async () => {
   assert.equal(q("qrcash-fee-preview"), null);
   assert.equal(q("gift-selector-continue").disabled, false);
 });
+
+// Report 137 (founder 2026-10-23): in the greeting flow a new QR Cash choice has no amount until one is picked.
+const amountSelect = () => q("qrcash-amount-select");
+async function pick(value) {
+  await act(async () => {
+    const el = amountSelect();
+    Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value").set.call(el, String(value));
+    el.dispatchEvent(new window.Event("change", { bubbles: true }));
+  });
+}
+
+test("Report 137: greeting flow — a new QR Cash choice starts with NO amount (no automatic $25); Continue waits for one", async () => {
+  await mountWith({ amount: null, customAmount: "" });
+  assert.equal(amountSelect().value, "", "nothing preselected");
+  assert.equal(amountSelect().querySelector('option[value=""]').textContent, "Choose an amount");
+  assert.equal(q("qrcash-amount-error").textContent, "Choose an amount.");
+  assert.equal(q("qrcash-fee-preview"), null, "no fee for no amount");
+  assert.equal(q("gift-selector-continue").disabled, true);
+  await pick(50);
+  assert.equal(amountSelect().value, "50");
+  assert.equal(q("qrcash-total").textContent, "$53.49");
+  assert.equal(q("gift-selector-continue").disabled, false);
+});
+
+test("Report 137: greeting flow — an amount the sender already chose is kept", async () => {
+  await mountWith({ amount: 100 });
+  assert.equal(amountSelect().value, "100");
+  assert.equal(q("gift-selector-continue").disabled, false);
+});
+
+test("Report 137: the Occasion Scheduler's chooser (recipient context) is unchanged — a missing amount still shows $25", async () => {
+  await mountWith({ amount: undefined }, "recipient");
+  assert.equal(amountSelect().value, "25");
+  assert.equal(amountSelect().querySelector('option[value=""]'), null, "no 'Choose an amount' there");
+  assert.equal(q("gift-selector-continue").disabled, false);
+});

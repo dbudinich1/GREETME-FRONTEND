@@ -32,7 +32,8 @@ test("the banner still renders only with a referral code and a server value; hea
 });
 
 test("QR Cash summary: pay line uses the single parity-tested quote, not a fifth inline fee formula", () => {
-  assert.match(CODE, /import \{ qrCashQuote, centsToDollarString \} from '\.\.\/utils\/qrCashAmount';/);
+  // Report 137 adds qrCashSettingDollars (the chosen amount, never an assumed $25) to the same single source.
+  assert.match(CODE, /import \{ qrCashQuote, centsToDollarString, qrCashSettingDollars \} from '\.\.\/utils\/qrCashAmount';/);
   assert.match(CODE, /centsToDollarString\(qrCashQuote\(dollars\)\.totalCents\)/);
   assert.match(CODE, /Nothing is charged until you confirm\./);
   // the four inline expressions that qrCashFeeParity.test.mjs pins are still exactly four

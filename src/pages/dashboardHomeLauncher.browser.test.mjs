@@ -910,8 +910,12 @@ test("QR Cash How it works, Send Now for one person: the Gift Place's QR Cash ta
   assert.equal(JSON.parse(window.sessionStorage.getItem("gm_dashboard_send_handoff_v1")).words, "Happy birthday");
 });
 
-test("QR Cash How it works, Schedule the Love: stays scheduled — the scheduled-gift path opens; nothing switches to Send Now", async () => {
-  await mount();
+// Report 137 (founder 2026-10-23): under Schedule the Love both QR Cash buttons open Dates & gifts with QR Cash selected.
+const rowGiftSelect = (i = 0) => $$("[data-testid=gx-resolver-row]")[i].querySelector("select");
+const qrSlideAddGift = async () => { await click($$(".dot").at(-1)); await click($("[data-testid=gx-add-gift]")); };
+
+test("QR Cash How it works, Schedule the Love: stays scheduled — Dates & gifts with QR Cash selected and the saved amount kept; no Send Now; the card/consent step still applies at Save", async () => {
+  await mount({ card: null });
   await click(byText(".mode", "Schedule the Love"));
   await click(occ("Birthday"));
   await pickPerson("Theresa");
@@ -919,8 +923,76 @@ test("QR Cash How it works, Schedule the Love: stays scheduled — the scheduled
   await click(await openQrHowItWorks());
   assert.equal(globalThis.__nav.length, 0, "never the send page (Send Now)");
   assert.equal(window.sessionStorage.getItem("gm_giftplace_tab_v1"), null, "no Send Now Gift Place entry");
-  assert.ok($("[data-testid=sg-picker]"), "the existing scheduled-gift picker, as the slide's Add a gift opens");
+  assert.ok($("[data-testid=gx-dates-modal]"), "Dates & gifts is open");
+  assert.equal($("[data-testid=sg-picker]"), null, "not the gift-box picker");
+  assert.equal(rowGiftSelect().value, "qrcash", "QR Cash selected for Birthday");
+  assert.match($$("[data-testid=gx-resolver-row]")[0].textContent, /QR Cash \$50\.00/, "her saved $50 is kept");
+  assert.equal($("[data-testid=gx-qr-amount]"), null, "no amount to choose: one is already set");
   assert.equal($(".mode[aria-pressed=true]").textContent.includes("Schedule the Love"), true, "mode unchanged");
+  await click(datesSave());
+  const need = JSON.parse($("[data-testid=auth-modal]").dataset.need);
+  assert.equal(need.card, true); assert.equal(need.consent, true);
+  assert.equal(globalThis.__saves.length, 0, "nothing saved before the scheduler's own card/consent step");
+});
+
+test("QR Cash slide Add a gift, Schedule the Love, nothing saved yet: QR Cash selected with NO amount; Save waits for an explicit amount; the chosen amount is what is saved", async () => {
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday"));
+  await pickPerson("Margaret");
+  await click($("[data-testid=gx-who-done]"));
+  await setValue($$("[data-testid=gx-resolver-row]")[0].querySelector("input"), "1960-02-11");
+  await qrSlideAddGift();
+  assert.equal(globalThis.__nav.length, 0, "never Send Now");
+  assert.equal($("[data-testid=sg-picker]"), null, "not the gift-box picker");
+  assert.equal(rowGiftSelect().value, "qrcash", "QR Cash selected");
+  assert.match($$("[data-testid=gx-resolver-row]")[0].querySelector(".rline").textContent, /^QR Cash · /, "no amount shown");
+  assert.doesNotMatch($$("[data-testid=gx-resolver-row]")[0].querySelector(".rline").textContent, /\$/, "no automatic $25 (no figure at all)");
+  assert.ok($("[data-testid=gx-qr-amount]"), "an amount is asked for");
+  assert.equal(datesSave().disabled, true, "Save waits for the amount");
+  await setValue($("[data-testid=gx-qr-amount-select]"), "custom");
+  await setValue($("[data-testid=gx-qr-amount-custom]"), "3");
+  assert.equal($("[data-testid=gx-qr-amount-use]").disabled, true, "$3 is refused");
+  await setValue($("[data-testid=gx-qr-amount-select]"), "50");
+  assert.equal($("[data-testid=gx-qr-amount]"), null, "amount chosen");
+  assert.match($$("[data-testid=gx-resolver-row]")[0].textContent, /QR Cash \$50\.00/);
+  assert.equal(datesSave().disabled, false);
+  await click(datesSave());
+  assert.equal(globalThis.__saves.length, 1);
+  assert.deepEqual(globalThis.__saves[0].body.occasionGiftSettings.birthday, { type: "qrcash", autoGift: false, amount: 50 }, "exactly the chosen amount, no leftover marker");
+});
+
+test("QR Cash in Dates & gifts: a custom amount is saved as the scheduler's Custom (amount 0 + customAmount)", async () => {
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday"));
+  await pickPerson("Margaret");
+  await click($("[data-testid=gx-who-done]"));
+  await setValue($$("[data-testid=gx-resolver-row]")[0].querySelector("input"), "1960-02-11");
+  await setValue(rowGiftSelect(), "qrcash"); // the row's own dropdown follows the same rule
+  assert.ok($("[data-testid=gx-qr-amount]"), "a new QR Cash choice from the dropdown asks for an amount too");
+  assert.equal(datesSave().disabled, true);
+  await setValue($("[data-testid=gx-qr-amount-select]"), "custom");
+  await setValue($("[data-testid=gx-qr-amount-custom]"), "40");
+  await click($("[data-testid=gx-qr-amount-use]"));
+  await click(datesSave());
+  assert.deepEqual(globalThis.__saves[0].body.occasionGiftSettings.birthday, { type: "qrcash", autoGift: false, amount: 0, customAmount: 40 });
+});
+
+test("QR Cash slide Add a gift, scheduled group: Dates & gifts with QR Cash for everyone and no amount until chosen; a person's saved gift is kept", async () => {
+  await mount();
+  await click(byText(".mode", "Schedule the Love"));
+  await click(occ("Birthday"));
+  await pickPerson("Theresa"); await pickPerson("Margaret");
+  await click($("[data-testid=gx-who-done]"));
+  await qrSlideAddGift();
+  assert.equal(globalThis.__nav.length, 0, "never Send Now");
+  assert.equal($("[data-testid=gx-group-default-gift]").value, "qrcash", "QR Cash for everyone");
+  assert.ok($("[data-testid=gx-qr-amount]"), "the amount is asked for");
+  assert.equal(datesSave().disabled, true);
+  assert.match($$("[data-testid=gx-group-row]")[0].textContent, /Keep their saved gift \(QR Cash™\)/, "Theresa's saved gift stays");
+  await setValue($("[data-testid=gx-qr-amount-select]"), "25");
+  assert.equal($("[data-testid=gx-qr-amount]"), null);
 });
 
 test("QR Cash How it works, Send Now for a group: marked for everyone with the group note; nothing opens", async () => {

@@ -7,13 +7,19 @@ import {
 import { SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_QRCASH_UNAVAILABLE_COPY } from '../config/scheduledQrCash';
 
 // The QR Cash amount a gift setting currently stands for, validated against the server's limits
-// ($5 to $100 whole dollars). Presets are always valid; Custom must be typed.
-function qrCashAmountCheck(giftSetting) {
+// ($5 to $100 whole dollars). Presets are always valid; Custom must be typed. Founder 2026-10-23 (Report 137): in the
+// greeting flow (requireAmount, the send page's 'oneoff' context) a new QR Cash choice has no amount until the sender
+// picks one (no automatic $25); an amount already chosen is kept. The Occasion Scheduler keeps its $25 display.
+const qrCashAmountMissing = (gs) => gs.amount === undefined || gs.amount === null || gs.amount === '';
+function qrCashAmountCheck(giftSetting, requireAmount = false) {
+  if (qrCashAmountMissing(giftSetting)) {
+    return requireAmount ? { ok: false, reason: 'empty', message: 'Choose an amount.' } : { ok: true, dollars: 25 };
+  }
   if (giftSetting.amount === 0) {
     const typed = Number.isFinite(giftSetting.customAmount) ? giftSetting.customAmount : (giftSetting.customAmount || '');
     return validateQrCashDollars(typed);
   }
-  return { ok: true, dollars: giftSetting.amount || 25 };
+  return { ok: true, dollars: giftSetting.amount };
 }
 
 // The gift types a sender may attach. Every entry here mints a claim token and
@@ -56,10 +62,12 @@ export default function GiftSelectorModal({
     return occasionGiftSettings?.[occasionValue] || { type: 'none', autoGift: false };
   };
 
+  // Report 137: the greeting flow asks for an explicit QR Cash amount (no automatic $25).
+  const requireAmount = context === 'oneoff';
   // A QR Cash amount the server would refuse ($5 to $100 whole dollars) cannot be carried forward.
   const anyQrCashAmountInvalid = (occasions || []).some((occ) => {
     const gs = getGiftSetting(occ.type);
-    return gs.type === 'qrcash' && !qrCashAmountCheck(gs).ok;
+    return gs.type === 'qrcash' && !qrCashAmountCheck(gs, requireAmount).ok;
   });
 
 
@@ -228,7 +236,8 @@ export default function GiftSelectorModal({
                       </label>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
                         <select
-                          value={giftSetting.amount || 25}
+                          data-testid="qrcash-amount-select"
+                          value={qrCashAmountMissing(giftSetting) ? (requireAmount ? '' : 25) : giftSetting.amount}
                           onChange={(e) => onGiftChange(occ.type, 'amount', parseInt(e.target.value))}
                           style={{
                             padding: '0.625rem 1rem',
@@ -242,6 +251,7 @@ export default function GiftSelectorModal({
                             minWidth: 0
                           }}
                         >
+                          {requireAmount ? <option value="" disabled>Choose an amount</option> : null}
                           {QR_CASH_PRESETS.map((amt) => (
                             <option key={amt} value={amt}>${amt}</option>
                           ))}
@@ -252,7 +262,7 @@ export default function GiftSelectorModal({
                             <span style={{ color: '#92400e', fontWeight: 500 }}>$</span>
                             <input
                               type="number"
-                              min={QR_CASH_MIN_DOLLARS} max={QR_CASH_MAX_DOLLARS} step="1" aria-invalid={!qrCashAmountCheck(giftSetting).ok}
+                              min={QR_CASH_MIN_DOLLARS} max={QR_CASH_MAX_DOLLARS} step="1" aria-invalid={!qrCashAmountCheck(giftSetting, requireAmount).ok}
                               placeholder="Amount"
                               value={giftSetting.customAmount || ''}
                               onChange={(e) => onGiftChange(occ.type, 'customAmount', parseInt(e.target.value))}
@@ -278,7 +288,7 @@ export default function GiftSelectorModal({
 
                       {/* Amount check, fee, total and timing (display-only; the server stays authoritative) */}
                       {(() => {
-                        const check = qrCashAmountCheck(giftSetting);
+                        const check = qrCashAmountCheck(giftSetting, requireAmount);
                         if (!check.ok) {
                           return (
                             <p

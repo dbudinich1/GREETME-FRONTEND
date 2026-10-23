@@ -141,3 +141,19 @@ test("Auto-Gift detail follows the approved consent rule: with a backup, no cont
   assert.match(withBackup.detail, /your backup is ordered instead, only within your limit/);
   assert.match(withBackup.detail, /neither gift can be ordered within your limit, nothing is charged and the greeting is sent without the gift\./);
 });
+
+test("Report 137: a new QR Cash choice from the QR Cash buttons / Dates & gifts has no amount until one is picked; an existing QR Cash amount is kept", () => {
+  const fresh = R.chooseGift({ gift: null }, "qrcash", { amountRequired: true });
+  assert.deepEqual(fresh, { type: "qrcash", autoGift: false, amount: null, needsAmount: true }, "no automatic $25");
+  assert.equal(R.rowComplete({ date: "2026-12-25", gift: fresh }), false, "not complete, so it cannot be saved");
+  assert.equal(R.resolverGiftAmount(fresh), null, "no figure shown");
+  const saved = { type: "qrcash", autoGift: true, amount: 50 };
+  assert.equal(R.chooseGift({ gift: saved }, "qrcash", { amountRequired: true }), saved, "an amount already there is kept as is");
+  assert.deepEqual(R.chooseGift({ gift: { type: "merch", autoGift: false } }, "qrcash", { amountRequired: true }), fresh, "replacing another gift starts with no amount");
+  assert.deepEqual(R.chooseGift({ gift: null }, "merch", { amountRequired: true }), { type: "merch", autoGift: false }, "other gift types unchanged");
+  assert.deepEqual(R.withQrCashAmount(fresh, 50), { type: "qrcash", autoGift: false, amount: 50 }, "a preset, marker cleared");
+  assert.deepEqual(R.withQrCashAmount(fresh, 40), { type: "qrcash", autoGift: false, amount: 0, customAmount: 40 }, "the scheduler's Custom shape");
+  assert.equal(R.rowComplete({ date: "2026-12-25", gift: R.withQrCashAmount(fresh, 10) }), true);
+  assert.equal(R.resolverGiftAmount(R.withQrCashAmount(fresh, 40)), 40);
+  assert.deepEqual(R.QRCASH_PRESET_DOLLARS, [10, 25, 50, 100], "the scheduler's own presets");
+});
