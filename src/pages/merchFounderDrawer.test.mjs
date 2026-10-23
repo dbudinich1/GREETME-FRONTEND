@@ -216,25 +216,24 @@ test("Gift Cards, Coming Soon, cart and both return flows are unchanged", () => 
   assert.match(MERCH, /sendContext: 'greeting-flow'/);
 });
 
-test("QR Cash is byte-identical to its deployed form", () => {
-  // Re-baselined again (promises ledger A-060, founder 2026-10-06): only the tile text changed, "Send • Spend • Gift" -> "Send • Claim • Spend" and the $0.00 balance figure removed (43 -> 40 lines). Approved copy change, not a weakening.
-  // Re-baselined (six-team integration, 2026-09-29): Team 1's gift/entitlement-safety pass
-  // deliberately changed this exact block's onClick from the client-only QRCashGiftModal
-  // simulation to the real, backend-wired composer flow, adding a 2-line attribution comment
-  // above the new handler (41 -> 43 lines). This tripwire is re-approving that specific,
-  // already-reviewed change -- not weakening it -- and will fire again on any further drift.
+test("QR Cash is byte-identical to its approved form (now the QR Cash™ tab)", () => {
+  // Re-baselined (founder 2026-10-22, Gift Place redesign): the QR Cash™ featured tile and its "Send QR Cash™" button
+  // were replaced, as instructed, by a QR Cash™ tab beside Gift Cards that opens the amount screen in place of the
+  // product area. This tripwire now holds that tab block and will fire again on any further drift.
+  // History: A-060 (2026-10-06) tile text "Send • Claim • Spend"; six-team integration (2026-09-29) real composer flow.
   const lines = MERCH.split("\n");
-  const start = lines.findIndex((l) => l.includes("AGP-02 — QR Cash™ featured tile"));
-  assert.ok(start > -1);
+  const start = lines.findIndex((l) => l.includes("{sel.id === 'gift_cards' && ("));
+  assert.ok(start > -1, "the QR Cash tab block must exist");
   let end = start;
-  while (end < lines.length && lines[end] !== "      </div>") end += 1;
+  while (end < lines.length && lines[end] !== "              )}") end += 1;
   const block = lines.slice(start, end + 1).join("\n") + "\n";
-  assert.equal(block.split("\n").length - 1, 40);
+  assert.equal(block.split("\n").length - 1, 27);
   assert.equal(
     createHash("sha256").update(block, "utf8").digest("hex"),
-    "11fe2d0b3fe461bb03e112c53aaaa72c8189246c796fbea580fb450170b1bcf4",
-    "the QR Cash tile changed — it must stay byte-identical"
+    "b82833831e684d38c99a7bdb0acce6f71ea406eb47e66c22b53f37afd880f349",
+    "the QR Cash tab changed — it must stay byte-identical"
   );
+  assert.equal(MERCH.includes("AGP-02 — QR Cash™ featured tile"), false, "the old tile is not reintroduced");
 });
 
 // ── 41/42 — deferred features stay absent ──────────────────────────────────────────────────

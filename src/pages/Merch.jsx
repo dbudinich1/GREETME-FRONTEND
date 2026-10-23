@@ -685,7 +685,8 @@ export default function Merch() {
                 </p>
               ) : cameFromSendGreeting ? (
                 <p style={{ margin: '0.125rem 0 0', fontSize: isNarrow ? '0.75rem' : '0.8125rem', lineHeight: 1.4, color: 'rgba(255, 255, 255, 0.92)', display: 'flex', flexWrap: 'wrap', columnGap: '0.5rem' }}>
-                  <span style={{ fontWeight: 700, color: '#EBD07A' }}>💝 Shopping for Your Greeting</span>
+                  {/* On phones the Return to Greeting button says it; the label is left out so the first row stays in view. */}
+                  {!isNarrow && <span style={{ fontWeight: 700, color: '#EBD07A' }}>💝 Shopping for Your Greeting</span>}
                   {/* Report 135: who, what for and when, carried from the greeting being composed. */}
                   {greetingGiftContext ? (
                     <span data-testid="gift-place-greeting-context" style={{ fontWeight: 600 }}>
@@ -901,7 +902,7 @@ export default function Merch() {
       {qrOpen ? (
         <QrCashAmountPanel
           mode={returnRecipientId ? 'recipient' : (cameFromSendGreeting ? 'greeting' : 'standalone')}
-          recipientName={greetingGiftContext && greetingGiftContext.recipientName ? greetingGiftContext.recipientName : ''}
+          tagline="Send • Claim • Spend"
           onConfirm={confirmQrCash}
           onCancel={() => setQrOpen(false)}
           isNarrow={isNarrow}

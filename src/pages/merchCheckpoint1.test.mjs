@@ -242,20 +242,20 @@ test("the American Gift Place branding is preserved", () => {
 // 4 — QR Cash is unchanged and still leads the page
 // ============================================================
 
-test("QR Cash renders above the selector row, with its wording intact and its behaviour now the canonical backend-wired flow", () => {
-  // Integration note (six-team merge, 2026-09-29): Team 1's gift/entitlement-safety pass replaced
-  // the client-only QRCashGiftModal simulation this test originally asserted on with real
-  // navigation into the composer's canonical, server-charged QR Cash flow (same fix applied
-  // identically to DashboardHome.jsx/HeroProgram.jsx/Gifts.jsx). The wording and position
-  // guarantees below are unchanged; only the button's action target is updated to match.
+test("QR Cash is a tab in the selector row (founder 2026-10-22): approved wording kept, amount chosen in place, attached to a greeting", () => {
+  // Founder 2026-10-22: the separate Send QR Cash™ button is removed and QR Cash becomes a tab. Its amount screen
+  // reuses the existing amount rules (utils/qrCashAmount.js) and writes the choice into the greeting the send page
+  // restores; nothing is charged here.
   assert.match(SRC, /QR Cash™/);
-  assert.match(SRC, /Send • Claim • Spend/);
-  assert.match(SRC, /Send QR Cash™/);
-  assert.match(SRC, /navigate\('\/dashboard\/send\?giftType=qrcash'\)/);
+  assert.match(SRC, /Send • Claim • Spend/, "the approved line (A-060) still shows, on the amount screen");
+  assert.equal(/Send QR Cash™/.test(SRC), false, "the separate Send QR Cash button is gone");
+  assert.equal(/navigate\('\/dashboard\/send\?giftType=qrcash'\)/.test(SRC), false, "no direct jump past the amount");
   assert.equal(/<QRCashGiftModal/.test(SRC), false, "the client-only simulation must not be reintroduced");
-  const qrIdx = SRC.indexOf("AGP-02 — QR Cash™ featured tile");
   const rowIdx = SRC.indexOf("SELECTOR_ROW.map(");
-  assert.ok(qrIdx > -1 && rowIdx > qrIdx, "the selector row must sit BENEATH QR Cash");
+  const tabIdx = SRC.indexOf('data-testid="gift-place-qrcash-tab"');
+  assert.ok(rowIdx > -1 && tabIdx > rowIdx, "the QR Cash tab is rendered inside the one selector row");
+  assert.match(SRC, /<QrCashAmountPanel/);
+  assert.match(SRC, /qrCashGiftSettings\(dollars/);
 });
 
 // ============================================================
@@ -448,14 +448,20 @@ test("the personal-greeting round trip and direct entry are preserved", () => {
   assert.match(SRC, /searchParams\.get\('returnRecipientId'\)/);
   // Both round trips go through ONE return. E01 (2026-10-15): it carries no gift type, so the Send
   // page restores whichever type the pick saved instead of having it overwritten as `merch`.
-  assert.equal((SRC.match(/navigate\('\/dashboard\/send\?returnTo=send'\);/g) || []).length, 1,
-    "one return expression serves every category");
+  // Founder 2026-10-22: QR Cash chosen with no greeting yet enters the greeting flow through the same restore path, so
+  // the expression appears twice: the one return (every category) and QR Cash's no-greeting entry.
+  assert.equal((SRC.match(/navigate\('\/dashboard\/send\?returnTo=send'\);/g) || []).length, 2,
+    "one return expression serves every category, plus QR Cash's no-greeting entry");
+  const ret = SRC.slice(SRC.indexOf("const handleReturnToGreeting"), SRC.indexOf("const confirmQrCash"));
+  assert.equal((ret.match(/navigate\('\/dashboard\/send\?returnTo=send'\);/g) || []).length, 1, "the return itself is one expression");
   assert.doesNotMatch(SRC, /returnTo=send&giftType=/);
   assert.match(SRC, /sendContext: 'greeting-flow'/);
   // Direct entry: both session headers are conditional, so /dashboard/gifts with no query
   // parameters renders the marketplace on its own.
-  assert.match(SRC, /\{returnRecipientId && \(/);
-  assert.match(SRC, /\{cameFromSendGreeting && !returnRecipientId && \(/);
+  // (Founder 2026-10-22: the session context now sits in the Gift Place header band, still conditional.)
+  assert.match(SRC, /\{returnRecipientId \? \(/);
+  assert.match(SRC, /\) : cameFromSendGreeting \? \(/);
+  assert.match(SRC, /\{\(returnRecipientId \|\| cameFromSendGreeting\) && \(/);
 });
 
 // ============================================================

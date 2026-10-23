@@ -38,3 +38,21 @@ test("validation accepts whole dollars 5..100 and explains every refusal", () =>
   }
   assert.equal(centsToDollarString(1234), "$12.34");
 });
+
+// Gift Place QR Cash tab (founder 2026-10-22): one preset list, and an amount written in the send page's own shape.
+import { QR_CASH_PRESET_DOLLARS, qrCashGiftSettings } from "./qrCashAmount.js";
+
+test("the presets are the existing $10/$25/$50/$100 and all lie within the limits", () => {
+  assert.deepEqual([...QR_CASH_PRESET_DOLLARS], [10, 25, 50, 100]);
+  for (const d of QR_CASH_PRESET_DOLLARS) assert.equal(validateQrCashDollars(String(d)).ok, true);
+});
+
+test("qrCashGiftSettings: a preset is `amount`; any other amount is amount 0 + customAmount; every other setting is kept", () => {
+  const base = { type: "flowers", amount: 25, customAmount: "", maxSpend: 75, autoGift: true, flowersProduct: { id: "x" } };
+  assert.deepEqual(qrCashGiftSettings(50, base), { ...base, type: "qrcash", amount: 50, customAmount: "" });
+  assert.deepEqual(qrCashGiftSettings(40, base), { ...base, type: "qrcash", amount: 0, customAmount: "40" });
+  // No greeting yet: the send page's defaults, so nothing it reads is missing.
+  assert.deepEqual(qrCashGiftSettings(25), { amount: 25, customAmount: "", maxSpend: 50, autoGift: false, type: "qrcash" });
+  // The send page's own rule turns it back into the same dollars.
+  for (const d of [5, 10, 25, 40, 99, 100]) { const g = qrCashGiftSettings(d); assert.equal(Number(g.amount === 0 ? g.customAmount : g.amount), d); }
+});

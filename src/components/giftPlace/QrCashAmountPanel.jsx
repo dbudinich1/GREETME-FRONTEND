@@ -15,7 +15,7 @@ const INK = '#2C1D46';
  * mode: 'greeting' (opened from a greeting being written), 'standalone' (no greeting yet: confirming leads into the
  * greeting flow), or 'recipient' (opened from a recipient's settings, where QR Cash is set in the Occasion Scheduler).
  */
-export default function QrCashAmountPanel({ mode = 'standalone', recipientName = '', onConfirm, onCancel, isNarrow = false }) {
+export default function QrCashAmountPanel({ mode = 'standalone', tagline = '', onConfirm, onCancel, isNarrow = false }) {
   const [preset, setPreset] = useState(null); // no amount chosen at first
   const [custom, setCustom] = useState('');
   const [customTouched, setCustomTouched] = useState(false);
@@ -41,7 +41,7 @@ export default function QrCashAmountPanel({ mode = 'standalone', recipientName =
         <div style={{ minWidth: 0, flex: 1 }}>
           <h2 id="qrcash-panel-title" style={{ margin: 0, fontSize: isNarrow ? '1.25rem' : '1.375rem', fontWeight: 700, color: INK }}>QR Cash™</h2>
           <p style={{ margin: '0.25rem 0 0', fontSize: '0.9375rem', color: '#5b4f72', lineHeight: 1.5 }}>
-            {mode === 'greeting' && recipientName ? `Cash ${recipientName} claims with a scan, sent with your Greet-Me.` : 'Cash they claim with a scan, sent with your Greet-Me.'}
+            {tagline}
           </p>
         </div>
         {onCancel ? (
