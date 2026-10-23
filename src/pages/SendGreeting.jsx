@@ -24,6 +24,11 @@
 //   restore); a used entry reached again stays on this page with the same recipient/occasion and drops the gift
 //   request. Affected locked milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regression: Back from the
 //   restored page lands on the dashboard instead of the entry URL. Verification gate, review, payment and send unchanged.
+// 2026-10-23 (Report 136, preview, not released): the refresh draft also keeps a QR Cash choice (type and amount
+//   only), restored only onto a greeting with no gift yet, so a QR Cash amount chosen in the Gift Place survives a
+//   refresh. Affected locked milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regression: an unsent
+//   draft's QR Cash amount returns on a later visit for the same recipient and occasion (shown, never charged, before
+//   review); a sent draft never restores a gift. Verification gate, review, payment and send unchanged.
 
 import { useState, useEffect } from 'react';
 import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff, dashboardGiftPlaceEntry, markGiftPlaceEntryUsed, giftPlaceEntryUsed } from '../utils/dashboardSendHandoff';
@@ -617,6 +622,9 @@ export default function SendGreeting() {
           useMemoryPhotos,
           excludedMemoryPhotos: Array.from(excludedMemoryPhotos),
           contactAlbumPhotosToAdd,
+          // Report 136: a QR Cash choice (type and amount only; nothing about payment) survives a refresh like the words
+          // and photos. Other gift types are not stored here, as before.
+          giftChoice: giftSettings.type === 'qrcash' ? { type: 'qrcash', amount: giftSettings.amount, customAmount: giftSettings.customAmount } : null,
           status: 'draft',
         });
         draftSaveFailureNotifiedRef.current = false;
@@ -638,7 +646,7 @@ export default function SendGreeting() {
       }
     }, 1000); // debounce 1s
     return () => clearTimeout(timer);
-  }, [formData, defaultPhoto, memoryPhotos, useMemoryPhotos, excludedMemoryPhotos, contactAlbumPhotosToAdd]);
+  }, [formData, defaultPhoto, memoryPhotos, useMemoryPhotos, excludedMemoryPhotos, contactAlbumPhotosToAdd, giftSettings]);
 
   // Restore a saved draft's fields onto current state, including the media
   // fields Fix 4 (Team 3 WP-C) added to the draft above.
@@ -655,6 +663,11 @@ export default function SendGreeting() {
     }
     if (Array.isArray(saved.contactAlbumPhotosToAdd)) {
       setContactAlbumPhotosToAdd(saved.contactAlbumPhotosToAdd);
+    }
+    // Report 136: a saved QR Cash choice comes back only onto a greeting with no gift yet, and never from a draft that
+    // was already sent (a sent draft is kept, marked 'sent'); it never replaces a gift.
+    if (saved.giftChoice && saved.giftChoice.type === 'qrcash' && saved.status !== 'sent') {
+      setGiftSettings(prev => (prev.type === 'none' ? { ...prev, type: 'qrcash', amount: saved.giftChoice.amount, customAmount: saved.giftChoice.customAmount || '' } : prev));
     }
   };
 
