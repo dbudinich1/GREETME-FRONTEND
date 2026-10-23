@@ -390,3 +390,39 @@ test("?tab=qrcash (the Celebrations QR Cash slide) opens the Gift Place on its Q
     assert.equal(qr(m.host, "qrcash-panel"), null);
   } finally { await m.unmount(); }
 });
+
+test("a gift already paid for and still waiting for its greeting is never replaced: the standalone Add is refused, the record is untouched, and the way back is offered", async () => {
+  const record = {
+    formData: { contactId: "c2", occasionType: "Birthday" },
+    giftSettings: { type: "flowers", amount: 25, customAmount: "", maxSpend: 50, autoGift: false },
+    pendingGiftLink: { status: "pending", attemptId: "att-1", contactId: "c2", productId: "F-1", giftType: "flowers" },
+    sendRequestId: "old-greeting-key",
+  };
+  window.sessionStorage.setItem("sendGreetingState", JSON.stringify(record));
+  const m = await mountGiftPlace();
+  try {
+    await click(qr(m.host, "gift-place-qrcash-tab"));
+    assert.match(text(qr(m.host, "qrcash-pending-gift-note")), /already paid for that is still waiting to be added to its greeting/);
+    await click(qr(m.host, "qrcash-preset-25"));
+    assert.equal(qr(m.host, "qrcash-add").disabled, true, "Add to Greet-Me is refused");
+    await click(qr(m.host, "qrcash-add"));
+    assert.deepEqual(JSON.parse(window.sessionStorage.getItem("sendGreetingState")), record, "the pending gift's record is untouched");
+    assert.deepEqual(navigations, [], "nothing navigates");
+    await click(qr(m.host, "qrcash-finish-pending"));
+    assert.equal(navigations.at(-1), "/dashboard/send", "Finish that greeting reopens it");
+  } finally { await m.unmount(); window.sessionStorage.removeItem("sendGreetingState"); }
+});
+
+test("with nothing waiting, the new greeting starts clean: no previous greeting's send key or draft fields carry over", async () => {
+  window.sessionStorage.setItem("sendGreetingState", JSON.stringify({ formData: { contactId: "c1" }, sendRequestId: "old-greeting-key", giftSettings: { type: "none" } }));
+  const m = await mountGiftPlace();
+  try {
+    await click(qr(m.host, "gift-place-qrcash-tab"));
+    assert.equal(qr(m.host, "qrcash-pending-gift-note"), null);
+    await click(qr(m.host, "qrcash-preset-50"));
+    await click(qr(m.host, "qrcash-add"));
+    const kept = JSON.parse(window.sessionStorage.getItem("sendGreetingState"));
+    assert.deepEqual(Object.keys(kept), ["giftSettings"]);
+    assert.equal("sendRequestId" in kept, false);
+  } finally { await m.unmount(); window.sessionStorage.removeItem("sendGreetingState"); }
+});

@@ -42,6 +42,7 @@ import { GiftProductGrid } from '../components/giftPlace/GiftProductCard';
 import QrCashAmountPanel from '../components/giftPlace/QrCashAmountPanel';
 import { qrCashGiftSettings } from '../utils/qrCashAmount';
 import { takeGiftPlaceTab } from '../utils/dashboardSendHandoff';
+import { readPendingGiftLink } from './pendingGiftLink';
 import {
   actionLabelFor, fromCatalogProduct, fromCuratedProduct, giftTypeForSelector, GIFT_SOURCES, withOptionsNote, withLiveAvailability, requiresOptions, OPTIONS_UNAVAILABLE_NOTE,
   projectGiftCards, VENDOR_SOURCE_TO_GIFT_TYPE,
@@ -662,6 +663,9 @@ export default function Merch() {
       handleReturnToGreeting();
       return;
     }
+    // A gift already paid for that still waits for its greeting lives in this same record (pendingGiftLink): a new
+    // greeting must never replace it. The screen refuses first; this is the guard behind it (Team 5, Report 136).
+    if (readPendingGiftLink()) return;
     sessionStorage.setItem('sendGreetingState', JSON.stringify({ giftSettings: qrCashGiftSettings(dollars) }));
     navigate('/dashboard/send?returnTo=send');
   };
@@ -917,6 +921,8 @@ export default function Merch() {
           tagline="Send • Claim • Spend"
           onConfirm={confirmQrCash}
           onCancel={() => setQrOpen(false)}
+          pendingGift={!cameFromSendGreeting && !returnRecipientId && Boolean(readPendingGiftLink())}
+          onFinishPending={() => navigate('/dashboard/send')}
           isNarrow={isNarrow}
         />
       ) : selectedCategory === 'gift_cards' ? (

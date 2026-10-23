@@ -15,7 +15,7 @@ const INK = '#2C1D46';
  * mode: 'greeting' (opened from a greeting being written), 'standalone' (no greeting yet: confirming leads into the
  * greeting flow), or 'recipient' (opened from a recipient's settings, where QR Cash is set in the Occasion Scheduler).
  */
-export default function QrCashAmountPanel({ mode = 'standalone', tagline = '', onConfirm, onCancel, isNarrow = false }) {
+export default function QrCashAmountPanel({ mode = 'standalone', tagline = '', onConfirm, onCancel, isNarrow = false, pendingGift = false, onFinishPending = null }) {
   const [preset, setPreset] = useState(null); // no amount chosen at first
   const [custom, setCustom] = useState('');
   const [customTouched, setCustomTouched] = useState(false);
@@ -23,7 +23,8 @@ export default function QrCashAmountPanel({ mode = 'standalone', tagline = '', o
   const check = preset !== null ? { ok: true, dollars: preset } : validateQrCashDollars(custom);
   const quote = check.ok ? qrCashQuote(check.dollars) : null;
   const showError = preset === null && customTouched && custom !== '' && !check.ok;
-  const canConfirm = mode !== 'recipient' && Boolean(quote);
+  // A gift already paid for that still waits for its greeting comes first (Team 5, Report 136): no new greeting here.
+  const canConfirm = mode !== 'recipient' && !pendingGift && Boolean(quote);
 
   const pill = (on) => ({
     minWidth: isNarrow ? 0 : '5.5rem', flex: isNarrow ? '1 1 0' : 'none', height: '2.75rem', padding: '0 1rem',
@@ -60,6 +61,17 @@ export default function QrCashAmountPanel({ mode = 'standalone', tagline = '', o
         <>
           {/* Founder 2026-10-23: say plainly which flow this joins. QR Cash chosen here goes with a Greet-Me sent now;
               a scheduled Greet-Me keeps its QR Cash in the Occasion Scheduler, and is never switched to Send Now. */}
+          {pendingGift ? (
+            <div data-testid="qrcash-pending-gift-note" role="alert" style={{ margin: '1rem 0 0', padding: '0.75rem 0.875rem', borderRadius: '0.75rem', background: '#FDF1E4', border: '1px solid #F1D3A8', color: '#5c3a0b', fontSize: '0.875rem', lineHeight: 1.5 }}>
+              You have a gift you already paid for that is still waiting to be added to its greeting. Finish that greeting first, then choose QR Cash.
+              {onFinishPending ? (
+                <button type="button" data-testid="qrcash-finish-pending" onClick={onFinishPending}
+                  style={{ display: 'block', marginTop: '0.5rem', padding: 0, minHeight: 0, border: 'none', background: 'none', color: INK, font: 'inherit', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}>
+                  Finish that greeting
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <p data-testid="qrcash-send-now-note" role="note" style={{ margin: '1rem 0 0', padding: '0.625rem 0.875rem', borderRadius: '0.75rem', background: '#F7F3FC', color: INK, fontSize: '0.875rem', lineHeight: 1.5 }}>
             <strong>Send Now:</strong> QR Cash chosen here goes with a Greet-Me you send now. For a scheduled Greet-Me, set QR Cash in that person&rsquo;s Occasion Scheduler.
           </p>
