@@ -6,8 +6,6 @@ export default function GreetMeLogo({ size = 'medium', clickable = true, variant
 
   const sizes = {
     small: { width: 100, height: 32, fontSize: '1rem', tagline: '0.5rem' },
-    // 'mark' (Report 136): the G mark alone, for the smallest phone headers (below 360px) where the wordmark cannot fit.
-    mark: { width: 36, height: 36, fontSize: '1.0625rem', tagline: '0.5rem' },
     medium: { width: 140, height: 44, fontSize: '1.375rem', tagline: '0.625rem' },
     large: { width: 180, height: 56, fontSize: '1.75rem', tagline: '0.75rem' },
     xlarge: { width: 220, height: 68, fontSize: '2.125rem', tagline: '0.875rem' }
@@ -39,7 +37,6 @@ export default function GreetMeLogo({ size = 'medium', clickable = true, variant
         if (clickable) e.currentTarget.style.transform = 'scale(1)';
       }}
       title={clickable ? 'Go to Dashboard' : undefined}
-      {...(size === 'mark' ? { role: clickable ? 'link' : 'img', 'aria-label': 'Greet-Me™ Forget Them Not!™' } : {})}
     >
       {/* Main Logo */}
       <div style={{
@@ -67,8 +64,8 @@ export default function GreetMeLogo({ size = 'medium', clickable = true, variant
           }}>G</span>
         </div>
 
-        {/* Text Logo (left out for the 'mark' size) */}
-        {size !== 'mark' && <div style={{
+        {/* Text Logo */}
+        <div style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-start',
@@ -144,7 +141,7 @@ export default function GreetMeLogo({ size = 'medium', clickable = true, variant
               display: 'inline-block'
             }}>Forget Them Not!™</span>
           </span>
-        </div>}
+        </div>
       </div>
     </div>
   );

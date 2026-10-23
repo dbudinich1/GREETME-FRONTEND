@@ -1,5 +1,5 @@
 // src/components/DashboardLayout.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { isFundraiserUiEnabled } from '../config/fundraiserGate.js'; // TEAM B — dark fundraising nav gate
 import { isFounder } from '../utils/accountState.js'; // TEAM D — FE-GATE-1 founder nav gating
@@ -30,8 +30,11 @@ export default function DashboardLayout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState(null); // NAV-02 — desktop nested submenu (For Business)
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
-  // Report 136: below 360px the header shows the logo's G mark alone (the wordmark cannot fit beside the controls).
-  const [isTiny, setIsTiny] = useState(window.innerWidth < 360);
+  // Report 136: on phones the full logo stays on one line and scales down only as far as its space needs
+  // (the narrowest phones, below about 375px); desktop never renders this.
+  const logoColRef = useRef(null);
+  const logoRef = useRef(null);
+  const [logoScale, setLogoScale] = useState(1);
   // TEAM B B3 — server-derived partner-administrator signal for nav visibility only. Probes once per
   // mount, only when authenticated AND the fundraiser gate is on; fails closed; nothing persisted.
   // Re-probes exactly once per authentication transition; auth loss hides the entry immediately.
@@ -74,10 +77,27 @@ export default function DashboardLayout({ children }) {
 
   // Handle resize for mobile detection
   useEffect(() => {
-    const handleResize = () => { setIsNarrow(window.innerWidth < 768); setIsTiny(window.innerWidth < 360); };
+    const handleResize = () => setIsNarrow(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Report 136: fit the phone logo to its column (re-fit when fonts arrive and whenever the column changes size,
+  // e.g. the Hearts count growing).
+  useLayoutEffect(() => {
+    if (!isNarrow) return undefined;
+    const fit = () => {
+      const col = logoColRef.current; const logo = logoRef.current;
+      if (!col || !logo || !logo.offsetWidth) return;
+      setLogoScale(Math.min(1, col.clientWidth / logo.offsetWidth));
+    };
+    fit();
+    let live = true;
+    document.fonts?.ready?.then(() => { if (live) fit(); });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(fit) : null;
+    if (ro && logoColRef.current) ro.observe(logoColRef.current);
+    return () => { live = false; if (ro) ro.disconnect(); };
+  }, [isNarrow]);
 
   useEffect(() => {
     // Update cart count on mount and when window regains focus
@@ -289,7 +309,7 @@ export default function DashboardLayout({ children }) {
           )}
 
           {/* Centered Logo and Tagline */}
-          <div style={{
+          <div ref={logoColRef} style={{
             textAlign: 'center',
             display: 'flex',
             flexDirection: 'column',
@@ -298,7 +318,13 @@ export default function DashboardLayout({ children }) {
             justifyContent: 'center',
             minWidth: 0
           }}>
-            <GreetMeLogo size={isNarrow ? (isTiny ? 'mark' : 'small') : 'xlarge'} clickable={true} />
+            {isNarrow ? (
+              <div ref={logoRef} data-testid="phone-header-logo" style={{ width: 'max-content', whiteSpace: 'nowrap', transform: logoScale < 1 ? `scale(${logoScale})` : undefined, transformOrigin: 'center' }}>
+                <GreetMeLogo size="small" clickable={true} />
+              </div>
+            ) : (
+              <GreetMeLogo size="xlarge" clickable={true} />
+            )}
           </div>
 
           {/* Right side - Image Bank, Cart, User icon (equal spacing) */}
@@ -445,7 +471,8 @@ export default function DashboardLayout({ children }) {
               )}
             </button>
 
-            {/* User Icon with Dropdown */}
+            {/* User Icon with Dropdown — Report 136: desktop only; on phones its account actions are in the hamburger menu */}
+            {!isNarrow && (
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -578,6 +605,7 @@ export default function DashboardLayout({ children }) {
                 </>
               )}
             </div>
+            )}
           </div>
         </div>
       </header>
@@ -642,23 +670,32 @@ export default function DashboardLayout({ children }) {
               </button>
             </div>
 
-            {/* User Info */}
+            {/* User Info — Report 136: carries the header's user icon on phones */}
             <div style={{
               padding: '1rem',
               borderBottom: '1px solid var(--border)',
-              background: 'var(--gray-50)'
+              background: 'var(--gray-50)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem'
             }}>
-              <p style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                margin: 0
-              }}>Welcome, {firstName}!</p>
-              <p style={{
-                fontSize: '0.75rem',
-                color: 'var(--text-tertiary)',
-                margin: '0.25rem 0 0 0'
-              }}>{user?.email || ''}</p>
+              <span aria-hidden="true" title={displayName} style={{ width: '2.75rem', height: '2.75rem', borderRadius: '50%', background: 'var(--primary)', color: 'white', fontWeight: 600, fontSize: '1.125rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{avatarInitial}</span>
+              <div style={{ minWidth: 0 }}>
+                <p style={{
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  margin: 0
+                }}>Welcome, {firstName}!</p>
+                <p style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--text-tertiary)',
+                  margin: '0.25rem 0 0 0',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>{user?.email || ''}</p>
+              </div>
             </div>
 
             {/* Navigation Links */}
@@ -741,6 +778,23 @@ export default function DashboardLayout({ children }) {
                   ))}
                 </div>
               ))}
+              {/* Report 136: the header user menu's account actions, for phones (the header has no user icon there) */}
+              <div style={{ borderTop: '1px solid var(--border)', marginTop: '0.25rem', paddingTop: '0.5rem' }}>
+                {[
+                  { label: 'Media Library', icon: ImageIcon, path: '/dashboard/media' },
+                  { label: 'My Orders', icon: ShoppingBag, path: '/dashboard/merch/orders' },
+                  { label: 'Settings', icon: SettingsIcon, path: '/dashboard/settings' },
+                ].map((item) => (
+                  <button
+                    key={item.path}
+                    onClick={() => { setMobileMenuOpen(false); navigate(item.path); }}
+                    style={{ width: '100%', textAlign: 'left', justifyContent: 'flex-start', padding: '0.875rem 1rem', marginBottom: '0.25rem', fontSize: '0.9375rem', fontWeight: 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    <item.icon size={18} />
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Menu Footer */}
