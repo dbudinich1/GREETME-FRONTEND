@@ -49,9 +49,9 @@ const IMAGE_FIT = {
   backgroundColor: 'var(--bg-secondary, #f8fafc)',
 };
 
-export function GiftProductCard({ card, actionLabel, onAction, selected = false, isNarrow = false, disabled: disabledProp = false, onRetryAvailability = null, variant = 'standard', chip = '' }) {
+export function GiftProductCard({ card, actionLabel, onAction, selected = false, isNarrow = false, disabled: disabledProp = false, onRetryAvailability = null, variant = 'standard', chip = '', priceNote = '' }) {
   if (!card) return null;
-  if (variant === 'gallery') return <GalleryCard card={card} actionLabel={actionLabel} onAction={onAction} selected={selected} isNarrow={isNarrow} disabled={disabledProp || Boolean(card.unavailableNote)} onRetryAvailability={onRetryAvailability} chip={chip} />;
+  if (variant === 'gallery') return <GalleryCard card={card} actionLabel={actionLabel} onAction={onAction} selected={selected} isNarrow={isNarrow} disabled={disabledProp || Boolean(card.unavailableNote)} onRetryAvailability={onRetryAvailability} chip={chip} priceNote={priceNote} />;
   // A card that cannot be chosen here (e.g. a gift box whose provider requires options) says why and cannot be acted on.
   const disabled = disabledProp || Boolean(card.unavailableNote);
   const isSelect = actionLabel === 'Select Gift';
@@ -204,7 +204,7 @@ export function GiftProductCard({ card, actionLabel, onAction, selected = false,
 // on one line, a two-line description, and one full-width action. Same test hooks and the same behaviour as the
 // standard card (which the scheduled-gift picker keeps); only the arrangement differs.
 const GALLERY_IMAGE_HEIGHT = { narrow: 128, wide: 148 };
-function GalleryCard({ card, actionLabel, onAction, selected, isNarrow, disabled, onRetryAvailability, chip }) {
+function GalleryCard({ card, actionLabel, onAction, selected, isNarrow, disabled, onRetryAvailability, chip, priceNote }) {
   const isSelect = actionLabel === 'Select Gift';
   return (
     <div data-testid={`gift-card-${card.id}`} data-gift-source={card.source} style={{
@@ -227,7 +227,7 @@ function GalleryCard({ card, actionLabel, onAction, selected, isNarrow, disabled
       <div style={{ padding: isNarrow ? '0.625rem' : '0.75rem 0.875rem 0.875rem', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem' }}>
           <h3 style={{ margin: 0, minWidth: 0, fontFamily: '"Playfair Display", Georgia, serif', fontSize: isNarrow ? '0.875rem' : '1rem', fontWeight: 700, color: '#2C1D46', lineHeight: 1.25 }}>{card.name}</h3>
-          <span data-testid={`gift-card-price-${card.id}`} style={{ flex: 'none', fontFamily: '"Playfair Display", Georgia, serif', fontSize: isNarrow ? '0.875rem' : '1rem', fontWeight: 700, color: '#b4232f', whiteSpace: 'nowrap' }}>{card.priceLabel}</span>
+          <span data-testid={`gift-card-price-${card.id}`} style={{ flex: 'none', fontFamily: '"Playfair Display", Georgia, serif', fontSize: isNarrow ? '0.875rem' : '1rem', fontWeight: 700, color: '#b4232f', whiteSpace: 'nowrap' }}>{card.priceLabel}{priceNote ? <span data-testid={`gift-card-price-note-${card.id}`} style={{ fontFamily: 'Inter, -apple-system, "Segoe UI", Roboto, sans-serif', fontSize: '0.6875rem', fontWeight: 600, color: '#6B6079', marginLeft: '0.25rem' }}>{priceNote}</span> : null}</span>
         </div>
         <p data-testid={`gift-card-desc-${card.id}`} style={{
           fontSize: '0.75rem', color: '#6B6079', lineHeight: 1.4, margin: '0.25rem 0 0.625rem', minHeight: '2.1em',
@@ -265,7 +265,7 @@ function GalleryCard({ card, actionLabel, onAction, selected, isNarrow, disabled
 export function GiftProductGrid({
   cards, state, actionLabel, onAction, onRetry,
   selectedId = null, isNarrow = false, emptyLabel = 'This collection', onRetryAvailability = null,
-  variant = 'standard', chipFor = null,
+  variant = 'standard', chipFor = null, priceNoteFor = null,
 }) {
   if (state === 'loading') {
     // Skeletons in the real grid, at the real card size, so the layout does not jump when they
@@ -336,6 +336,7 @@ export function GiftProductGrid({
           onRetryAvailability={onRetryAvailability}
           variant={variant}
           chip={chipFor ? chipFor(card) || '' : ''}
+          priceNote={priceNoteFor ? priceNoteFor(card) || '' : ''}
         />
       ))}
     </div>

@@ -232,12 +232,12 @@ export default function DashboardLayout({ children }) {
         <div style={{
           maxWidth: '1200px',
           margin: '0 auto',
-          padding: isNarrow ? '0 1rem' : '0 2rem',
+          padding: isNarrow ? '0 0.75rem' : '0 2rem',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           height: isNarrow ? '4rem' : '7rem',
-          gap: isNarrow ? '0.5rem' : '1rem'
+          gap: isNarrow ? '0.375rem' : '1rem'
         }}>
           {/* Hamburger Menu Button - Mobile Only */}
           {isNarrow && (
@@ -300,7 +300,7 @@ export default function DashboardLayout({ children }) {
           </div>
 
           {/* Right side - Image Bank, Cart, User icon (equal spacing) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: isNarrow ? '0.5rem' : '1rem', justifyContent: 'flex-end', flexShrink: 0, minWidth: isNarrow ? '6rem' : '120px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isNarrow ? '0.25rem' : '1rem', justifyContent: 'flex-end', flexShrink: 0, minWidth: isNarrow ? '6rem' : '120px' }}>
             {/* Persistent Hearts balance (C2 + C3) — the destination the celebration
                 flies to and counts up into. Value is server-driven (aria reflects the
                 server-confirmed `heartsBalance`); only the visible number animates. */}
@@ -313,7 +313,7 @@ export default function DashboardLayout({ children }) {
                 alignItems: 'center',
                 gap: '0.25rem',
                 height: '3.25rem',
-                padding: isNarrow ? '0 0.375rem' : '0 0.5rem',
+                padding: isNarrow ? '0 0.125rem' : '0 0.5rem',
                 fontSize: isNarrow ? '0.9375rem' : '1.0625rem',
                 fontWeight: 700,
                 color: 'var(--text-secondary)',
@@ -328,8 +328,8 @@ export default function DashboardLayout({ children }) {
             <button
               onClick={() => navigate('/dashboard/animations')}
               style={{
-                width: '3.25rem',
-                height: '3.25rem',
+                width: isNarrow ? '2.75rem' : '3.25rem',
+                height: isNarrow ? '2.75rem' : '3.25rem',
                 borderRadius: '50%',
                 border: 'none',
                 background: 'transparent',
@@ -399,8 +399,8 @@ export default function DashboardLayout({ children }) {
             <button
               onClick={() => navigate('/dashboard/cart')}
               style={{
-                width: '3.25rem',
-                height: '3.25rem',
+                width: isNarrow ? '2.75rem' : '3.25rem',
+                height: isNarrow ? '2.75rem' : '3.25rem',
                 borderRadius: '50%',
                 border: 'none',
                 background: 'transparent',
@@ -448,8 +448,8 @@ export default function DashboardLayout({ children }) {
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 style={{
-                  width: '3.25rem',
-                  height: '3.25rem',
+                  width: isNarrow ? '2.75rem' : '3.25rem',
+                  height: isNarrow ? '2.75rem' : '3.25rem',
                   borderRadius: '50%',
                   border: 'none',
                   background: 'var(--primary)',

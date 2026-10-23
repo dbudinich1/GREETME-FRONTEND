@@ -43,7 +43,7 @@ import QrCashAmountPanel from '../components/giftPlace/QrCashAmountPanel';
 import { qrCashGiftSettings } from '../utils/qrCashAmount';
 import {
   actionLabelFor, fromCatalogProduct, fromCuratedProduct, giftTypeForSelector, GIFT_SOURCES, withOptionsNote, withLiveAvailability, requiresOptions, OPTIONS_UNAVAILABLE_NOTE,
-  projectGiftCards,
+  projectGiftCards, VENDOR_SOURCE_TO_GIFT_TYPE,
 } from './giftPlaceViewModel';
 // The posture gate and the four proven catalogue states, in a hook so they stay assertable by
 // MOUNTING rather than by scraping this file. A dormant provider is never asked for products.
@@ -327,6 +327,10 @@ export default function Merch() {
     const first = raw && Array.isArray(raw.greetMeCategories) ? raw.greetMeCategories[0] : null;
     return (GREET_ME_CATEGORIES.find((c) => c.id === first) || {}).label || '';
   };
+
+  // The approved "+ S&H" disclosure (as in the group review and the scheduled-gift picker): shipped gifts — gift boxes and
+  // Branded Goods — add shipping and handling at checkout. Display only.
+  const priceNoteFor = (card) => (card && (card.source === GIFT_SOURCES.CATALOG || VENDOR_SOURCE_TO_GIFT_TYPE[card.vendorSource] === 'gift_boxes') ? '+ S&H' : '');
 
   // The grid's state, from whichever source is feeding it.
   const gridState = isCuratedSelection
@@ -1069,6 +1073,7 @@ export default function Merch() {
           emptyLabel={selectedCategoryLabel}
           variant="gallery"
           chipFor={chipFor}
+          priceNoteFor={priceNoteFor}
         />
       )}
       </div>

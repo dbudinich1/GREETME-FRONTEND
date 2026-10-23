@@ -54,7 +54,7 @@ export default function QrCashAmountPanel({ mode = 'standalone', tagline = '', o
 
       {mode === 'recipient' ? (
         <p data-testid="qrcash-recipient-note" role="note" style={{ margin: '1.25rem 0 0', padding: '0.875rem 1rem', borderRadius: '0.75rem', background: '#F7F3FC', color: INK, fontSize: '0.9375rem', lineHeight: 1.5 }}>
-          QR Cash for a scheduled Greet-Me is set in their Occasion Scheduler. Return to their settings to choose it there.
+          QR Cash for a scheduled Greet-Me is set in their Occasion Scheduler. With Auto-Gift on, it is sent automatically on the occasion date and charged to your saved card. Return to their settings to choose it there.
         </p>
       ) : (
         <>
@@ -97,6 +97,8 @@ export default function QrCashAmountPanel({ mode = 'standalone', tagline = '', o
             )}
           </div>
           <p style={{ margin: '0.625rem 0 0', fontSize: '0.8125rem', color: '#6B6079', lineHeight: 1.5 }}>
+            {/* Send Now wording: the Gift Place attaches QR Cash only to a greeting sent now (the send page has no
+                scheduling); scheduled Auto-Gift QR Cash is set in the Occasion Scheduler, with its own consent. */}
             Nothing is charged now. You review the greeting and pay before anything is sent.
           </p>
         </>
