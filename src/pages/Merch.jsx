@@ -905,7 +905,9 @@ export default function Merch() {
 
       {qrOpen ? (
         <QrCashAmountPanel
-          mode={returnRecipientId ? 'recipient' : (cameFromSendGreeting ? 'greeting' : 'standalone')}
+          // A greeting that is not sent now (none today: the send page only sends now) is never switched to Send Now here;
+          // like a recipient's settings, it is pointed to the Occasion Scheduler.
+          mode={returnRecipientId || (greetingGiftContext && greetingGiftContext.timing && !/^send now$/i.test(greetingGiftContext.timing)) ? 'recipient' : (cameFromSendGreeting ? 'greeting' : 'standalone')}
           tagline="Send • Claim • Spend"
           onConfirm={confirmQrCash}
           onCancel={() => setQrOpen(false)}

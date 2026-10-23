@@ -58,6 +58,11 @@ export default function QrCashAmountPanel({ mode = 'standalone', tagline = '', o
         </p>
       ) : (
         <>
+          {/* Founder 2026-10-23: say plainly which flow this joins. QR Cash chosen here goes with a Greet-Me sent now;
+              a scheduled Greet-Me keeps its QR Cash in the Occasion Scheduler, and is never switched to Send Now. */}
+          <p data-testid="qrcash-send-now-note" role="note" style={{ margin: '1rem 0 0', padding: '0.625rem 0.875rem', borderRadius: '0.75rem', background: '#F7F3FC', color: INK, fontSize: '0.875rem', lineHeight: 1.5 }}>
+            <strong>Send Now:</strong> QR Cash chosen here goes with a Greet-Me you send now. For a scheduled Greet-Me, set QR Cash in that person&rsquo;s Occasion Scheduler.
+          </p>
           <fieldset style={{ border: 'none', margin: '1.25rem 0 0', padding: 0 }}>
             <legend style={{ fontSize: '0.8125rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#5A3E8A', padding: 0, marginBottom: '0.625rem' }}>Choose an amount</legend>
             <div role="radiogroup" aria-label="QR Cash amount" style={{ display: 'flex', gap: '0.5rem', flexWrap: isNarrow ? 'nowrap' : 'wrap' }}>
