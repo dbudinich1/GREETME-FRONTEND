@@ -366,3 +366,34 @@ test("a greeting already SENT never brings its QR Cash back: the same person and
     assert.equal((later.host.querySelector("textarea") || {}).value, "Happy birthday, Dana", "words keep today's behaviour (restored from the draft as before)");
   } finally { await later.unmount(); }
 });
+
+test("from the dashboard's QR Cash slide: the Gift Place opens on its QR Cash tab with the greeting's context; $25 comes back to the same greeting", async () => {
+  seedHandoff();
+  // What the dashboard writes when Add a gift is pressed on its QR Cash slide (DashboardHome goSendFlow, entry e1 in DASH).
+  window.sessionStorage.setItem("gm_giftplace_tab_v1", JSON.stringify({ entry: "e1", tab: "qrcash", at: Date.now() }));
+  const m = await mountAt(DASH, { history: ["/dashboard"] });
+  try {
+    assert.equal(location(m.host), "/dashboard/gifts?returnTo=send&giftType=marketplace");
+    assert.ok(qr(m.host, "qrcash-panel"), "the QR Cash tab is open on arrival");
+    assert.equal(qr(m.host, "gift-place-qrcash-tab").getAttribute("aria-pressed"), "true");
+    assert.equal(text(m.host.querySelector('[data-testid="gift-place-greeting-context"]')), "for Dana Example · Birthday · Send now");
+    assert.equal(window.sessionStorage.getItem("gm_giftplace_tab_v1"), null, "the marker is used once");
+    await click(qr(m.host, "qrcash-preset-25"));
+    await click(qr(m.host, "qrcash-add"));
+    for (let i = 0; i < 6; i += 1) await wait(80);
+    assert.equal(location(m.host), "/dashboard/send");
+    assert.deepEqual(greeting(m.host), { occasion: "Birthday", recipient: "c1", words: "Happy birthday, Dana", photos: 1 });
+    assert.match(text(m.host), /QR Cash gift of \$25/);
+    assert.equal(mod.__sends.length, 0);
+  } finally { await m.unmount(); }
+});
+
+test("without the marker (another slide), the same entry opens the Gift Place on its categories as before", async () => {
+  seedHandoff();
+  const m = await mountAt(DASH);
+  try {
+    assert.equal(location(m.host), "/dashboard/gifts?returnTo=send&giftType=marketplace");
+    assert.equal(qr(m.host, "qrcash-panel"), null);
+    assert.equal(qr(m.host, "gift-place-qrcash-tab").getAttribute("aria-pressed"), "false");
+  } finally { await m.unmount(); }
+});

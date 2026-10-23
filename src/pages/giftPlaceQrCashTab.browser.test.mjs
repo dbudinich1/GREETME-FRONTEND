@@ -380,3 +380,13 @@ test("a greeting that is not sent now is never switched to Send Now: the amount 
     assert.equal(JSON.parse(window.sessionStorage.getItem("sendGreetingState")).giftSettings.type, "none", "nothing changed");
   } finally { await m.unmount(); window.sessionStorage.removeItem("sendGreetingState"); }
 });
+
+test("?tab=qrcash (the Celebrations QR Cash slide) opens the Gift Place on its QR Cash tab; Cancel shows the categories", async () => {
+  const m = await mountGiftPlace({ search: "?tab=qrcash" });
+  try {
+    assert.ok(qr(m.host, "qrcash-panel"));
+    assert.equal(qr(m.host, "gift-place-qrcash-tab").getAttribute("aria-pressed"), "true");
+    await click(qr(m.host, "qrcash-cancel"));
+    assert.equal(qr(m.host, "qrcash-panel"), null);
+  } finally { await m.unmount(); }
+});

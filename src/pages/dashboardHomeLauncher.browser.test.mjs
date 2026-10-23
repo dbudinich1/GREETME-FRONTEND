@@ -1121,3 +1121,29 @@ test("Celebration Schedule search filters the real fetched upcoming occasions (b
   await setValue($("[data-testid=gx-sched-search]"), "");
   assert.equal(names().length, UPCOMING().length, "clearing the search restores the full real list");
 });
+
+test("Report 136: Add a gift on the QR Cash slide opens the Gift Place on its QR Cash tab (one-time marker tied to this press); other slides do not", async () => {
+  const qrDot = () => $$("[data-testid=gx-carousel] .dot").find((d) => d.getAttribute("aria-label") === "QR Cash™");
+  await mount();
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await pickPerson("Theresa"); await click($("[data-testid=gx-picker-done]"));
+  window.sessionStorage.removeItem("gm_giftplace_tab_v1");
+  await click(qrDot());
+  assert.match($("[data-testid=gx-carousel] .slide-l").textContent, /Send • Claim • Spend — choose the amount in the Gift Place’s QR Cash™ tab/);
+  await click($("[data-testid=gx-add-gift]"));
+  const to = globalThis.__nav.at(-1).to;
+  assert.match(to, /^\/dashboard\/send\?/);
+  const entry = new URLSearchParams(to.split("?")[1]).get("entry");
+  assert.ok(entry && new URLSearchParams(to.split("?")[1]).get("gift") === "choose", "the same Gift Place entry as any Add a gift");
+  assert.deepEqual((({ entry: e, tab }) => ({ entry: e, tab }))(JSON.parse(window.sessionStorage.getItem("gm_giftplace_tab_v1"))), { entry, tab: "qrcash" });
+  // another slide: no marker
+  await mount();
+  await click(byText(".mode", "Send Now"));
+  await click(occ("Birthday"));
+  await pickPerson("Theresa"); await click($("[data-testid=gx-picker-done]"));
+  window.sessionStorage.removeItem("gm_giftplace_tab_v1");
+  await click($$("[data-testid=gx-carousel] .dot")[0]);
+  await click($("[data-testid=gx-add-gift]"));
+  assert.equal(window.sessionStorage.getItem("gm_giftplace_tab_v1"), null);
+});

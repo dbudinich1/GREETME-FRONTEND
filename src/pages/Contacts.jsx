@@ -1329,7 +1329,7 @@ export default function Recipients() {
         onDelete={(c) => setDeleteConfirm(c)}
         onAddRecipient={openAddRecipient}
         onImport={openImport}
-        onAddGift={() => navigate('/dashboard/gifts')}
+        onAddGift={(slide) => navigate(slide === 'qrcash' ? '/dashboard/gifts?tab=qrcash' : '/dashboard/gifts')}
         initialPath={celebrationsEntryRef.current.path}
         initialOccasion={celebrationsEntryRef.current.occasion}
         onScheduleGroup={scheduleGroupFromOccasion}

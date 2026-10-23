@@ -98,3 +98,28 @@ test("Report 135: dashboardGiftPlaceEntry keeps the recipient and the send page'
   assert.equal(dashboardGiftPlaceEntry(q("contactId=c1&occasion=Birthday&gift=choose&giftType=qrcash")), null, "the QR Cash entry is its own");
   assert.equal(dashboardGiftPlaceEntry(q("contactId=c1&occasion=Birthday")), null, "no gift request");
 });
+
+// Report 136: the one-time "open the QR Cash tab" marker for the dashboard's Add a gift on its QR Cash slide.
+import { writeGiftPlaceTab, takeGiftPlaceTab, GIFT_PLACE_TAB_KEY } from "./dashboardSendHandoff.js";
+const memStore = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), _m: m }; };
+
+test("Gift Place tab marker: opens the QR Cash tab once, only for the same entry", () => {
+  const s = memStore();
+  writeGiftPlaceTab(s, "e1", "qrcash");
+  assert.equal(takeGiftPlaceTab(s, "e2"), null, "another entry never opens it");
+  writeGiftPlaceTab(s, "e1", "qrcash");
+  assert.equal(takeGiftPlaceTab(s, "e1"), "qrcash");
+  assert.equal(takeGiftPlaceTab(s, "e1"), null, "read once");
+  assert.equal(s.getItem(GIFT_PLACE_TAB_KEY), null);
+});
+
+test("Gift Place tab marker: only QR Cash, only with an entry, and not after 30 minutes", () => {
+  const s = memStore();
+  writeGiftPlaceTab(s, "e1", "flowers");
+  assert.equal(s.getItem(GIFT_PLACE_TAB_KEY), null, "no other tab is stored");
+  writeGiftPlaceTab(s, "", "qrcash");
+  assert.equal(s.getItem(GIFT_PLACE_TAB_KEY), null, "no entry, no marker");
+  s.setItem(GIFT_PLACE_TAB_KEY, JSON.stringify({ entry: "e1", tab: "qrcash", at: Date.now() - 31 * 60 * 1000 }));
+  assert.equal(takeGiftPlaceTab(s, "e1"), null, "stale");
+  assert.equal(takeGiftPlaceTab(null, "e1"), null);
+});

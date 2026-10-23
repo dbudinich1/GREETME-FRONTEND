@@ -41,7 +41,7 @@ import {
   SCHEDULER_OCCASION_TYPES, isSchedulerOccasion, prefillRow, chooseGift, rowComplete, buildResolverContact, finalizeResolverSave,
   RESOLVER_GIFT_OPTIONS, resolverGiftStatus, resolverGiftAmount,
 } from '../utils/occasionResolver';
-import { writeDashboardHandoff, HANDOFF_MAX_WORDS, HANDOFF_MAX_PHOTOS } from '../utils/dashboardSendHandoff';
+import { writeDashboardHandoff, HANDOFF_MAX_WORDS, HANDOFF_MAX_PHOTOS, writeGiftPlaceTab } from '../utils/dashboardSendHandoff';
 import { buildGreetingPayload } from '../utils/sendGreetingPayload';
 import { GROUP_MAX, loadRun, clearRun, runSummary } from '../utils/groupSend';
 import { saveGroupSchedules } from '../utils/occasionResolver';
@@ -93,7 +93,7 @@ const SLIDES = [
   { key: 'card', src: giftCard, title: 'Greet-Me gift card', line: 'A gift card tucked inside the greeting.' },
   { key: 'stack', src: giftBoxStack, title: 'Stack of wrapped gifts', line: 'Browse every gift in the Gift Place.' },
   { key: 'smartcard', src: smartEGiftCardArt, title: 'Greet-Me Smart eGift Card', line: 'One card, spent at the brands they love (Prezzee).' },
-  { key: 'qrcash', src: null, title: 'QR Cash™', line: 'Send • Claim • Spend — choose it in your greeting’s gift options' },
+  { key: 'qrcash', src: null, title: 'QR Cash™', line: 'Send • Claim • Spend — choose the amount in the Gift Place’s QR Cash™ tab' },
 ];
 const SMARTCARD_UNAVAILABLE_LINE = 'Coming later — not yet available';
 
@@ -190,7 +190,7 @@ function GiftCarousel({ chosen, onAdd, onRemove, onLearnQr, smartCardAvailable }
         </span>
         {/* The gold "Add a gift" stays in place on every slide (Report 135): it opens the Gift Place, which holds
             every gift, so it never depends on the slide showing. */}
-        <button type="button" className="btn btn-sm btn-gold" style={{ height: 40 }} data-testid="gx-add-gift" aria-pressed={chosen === 'gift'} onClick={() => onAdd('gift')}>
+        <button type="button" className="btn btn-sm btn-gold" style={{ height: 40 }} data-testid="gx-add-gift" aria-pressed={chosen === 'gift'} onClick={() => onAdd('gift', s.key)}>
           {chosen === 'gift' ? <><Check size={16} /> Gift added</> : <><Gift size={16} /> Add a gift</>}
         </button>
       </div>
@@ -622,7 +622,7 @@ export default function DashboardHome() {
   // One person + one occasion (Send Now) to the existing send flow, with words and memory photos carried once.
   // giftEntry: null (Send), 'gift' (Add a gift: the send flow keeps this greeting and opens the Gift Place) or
   // 'qrcash' (Add QR Cash: the send flow's canonical QR Cash entry, where the amount is set).
-  const goSendFlow = (giftEntry) => {
+  const goSendFlow = (giftEntry, giftPlaceTab = null) => {
     const person = chosen[0];
     const occasion = occasions[0];
     const carried = writeDashboardHandoff(window.sessionStorage, { contactId: person.id, occasion, words, memoryPhotos });
@@ -630,7 +630,11 @@ export default function DashboardHome() {
     else if (carried === 'none' && (words.trim() || memoryPhotos.length)) showManualToast('Not carried over', 'Your words and photos couldn’t be carried to the next step on this device. You can add them there.', COMMS_CATEGORIES.SYSTEM);
     const p = new URLSearchParams({ contactId: person.id, occasion, from: 'dashboard' });
     if (giftEntry === 'qrcash') p.set('giftType', 'qrcash');
-    else if (giftEntry === 'gift') { p.set('gift', 'choose'); p.set('entry', Date.now().toString(36)); }
+    else if (giftEntry === 'gift') {
+      const entry = Date.now().toString(36);
+      p.set('gift', 'choose'); p.set('entry', entry);
+      if (giftPlaceTab === 'qrcash') writeGiftPlaceTab(window.sessionStorage, entry, 'qrcash');
+    }
     navigate(`/dashboard/send?${p.toString()}`);
   };
 
@@ -964,7 +968,7 @@ export default function DashboardHome() {
             <GiftCarousel
               chosen={sendNowGroup ? gift : null}
               smartCardAvailable={smartCardAvailable}
-              onAdd={(g) => {
+              onAdd={(g, slide) => {
                 // Scheduled Greet-Mes (founder 2026-10-22, Report 135): Add a gift opens the existing scheduled-gift path
                 // directly. One person + one occasion: the scheduled-gift picker for that occasion, with Dates & gifts
                 // behind it (its Save runs the scheduler's own card + consent step and saves). Several people or
@@ -972,7 +976,8 @@ export default function DashboardHome() {
                 if (resolverOn || groupSchedOn) { setGiftNote(''); openScheduledGift(g); return; }
                 // Report 135: one person + one occasion (Send Now): Add a gift opens the Gift Place now, with the
                 // recipient, occasion, timing, words and photos kept (Add QR Cash opens the QR Cash amount step).
-                if (sendNowSingle && !overCap && !notSchedulable) { setGiftNote(''); goSendFlow(g); return; }
+                // Report 136: on the QR Cash slide it opens the Gift Place on its QR Cash tab, the greeting kept the same way.
+                if (sendNowSingle && !overCap && !notSchedulable) { setGiftNote(''); goSendFlow(g, slide === 'qrcash' ? 'qrcash' : null); return; }
                 if (sendNowGroup) {
                   setGift(g);
                   setGiftNote(g === 'gift' ? 'For a group, choose a gift box (or QR Cash) for each person at review, before anything is charged.'

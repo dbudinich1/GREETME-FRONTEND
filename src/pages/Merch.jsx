@@ -41,6 +41,7 @@ import ManageCatalogModal from '../components/founderCatalog/ManageCatalogModal'
 import { GiftProductGrid } from '../components/giftPlace/GiftProductCard';
 import QrCashAmountPanel from '../components/giftPlace/QrCashAmountPanel';
 import { qrCashGiftSettings } from '../utils/qrCashAmount';
+import { takeGiftPlaceTab } from '../utils/dashboardSendHandoff';
 import {
   actionLabelFor, fromCatalogProduct, fromCuratedProduct, giftTypeForSelector, GIFT_SOURCES, withOptionsNote, withLiveAvailability, requiresOptions, OPTIONS_UNAVAILABLE_NOTE,
   projectGiftCards, VENDOR_SOURCE_TO_GIFT_TYPE,
@@ -92,9 +93,6 @@ export default function Merch() {
   const [error, setError] = useState(null);
   // GIFTS — the marketplace opens on Brandable Goods, the leading selector.
   const [selectedCategory, setSelectedCategory] = useState(DEFAULT_SELECTION);
-  // QR Cash is a tab beside the categories (founder 2026-10-22). It is not a catalogue category, so it has its own
-  // state: the catalogue selection underneath is kept, and Cancel returns to it.
-  const [qrOpen, setQrOpen] = useState(false);
 
   // CANONICAL CATALOG (Founder-authorized 2026-09-25, "AUTHORIZED CANONICAL CUSTOMER CATALOG
   // CORRECTION"). GET /api/gifts/catalog is the canonical source for View All and every curated
@@ -121,6 +119,14 @@ export default function Merch() {
       const ctx = (JSON.parse(sessionStorage.getItem('sendGreetingState') || '{}') || {}).giftContext;
       return ctx && typeof ctx === 'object' ? { recipientName: String(ctx.recipientName || ''), label: String(ctx.label || ''), timing: String(ctx.timing || ''), entry: String(ctx.entry || '') } : null;
     } catch { return null; }
+  });
+  // QR Cash is a tab beside the categories (founder 2026-10-22). It is not a catalogue category, so it has its own
+  // state: the catalogue selection underneath is kept, and Cancel returns to it. It opens first when asked: ?tab=qrcash
+  // (the Celebrations QR Cash slide), or the dashboard's one-time marker for this visit's entry (its QR Cash slide).
+  const [qrOpen, setQrOpen] = useState(() => {
+    if (searchParams.get('tab') === 'qrcash') return true;
+    if (cameFromSendGreeting && greetingGiftContext && greetingGiftContext.entry) return takeGiftPlaceTab(window.sessionStorage, greetingGiftContext.entry) === 'qrcash';
+    return false;
   });
 
   // Fetch curated products from /api/merch/products on mount

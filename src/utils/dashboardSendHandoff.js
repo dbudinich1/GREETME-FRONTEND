@@ -57,6 +57,21 @@ export function dashboardGiftPlaceEntry(params) {
   return contactId && occasion ? { contactId, occasion, ...(entry ? { entry } : {}) } : null;
 }
 
+// Report 136: the dashboard's Add a gift pressed on the QR Cash slide opens the Gift Place on its QR Cash tab. The send
+// page's own hand-off to the Gift Place is unchanged; this one-time marker, tied to that press's entry, tells the Gift
+// Place which tab to open. Read once; ignored for any other entry or after 30 minutes.
+export const GIFT_PLACE_TAB_KEY = 'gm_giftplace_tab_v1';
+export function writeGiftPlaceTab(storage, entry, tab) {
+  if (!storage || !entry || tab !== 'qrcash') return;
+  try { storage.setItem(GIFT_PLACE_TAB_KEY, JSON.stringify({ entry: String(entry), tab, at: Date.now() })); } catch { /* storage unavailable: the Gift Place opens as usual */ }
+}
+export function takeGiftPlaceTab(storage, entry) {
+  if (!storage) return null;
+  let v = null;
+  try { v = JSON.parse(storage.getItem(GIFT_PLACE_TAB_KEY) || 'null'); storage.removeItem(GIFT_PLACE_TAB_KEY); } catch { v = null; }
+  return v && v.tab === 'qrcash' && entry && v.entry === String(entry) && Date.now() - Number(v.at || 0) < 30 * 60 * 1000 ? 'qrcash' : null;
+}
+
 // Used one-time "Add a gift" entries (Report 135, Team 5 M1), kept apart from the greeting record, which the send
 // page's restore deletes. This tab only; the last 20.
 export const GIFT_PLACE_ENTRIES_KEY = 'gm_giftplace_entries_v1';

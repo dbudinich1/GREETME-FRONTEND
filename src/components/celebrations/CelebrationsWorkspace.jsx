@@ -300,7 +300,7 @@ const STRIP = [
   { key: 'flowers', src: giftBouquet, title: 'Flower bouquet', line: 'Fresh flowers for the day itself.' },
   { key: 'card', src: giftCard, title: 'Greet-Me gift card', line: 'A gift card tucked inside the greeting.' },
   { key: 'stack', src: giftBoxStack, title: 'Stack of wrapped gifts', line: 'Browse every gift in the Gift Place.' },
-  { key: 'qrcash', src: null, title: 'QR Cash™', line: 'Send cash they can spend the moment it lands. Choose it in your greeting’s gift options.' },
+  { key: 'qrcash', src: null, title: 'QR Cash™', line: 'Send cash they can spend the moment it lands. Choose the amount in the Gift Place’s QR Cash™ tab.' },
 ];
 function GiftStrip({ onAddGift }) {
   const [i, setI] = useState(0);
@@ -321,7 +321,7 @@ function GiftStrip({ onAddGift }) {
         {STRIP.map((x, k) => <button key={x.key} type="button" className="gdot" aria-label={x.title} aria-current={k === i} onClick={() => setI(k)} />)}
         <button type="button" className="garrow" aria-label="Next gift" onClick={() => step(1)}><ChevronRight size={15} /></button>
       </div>
-      <button type="button" className="btn btn-gold btn-sm" data-testid="cx-add-gift" onClick={onAddGift}><Gift size={15} /> Add a gift</button>
+      <button type="button" className="btn btn-gold btn-sm" data-testid="cx-add-gift" onClick={() => onAddGift(s.key)}><Gift size={15} /> Add a gift</button>
     </section>
   );
 }
