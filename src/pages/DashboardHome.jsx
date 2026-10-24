@@ -50,7 +50,6 @@ import InfoTip from '../components/dashboard/InfoTip';
 import G1G1Badge from '../components/G1G1Badge';
 import { qrCashQuote, centsToDollarString, validateQrCashDollars } from '../utils/qrCashAmount';
 import { DASHBOARD_HOME_CSS } from './dashboardHomeStyles';
-import { displayFirstName } from '../utils/displayName';
 import { OCCASION_CHIPS, OCCASION_MENUS } from '../utils/dashboardOccasions';
 import { occasionSummaries, OCCASION_GROUPS } from '../utils/celebrationsModel';
 import ScheduledGiftPicker from '../components/scheduledGift/ScheduledGiftPicker';
@@ -59,6 +58,7 @@ import { SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from '../config/scheduledPhysicalGi
 import { scheduledGiftConsentsFor, authorizationStepEnabled, scheduledGiftSavedConfirmations } from '../utils/scheduledPhysicalGift';
 import { SCHEDULED_QRCASH_AVAILABLE } from '../config/scheduledQrCash';
 import { saveLauncherState, readLauncherState, clearLauncherState } from '../utils/dashboardLauncherState';
+import { displayFirstName } from '../utils/displayName';
 import giftLuxuryBox from '../assets/gifts/gift-luxury-box.png';
 import giftBouquet from '../assets/gifts/gift-bouquet.png';
 import giftCard from '../assets/gifts/gift-card.png';
