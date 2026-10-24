@@ -204,8 +204,9 @@ export default function CelebrationsWorkspace({
                     <span className="ol">{s.label}</span>
                     <span className="cnt">{s.heldCount}</span>
                     <span className="os">
-                      {s.kind === 'personal' ? 'Each person’s own date' : s.sharedDate ? `Shared date · ${day(s.sharedDate, { month: 'short', day: 'numeric' })}` : 'Shared date · entered per person'}
-                      {s.soonest ? ` · next ${day(s.soonest.date, { month: 'short', day: 'numeric' })}` : ''}
+                      {/* Founder 2026-10-24: no "Each person’s own date" label; a shared date and the next date stay. */}
+                      {[s.kind === 'personal' ? null : s.sharedDate ? `Shared date · ${day(s.sharedDate, { month: 'short', day: 'numeric' })}` : 'Shared date · entered per person',
+                        s.soonest ? `Next ${day(s.soonest.date, { month: 'short', day: 'numeric' })}` : null].filter(Boolean).join(' · ')}
                     </span>
                   </button>
                 );

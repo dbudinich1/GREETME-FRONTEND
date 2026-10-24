@@ -240,6 +240,11 @@ test("occasion cards (founder 2026-10-24): no date-kind badge and no explanatory
   assert.match(rosterRow("c2").textContent, /Date needed/);
   await click(tid("cx-occ-christmas"));
   assert.match(rosterRow("c2").textContent, /Dec 25/, "the shared calendar date is still shown in the row");
+  // The left-hand list: no "Each person's own date"; the next date (and a shared date) stay.
+  const list = document.querySelector('[data-testid="cx-occ-birthday"]').closest('[role="group"]').parentElement;
+  assert.doesNotMatch(list.textContent, /own date/);
+  assert.match(tid("cx-occ-birthday").querySelector(".os").textContent, /^Next [A-Z][a-z]{2} \d{1,2}$/);
+  assert.match(tid("cx-occ-christmas").querySelector(".os").textContent, /^Shared date · Dec 25/);
 });
 
 test("Occasions path, several people: Set dates & gifts opens the dashboard's own Dates & gifts with exactly those people and that occasion", async () => {

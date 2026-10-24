@@ -1178,6 +1178,12 @@ test("Lower area (Report 135 layout): Celebration Manager (Recipients | Occasion
   await click($$("[data-testid=gx-occ-row]")[0].querySelector("[data-testid=gx-occ-open]"));
   assert.deepEqual(globalThis.__nav.at(-1), { to: "/dashboard/contacts", opts: { state: { celebrations: { path: "occasions", occasion: "christmas" } } } });
   assert.deepEqual(state().picks, ["MRMargaret Rivera"], "the composer's choice is unchanged by the lower area");
+  // Founder 2026-10-24: the occasion list never says "Each person's own date"; counts and the next date stay.
+  await setValue($("[data-testid=gx-occ-search]"), "");
+  const metas = $$("[data-testid=gx-occ-row] .ometa").map((m) => m.textContent);
+  assert.ok(metas.length > 1);
+  assert.ok(metas.every((t) => !/own date/.test(t) && /\d+ (person|people)/.test(t)), metas.join(" | "));
+  assert.ok(metas.some((t) => /Next [A-Z][a-z]{2} \d{1,2}/.test(t)));
 });
 
 test("composer heading is centred; the compact presentation keeps body text at its approved sizes", async () => {

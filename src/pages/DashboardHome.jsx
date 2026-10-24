@@ -1143,7 +1143,7 @@ export default function DashboardHome() {
                     <span className="oic" aria-hidden="true">{o.icon}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="oname">{o.label}</div>
-                      <div className="ometa">{o.kind === 'personal' ? 'Each person’s own date' : o.sharedDate ? `Shared date · ${new Date(`${o.sharedDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Shared date · entered per person'} · {o.heldCount} {o.heldCount === 1 ? 'person' : 'people'}{o.soonest ? ` · next ${new Date(`${o.soonest.date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</div>
+                      <div className="ometa">{[o.kind === 'personal' ? null : o.sharedDate ? `Shared date · ${new Date(`${o.sharedDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Shared date · entered per person', `${o.heldCount} ${o.heldCount === 1 ? 'person' : 'people'}`, o.soonest ? `Next ${new Date(`${o.soonest.date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : null].filter(Boolean).join(' · ')}</div>
                     </div>
                     <button type="button" className="btn btn-sm btn-line" style={{ height: 34 }} data-testid="gx-occ-open" onClick={() => { keepChoices(); navigate('/dashboard/contacts', { state: { celebrations: { path: 'occasions', occasion: o.type } } }); }}>Open</button>
                   </div>
