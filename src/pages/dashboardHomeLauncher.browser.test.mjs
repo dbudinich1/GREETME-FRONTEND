@@ -1388,6 +1388,7 @@ test("walkthrough: the occasion rule no longer says 'Several people share one oc
   assert.match(DASHBOARD_HOME_CSS, /\.gx \.rule\.is-default \{ display:none; \}/);
   await mount();
   assert.ok($("[data-testid=gx-rule]").classList.contains("is-default"));
+  assert.equal($("[data-testid=gx-rule]").textContent.trim(), "One person: choose one or more occasions.", "the default line carries no several-people note");
   assert.match($("[data-testid=gx-step-1] .step-label").textContent, /^1Choose your moment: what are we celebrating\?\.$/);
   assert.equal($("[data-testid=gx-step-1] .step-label .lbl-short").textContent, ".", "phones read 'Choose your moment.'");
 });

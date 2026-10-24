@@ -123,7 +123,8 @@ const AUDIENCES = [
 // Every occasion the dashboard offers: restored choices are kept only when they are one of these (Team 5 F-C2).
 const OFFERED_OCCASIONS = new Set([...OCCASION_CHIPS, ...OCCASION_MENUS.flatMap((m) => m.groups.flatMap((g) => g.items))]);
 // The occasion rule's footer line when nothing more specific applies (hidden on phones, founder 2026-10-24).
-const RULE_DEFAULT = 'One person: choose one or more occasions. Several people: one shared occasion.';
+// Founder 2026-10-24: the several-people note is not shown; the rule itself is unchanged.
+const RULE_DEFAULT = 'One person: choose one or more occasions.';
 const SENDER_PHOTO_REQUIRED_MESSAGE = 'Every Greet-Me includes your photo so the recipient knows it is from you. Add a profile photo to send — your greeting stays saved while you do.';
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 
