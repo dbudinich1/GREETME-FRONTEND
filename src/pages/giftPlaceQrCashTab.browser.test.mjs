@@ -357,12 +357,15 @@ test("from a recipient's settings: QR Cash is set in their Occasion Scheduler, s
   } finally { await m.unmount(); }
 });
 
-test("the amount screen says plainly it joins a Greet-Me sent now, and where scheduled QR Cash lives", async () => {
+test("Report 138 correction 4: the large Send Now explanation box is gone from the amount screen; the amount controls remain", async () => {
+  // The timing safeguard is unchanged and is proven by the next test (a greeting not sent now gets no Add).
   const m = await mountGiftPlace();
   try {
     await click(qr(m.host, "gift-place-qrcash-tab"));
-    assert.equal(text(qr(m.host, "qrcash-send-now-note")),
-      "Send Now: QR Cash chosen here goes with a Greet-Me you send now. For a scheduled Greet-Me, set QR Cash in that person’s Occasion Scheduler.");
+    assert.equal(qr(m.host, "qrcash-send-now-note"), null, "no Send Now box");
+    assert.doesNotMatch(text(qr(m.host, "qrcash-panel")), /QR Cash chosen here goes with a Greet-Me you send now/);
+    assert.ok(qr(m.host, "qrcash-preset-10") && qr(m.host, "qrcash-preset-100") && qr(m.host, "qrcash-custom"), "presets and custom amount");
+    assert.equal(text(qr(m.host, "qrcash-tagline")), "Send • Claim • Spend");
   } finally { await m.unmount(); }
 });
 
@@ -530,4 +533,43 @@ test("§6 'How it works' sits beside the QR Cash title and opens the approved ex
 test("§5 the founder-only catalogue entry is a compact cog on phones, with an accessible label (source: founder-gated as before)", () => {
   assert.match(MERCH_SRC, /\{founder && isMobile && \(\s*<button type="button" data-testid="manage-catalog-button" aria-label="Manage Catalog"/);
   assert.match(MERCH_SRC, /\{founder && \(\s*<button\s+type="button"\s+data-testid="manage-catalog-button"/, "desktop keeps Manage Catalog, founder-gated");
+});
+
+// ===========================================================================================================
+// Report 138 corrections (founder 2026-10-24)
+// ===========================================================================================================
+test("Report 138 correction 1: the categories sit OUTSIDE and below the Gift Place banner (tabs on desktop, the drop-down on phones)", async () => {
+  for (const [w, id] of [[1440, "gift-place-tabs"], [390, "gift-place-category-select"]]) {
+    await atWidth(w, async () => {
+      const m = await mountGiftPlace();
+      try {
+        const header = qr(m.host, "gift-place-header");
+        const cats = qr(m.host, "gift-place-categories");
+        assert.ok(cats, `${w}: the categories row`);
+        assert.ok(qr(cats, id), `${w}: ${id} inside it`);
+        assert.equal(header.contains(cats), false, `${w}: not inside the banner`);
+        assert.ok(header.compareDocumentPosition(cats) & window.Node.DOCUMENT_POSITION_FOLLOWING, `${w}: below the banner`);
+      } finally { await m.unmount(); }
+    });
+  }
+});
+
+test("Report 138 correction 5: Return to greeting is a left-arrow control (no words shown), named 'Return to greeting', with the same return and the greeting context kept", async () => {
+  window.sessionStorage.setItem("sendGreetingState", JSON.stringify({
+    formData: { contactId: "c2", occasionType: "Birthday", customMessage: "Happy birthday" },
+    giftSettings: { type: "none", amount: null, customAmount: "", maxSpend: 50, autoGift: false },
+    giftContext: { recipientName: "Margaret", label: "Birthday", timing: "Send now" },
+  }));
+  const m = await mountGiftPlace({ search: "?returnTo=send&giftType=marketplace" });
+  try {
+    const back = qr(m.host, "gift-place-return");
+    assert.ok(back, "the control");
+    assert.equal(back.getAttribute("aria-label"), "Return to greeting");
+    assert.equal(text(back), "", "an arrow, not words");
+    assert.ok(back.querySelector("svg"), "the left arrow");
+    assert.equal(text(qr(m.host, "gift-place-greeting-context")), "for Margaret · Birthday · Send now", "context kept beside it");
+    await click(back);
+    assert.deepEqual(navigations, ["/dashboard/send?returnTo=send"], "the existing return");
+    assert.equal(kept().formData.customMessage, "Happy birthday", "the greeting is kept for the return");
+  } finally { await m.unmount(); window.sessionStorage.removeItem("sendGreetingState"); }
 });

@@ -27,26 +27,28 @@ export default function QrCashAmountPanel({ mode = 'standalone', tagline = '', o
   // A gift already paid for that still waits for its greeting comes first (Team 5, Report 136): no new greeting here.
   const canConfirm = mode !== 'recipient' && !pendingGift && Boolean(quote);
 
+  // Report 138 correction 3 (founder 2026-10-24): on phones the four presets always fit one row without clipping.
   const pill = (on) => ({
-    minWidth: isNarrow ? 0 : '5.5rem', flex: isNarrow ? '1 1 0' : 'none', height: '2.75rem', padding: '0 1rem',
-    borderRadius: '9999px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: '1rem',
+    minWidth: isNarrow ? 0 : '5.5rem', flex: isNarrow ? '1 1 0' : 'none', height: isNarrow ? '2.5rem' : '2.75rem', padding: isNarrow ? '0 0.25rem' : '0 1rem',
+    borderRadius: '9999px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: isNarrow ? '0.9375rem' : '1rem', whiteSpace: 'nowrap',
     border: on ? `2px solid ${INK}` : '1px solid #d9cfe9', background: on ? INK : '#fff', color: on ? '#fff' : INK,
   });
 
   return (
     <section data-testid="qrcash-panel" aria-labelledby="qrcash-panel-title" style={{
-      background: '#fff', border: '1px solid #e7e0f0', borderRadius: '1rem', padding: isNarrow ? '1rem' : '1.5rem 1.75rem',
+      background: '#fff', border: '1px solid #e7e0f0', borderRadius: '1rem', padding: isNarrow ? '0.875rem 0.75rem' : '1.5rem 1.75rem',
       boxShadow: '0 12px 30px -24px rgba(44,29,70,.45)', maxWidth: '44rem', margin: '0 auto',
     }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.875rem' }}>
-        <span aria-hidden="true" style={{ width: '2.75rem', height: '2.75rem', borderRadius: '0.75rem', flex: 'none', display: 'grid', placeItems: 'center', background: '#FBF0D2', color: '#7A5B0C' }}><QrCode size={22} /></span>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: isNarrow ? '0.625rem' : '0.875rem' }}>
+        <span aria-hidden="true" style={{ width: isNarrow ? '2.25rem' : '2.75rem', height: isNarrow ? '2.25rem' : '2.75rem', borderRadius: '0.75rem', flex: 'none', display: 'grid', placeItems: 'center', background: '#FBF0D2', color: '#7A5B0C' }}><QrCode size={isNarrow ? 19 : 22} /></span>
         <div style={{ minWidth: 0, flex: 1 }}>
           {/* Founder 2026-10-24 (§6): "How it works" sits beside the QR Cash title and opens the shared explanation. */}
           <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', columnGap: '0.75rem', rowGap: '0.125rem' }}>
             <h2 id="qrcash-panel-title" style={{ margin: 0, fontSize: isNarrow ? '1.25rem' : '1.375rem', fontWeight: 700, color: INK }}>QR Cash™</h2>
             <QrCashHowItWorksLink />
           </div>
-          <p style={{ margin: '0.25rem 0 0', fontSize: '0.9375rem', color: '#5b4f72', lineHeight: 1.5 }}>
+          {/* "Send • Claim • Spend" stays on one row at every width, 320px included (Report 138 correction 3). */}
+          <p data-testid="qrcash-tagline" style={{ margin: '0.25rem 0 0', fontSize: isNarrow ? '0.875rem' : '0.9375rem', color: '#5b4f72', lineHeight: 1.5, whiteSpace: 'nowrap' }}>
             {tagline}
           </p>
         </div>
@@ -64,8 +66,8 @@ export default function QrCashAmountPanel({ mode = 'standalone', tagline = '', o
         </p>
       ) : (
         <>
-          {/* Founder 2026-10-23: say plainly which flow this joins. QR Cash chosen here goes with a Greet-Me sent now;
-              a scheduled Greet-Me keeps its QR Cash in the Occasion Scheduler, and is never switched to Send Now. */}
+          {/* QR Cash chosen here goes with a Greet-Me sent now; a scheduled Greet-Me keeps its QR Cash in the Occasion
+              Scheduler, and is never switched to Send Now (mode 'recipient' above). */}
           {pendingGift ? (
             <div data-testid="qrcash-pending-gift-note" role="alert" style={{ margin: '1rem 0 0', padding: '0.75rem 0.875rem', borderRadius: '0.75rem', background: '#FDF1E4', border: '1px solid #F1D3A8', color: '#5c3a0b', fontSize: '0.875rem', lineHeight: 1.5 }}>
               You have a gift you already paid for that is still waiting to be added to its greeting. Finish that greeting first, then choose QR Cash.
@@ -77,10 +79,10 @@ export default function QrCashAmountPanel({ mode = 'standalone', tagline = '', o
               ) : null}
             </div>
           ) : null}
-          <p data-testid="qrcash-send-now-note" role="note" style={{ margin: '1rem 0 0', padding: '0.625rem 0.875rem', borderRadius: '0.75rem', background: '#F7F3FC', color: INK, fontSize: '0.875rem', lineHeight: 1.5 }}>
-            <strong>Send Now:</strong> QR Cash chosen here goes with a Greet-Me you send now. For a scheduled Greet-Me, set QR Cash in that person&rsquo;s Occasion Scheduler.
-          </p>
-          <fieldset style={{ border: 'none', margin: '1.25rem 0 0', padding: 0 }}>
+          {/* Report 138 correction 4 (founder 2026-10-24): the Send Now explanation box is removed. The safeguards stay:
+              a greeting that is not sent now opens this screen in 'recipient' mode (no Add; Merch.jsx), and the send page
+              refuses a QR Cash gift without a chosen amount before review or payment (Report 137). */}
+          <fieldset style={{ border: 'none', margin: isNarrow ? '1rem 0 0' : '1.25rem 0 0', padding: 0 }}>
             <legend style={{ fontSize: '0.8125rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#5A3E8A', padding: 0, marginBottom: '0.625rem' }}>Choose an amount</legend>
             <div role="radiogroup" aria-label="QR Cash amount" style={{ display: 'flex', gap: '0.5rem', flexWrap: isNarrow ? 'nowrap' : 'wrap' }}>
               {QR_CASH_PRESET_DOLLARS.map((d) => (

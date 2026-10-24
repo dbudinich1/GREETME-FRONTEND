@@ -230,7 +230,7 @@ test("QR Cash is byte-identical to its approved form (now the QR Cash™ tab)", 
   assert.equal(block.split("\n").length - 1, 27);
   assert.equal(
     createHash("sha256").update(block, "utf8").digest("hex"),
-    "b82833831e684d38c99a7bdb0acce6f71ea406eb47e66c22b53f37afd880f349",
+    "bc58f7b99cf653c11f8e1159e9d45d590f99e1d4bf1d19ff4641d34553297830" /* re-baselined 2026-10-24: Report 138 correction 1 restyles the tab for the light page below the banner (gold outline, dark text); was b8283383… */,
     "the QR Cash tab changed — it must stay byte-identical"
   );
   assert.equal(MERCH.includes("AGP-02 — QR Cash™ featured tile"), false, "the old tile is not reintroduced");
