@@ -573,3 +573,26 @@ test("Report 138 correction 5: Return to greeting is a left-arrow control (no wo
     assert.equal(kept().formData.customMessage, "Happy birthday", "the greeting is kept for the return");
   } finally { await m.unmount(); window.sessionStorage.removeItem("sendGreetingState"); }
 });
+
+test("Report 138 (before release): the return arrow's tap area is at least 44×44px; the visible 28px white circle and arrow are unchanged", async () => {
+  window.sessionStorage.setItem("sendGreetingState", JSON.stringify({
+    formData: { contactId: "c2", occasionType: "Birthday" },
+    giftSettings: { type: "none", amount: null, customAmount: "", maxSpend: 50, autoGift: false },
+    giftContext: { recipientName: "Margaret", label: "Birthday", timing: "Send now" },
+  }));
+  const m = await mountGiftPlace({ search: "?returnTo=send&giftType=marketplace" });
+  try {
+    const back = qr(m.host, "gift-place-return");
+    const px = (v) => (v.endsWith("rem") ? parseFloat(v) * 16 : parseFloat(v));
+    assert.ok(px(back.style.width) >= 44 && px(back.style.height) >= 44, `tap area ${back.style.width} × ${back.style.height}`);
+    assert.equal(back.style.background, "transparent", "the tap area itself is invisible");
+    const circle = back.querySelector("span");
+    assert.equal(px(circle.style.width), 28); assert.equal(px(circle.style.height), 28);
+    assert.equal(circle.style.background, "white", "the small white circle is what shows");
+    assert.ok(circle.querySelector("svg"), "with the arrow");
+    assert.equal(back.getAttribute("aria-label"), "Return to greeting");
+    assert.equal(back.getAttribute("title"), "Return to greeting");
+    await click(back);
+    assert.deepEqual(navigations, ["/dashboard/send?returnTo=send"], "the same return");
+  } finally { await m.unmount(); window.sessionStorage.removeItem("sendGreetingState"); }
+});

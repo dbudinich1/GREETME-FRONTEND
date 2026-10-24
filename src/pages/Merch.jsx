@@ -693,12 +693,17 @@ export default function Merch() {
       aria-label={returnLabel}
       title={returnLabel}
       onClick={returnRecipientId ? handleReturnToRecipient : handleReturnToGreeting}
+      // Founder 2026-10-24 (before release): a tap area of at least 44×44px, the small arrow's look unchanged — a clear
+      // 44px button with the 28px white circle drawn inside; the negative margin keeps the row's layout as it was.
       style={{
-        flex: 'none', width: '1.75rem', height: '1.75rem', minHeight: 0, padding: 0, borderRadius: '50%', border: 'none',
-        background: 'white', color: '#2C1D46', display: 'inline-grid', placeItems: 'center', cursor: 'pointer'
+        flex: 'none', width: '2.75rem', height: '2.75rem', minHeight: 0, padding: 0, margin: '-0.5rem', border: 'none',
+        background: 'transparent', display: 'inline-grid', placeItems: 'center', cursor: 'pointer', borderRadius: 0,
+        position: 'relative', zIndex: 1 // the whole square is the tap area (square corners), above the title row it reaches into
       }}
     >
-      <ArrowLeft size={16} strokeWidth={2.5} />
+      <span aria-hidden="true" style={{ width: '1.75rem', height: '1.75rem', borderRadius: '50%', background: 'white', color: '#2C1D46', display: 'grid', placeItems: 'center' }}>
+        <ArrowLeft size={16} strokeWidth={2.5} />
+      </span>
     </button>
   ) : null;
 
@@ -749,8 +754,9 @@ export default function Merch() {
                   <span>🎁 Shopping for Recipient</span>
                 </p>
               ) : cameFromSendGreeting ? (
-                <p style={{ margin: '0.125rem 0 0', fontSize: isNarrow ? '0.75rem' : '0.8125rem', lineHeight: 1.4, color: 'rgba(255, 255, 255, 0.92)', display: 'flex', flexWrap: isNarrow ? 'nowrap' : 'wrap', alignItems: 'center', columnGap: '0.5rem', rowGap: '0.25rem' }}>
-                  {/* Narrow phones: the arrow and the context share one row (the context wraps beside the arrow). */}
+                <p style={{ margin: '0.125rem 0 0', fontSize: isNarrow ? 'clamp(0.6875rem, 3.4vw, 0.75rem)' : '0.8125rem', lineHeight: 1.4, color: 'rgba(255, 255, 255, 0.92)', display: 'flex', flexWrap: isNarrow ? 'nowrap' : 'wrap', alignItems: 'center', columnGap: '0.5rem', rowGap: '0.25rem' }}>
+                  {/* Narrow phones: the arrow and the context share one row; the context sizes down slightly (11px at
+                      320px) so a typical "for Name · Occasion · timing" fits one line, and a long one wraps beside it. */}
                   {returnButton}
                   {/* On phones the arrow and the context say it; the label is left out so the first row stays in view. */}
                   {!isNarrow && <span style={{ fontWeight: 700, color: '#EBD07A' }}>💝 Shopping for Your Greeting</span>}
