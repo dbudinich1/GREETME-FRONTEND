@@ -180,7 +180,8 @@ test("the page chooses between two endpoints and never blends them", () => {
   // The personal list keeps its own fail-closed predicate server-side; the corporate roster is
   // read through the corporate client. Two sources, chosen between.
   assert.match(PAGE, /listOrgContacts\(businessOrgId\)/, "the corporate roster has its own endpoint");
-  assert.match(PAGE, /isBusiness \? filterByCorporateType\(businessContacts, typeFilter\) : recipients/,
+  // Walkthrough 2026-10-24: both contexts render the Celebrations workspace, which is handed ONE roster, chosen by scope.
+  assert.match(PAGE, /contacts=\{isBusiness \? businessCelebrationContacts\(businessContacts\) : recipients\}/,
     "the list is selected, not concatenated");
   assert.equal(/recipients\.concat|\[\.\.\.recipients,\s*\.\.\.businessContacts\]/.test(PAGE), false,
     "the two rosters are never combined");

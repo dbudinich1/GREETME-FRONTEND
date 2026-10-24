@@ -122,20 +122,23 @@ const saveForm = async () => {
 const cancelForm = async () => { const c = [...document.querySelectorAll('[data-testid="contact-form-footer"] button')].find((b) => /Cancel/.test(b.textContent)); await act(async () => { c.click(); }); await wait(30); };
 const nextNov14 = () => { const t = new Date(); t.setHours(0, 0, 0, 0); let d = new Date(t.getFullYear(), 10, 14); if (d < t) d = new Date(t.getFullYear() + 1, 10, 14); return `${d.getFullYear()}-11-14`; };
 
-test("Recipients path: Individuals / Friends / Family / Professional sit below the Recipients | Occasions toggle and above the search, and filter by relationshipCategory", async () => {
+// Walkthrough 2026-10-24 (founder): Recipients reads People and Individuals reads All (same keys and filters); the
+// schedule tabs keep their full text, phones hide " Occasions"; Import Wizard and Add Recipient sit at the top right.
+test("People path: All / Friends / Family / Professional sit below the People | Occasions toggle and above the search, and filter by relationshipCategory", async () => {
   await open("/dashboard/contacts");
-  assert.deepEqual($$('[data-testid="cx-path"] [role=tab]').map((b) => b.textContent), ["Recipients", "Occasions"]);
+  assert.deepEqual($$('[data-testid="cx-path"] [role=tab]').map((b) => b.textContent), ["People", "Occasions"]);
   assert.deepEqual($$('[data-testid="cx-when"] [role=tab]').map((b) => b.textContent), ["Upcoming Occasions", "Past Occasions"]);
   const seg = tid("cx-segments"), search = document.querySelector('[data-testid="cx-recipients"] input');
   assert.ok(tid("cx-path").compareDocumentPosition(seg) & window.Node.DOCUMENT_POSITION_FOLLOWING, "below the primary toggle");
   assert.ok(seg.compareDocumentPosition(search) & window.Node.DOCUMENT_POSITION_FOLLOWING, "above the search");
-  assert.deepEqual($$('[data-testid="cx-segments"] button').map((b) => b.firstChild.textContent), ["Individuals", "Friends", "Family", "Professional"]);
-  assert.deepEqual(names(), ["Avery Fixture", "Blake Other", "Casey Third"], "Individuals: everyone");
+  assert.deepEqual($$('[data-testid="cx-segments"] button').map((b) => b.firstChild.textContent), ["All", "Friends", "Family", "Professional"]);
+  assert.deepEqual(names(), ["Avery Fixture", "Blake Other", "Casey Third"], "All: everyone");
   await click(tid("cx-seg-friend")); assert.deepEqual(names(), ["Avery Fixture"]);
   await click(tid("cx-seg-family")); assert.deepEqual(names(), ["Blake Other"]);
   await click(tid("cx-seg-professional")); assert.deepEqual(names(), ["Casey Third"]);
   await click(tid("cx-seg-individuals")); assert.equal(names().length, 3);
-  for (const b of ["Import Wizard", "Add Recipient"]) assert.ok($$('[data-testid="cx-manager"] .vtop button').some((x) => x.textContent.includes(b)), `the Manager's viewport keeps ${b}`);
+  for (const b of ["Import Wizard", "Add Recipient"]) assert.ok($$('[data-testid="cx-manager-actions"] button').some((x) => x.textContent.includes(b)), `the Manager's top right keeps ${b}`);
+  assert.equal(tid("add-recipient").getAttribute("aria-label"), "Add Recipient", "the phone icon keeps the accessible name");
 });
 
 test("person path: selecting a person opens THEIR Occasion Scheduler; saving sends that full record with every other occasion, gift and the address kept", async () => {

@@ -15,7 +15,7 @@
 import { occasionTypes, calculateVaryingOccasionDate } from './helpers.js';
 
 export const RECIPIENT_SEGMENTS = Object.freeze([
-  { key: 'individuals', label: 'Individuals' },
+  { key: 'individuals', label: 'All' }, // walkthrough 2026-10-24 (founder): "Individuals" reads "All" (same key, same filter)
   { key: 'friend', label: 'Friends' },
   { key: 'family', label: 'Family' },
   { key: 'professional', label: 'Professional' },
@@ -103,6 +103,8 @@ export const PAST_STATUS = Object.freeze({ completed: ['Sent', 'ok'], pending: [
  * Source: 'scheduler' (a real schedule record), 'record' (the saved auto-send setting) or 'none'.
  */
 export function upcomingStatus(contactId, occ, next, upcomingRows = []) {
+  // A business roster date (month and day only; see businessCelebrationContacts): only the fact that it is saved.
+  if (occ && occ.monthDayOnly) return { key: 'saved', label: 'Date saved', tone: 'muted', planned: false, source: 'record' };
   const row = next && (upcomingRows || []).find((r) => r && String(r.contactId) === String(contactId) && r.occasionType === occ.type && String(r.date).slice(0, 10) === next.date);
   if (row && row.scheduleStatus) {
     const [label, tone, planned] = SCHEDULE_STATUS[row.scheduleStatus] || ['Preparing', 'muted', true];
@@ -253,6 +255,36 @@ export function schedulePast(contacts, sent = [], now = new Date()) {
   for (const c of contacts || []) for (const p of pastForContact(c, [], now)) if (p.kind === 'passed' && !out.some((o) => o.contact === c && o.type === p.type)) out.push({ ...p, contact: c, name: c.name });
   return out.sort((a, b) => String(b.when).localeCompare(String(a.when)));
 }
+/**
+ * Walkthrough 2026-10-24 (founder): the Business context of Celebrations uses the same design as Personal, with the
+ * business roster's own data. The corporate roster read (GET /api/corporate-campaigns/organizations/:org/contacts,
+ * services/corporateCampaign/audience.js projectContact) returns occasion dates as MONTH-DAY only (occasionDates:
+ * { type: 'MM-DD' }) and never the year. So, for display only:
+ *   * every saved occasion type gives the person's occasion icon (iconTypes);
+ *   * a YEARLY occasion is placed on its next month-day (the year is a placeholder that nextOccurrence ignores for
+ *     yearly occasions), marked monthDayOnly so its status reads only "Date saved";
+ *   * a one-time occasion (e.g. graduation) needs its year, which the roster does not return, so it is not scheduled.
+ * The mapped objects are for display; the page hands the ORIGINAL roster record to every action (Contacts.jsx).
+ */
+export function businessCelebrationContacts(list) {
+  return (Array.isArray(list) ? list : []).filter(Boolean).map((c) => {
+    const md = c.occasionDates && typeof c.occasionDates === 'object' ? c.occasionDates : {};
+    const iconTypes = Object.keys(md);
+    const occasions = iconTypes
+      .filter((t) => /^\d{2}-\d{2}$/.test(String(md[t])) && !isOneTime(t))
+      .map((t) => ({ type: t, date: `2000-${md[t]}`, autoSend: false, monthDayOnly: true }));
+    return { ...c, occasions, iconTypes };
+  });
+}
+
+/** The occasion types a person holds, once each, in saved order (the icons beside their name). */
+export function heldOccasionTypes(contact) {
+  const out = [];
+  for (const o of (contact && contact.occasions) || []) { const t = o && (typeof o === 'string' ? o : o.type); if (t && !out.includes(t)) out.push(t); }
+  for (const t of (contact && contact.iconTypes) || []) if (t && !out.includes(t)) out.push(t);
+  return out;
+}
+
 /** One search for the schedule: the person's name or the occasion's label. */
 export const scheduleMatches = (item, term) => {
   const t = String(term || '').trim().toLowerCase();

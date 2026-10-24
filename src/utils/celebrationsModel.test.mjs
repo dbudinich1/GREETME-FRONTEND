@@ -110,3 +110,21 @@ test("Celebration Schedule: upcoming across everyone, soonest first; Past = real
   assert.ok(past.every((p) => p.status.label !== "Sent" || p.kind === "send"));
   assert.equal(scheduleMatches(up[0], "bo"), true); assert.equal(scheduleMatches(up[0], "birth"), true); assert.equal(scheduleMatches(up[0], "xmas"), false);
 });
+
+// ── Walkthrough revision 2026-10-24: the Business roster in the Celebrations design (display only) ──
+test("businessCelebrationContacts: month-day yearly dates are placed on their next date with 'Date saved' only; one-time dates without a year are not scheduled", async () => {
+  const { businessCelebrationContacts, heldOccasionTypes, RECIPIENT_SEGMENTS } = await import("./celebrationsModel.js");
+  const [b] = businessCelebrationContacts([{ id: "b1", name: "Erin", corporateContactType: "employee", occasionDates: { birthday: "03-09", graduation: "06-01", bad: "x" } }]);
+  assert.deepEqual(b.occasions, [{ type: "birthday", date: "2000-03-09", autoSend: false, monthDayOnly: true }]);
+  assert.deepEqual(heldOccasionTypes(b), ["birthday", "graduation", "bad"]);
+  const ups = upcomingForContact(b, [], NOW);
+  assert.deepEqual(ups.map((u) => [u.type, u.date, u.status.key, u.status.label]), [["birthday", "2027-03-09", "saved", "Date saved"]]);
+  assert.deepEqual(businessCelebrationContacts(null), []);
+  assert.equal(RECIPIENT_SEGMENTS[0].key, "individuals"); assert.equal(RECIPIENT_SEGMENTS[0].label, "All");
+});
+
+test("heldOccasionTypes: a personal recipient's saved occasion types, once each", async () => {
+  const { heldOccasionTypes } = await import("./celebrationsModel.js");
+  assert.deepEqual(heldOccasionTypes({ occasions: [{ type: "birthday" }, { type: "christmas" }, { type: "birthday" }, "anniversary", null] }), ["birthday", "christmas", "anniversary"]);
+  assert.deepEqual(heldOccasionTypes({}), []);
+});

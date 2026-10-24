@@ -211,4 +211,45 @@ export const CELEBRATIONS_CSS = `
   .cx .mgrview .roster { overflow:auto; }
   .cx .mgrview .rosterbody { flex:none; overflow:visible; }
 }
+/* ---- Walkthrough revision 2026-10-24 (founder). Appended; the rules above stay as they were. ---- */
+/* Celebration Manager: centred title, Import Wizard + Add Recipient at the top right. */
+.cx .mgrhead { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:10px; text-align:center; }
+.cx .mgrhead .sectitle { display:grid; justify-items:center; gap:2px; }
+.cx .mgrhead .hacts { justify-self:end; margin-left:0; flex-wrap:nowrap; }
+.cx .addrec .addrec-icon { display:none; }
+/* "Your circle": Personal | Business, then the categories for that context; one fixed-height band either way. */
+.cx .circle { min-height:44px; flex-wrap:nowrap; }
+.cx .circle .scope { flex:none; }
+.cx .circle .chips button { white-space:nowrap; }
+.cx .seg.scope button { padding:6px 14px; font-size:13.5px; }
+/* Occasion icons beside a person's name. */
+.cx .pnamerow { display:flex; align-items:center; flex-wrap:wrap; gap:2px 8px; min-width:0; }
+.cx .occicons { display:inline-flex; gap:3px; font-size:14px; line-height:1; }
+.cx .listnote { margin:8px 2px 0; font-size:13px; color:var(--muted); }
+.cx .lbl-long { display:inline; }
+/* Compact pass (founder's 75% reference, at normal zoom: spacing and sizing; text stays readable). */
+.cx { gap:10px; }
+.cx .pagetitle h1 { font-size:26px; }
+.cx .section { padding:12px 16px 14px; }
+.cx .sechead h2 { font-size:21px; }
+.cx .viewport { margin-top:8px; padding:10px 12px 12px; }
+.cx .row { padding:9px 6px; }
+.cx .srow { padding:8px 4px; }
+@media (max-width: 760px) {
+  .cx .mgrhead { grid-template-columns:minmax(0,1fr); grid-template-areas:"acts" "title"; gap:6px; }
+  .cx .mgrhead > span[aria-hidden] { display:none; }
+  .cx .mgrhead .sectitle { grid-area:title; }
+  .cx .mgrhead .hacts { grid-area:acts; width:auto; justify-self:end; gap:8px; }
+  .cx .mgrhead .hacts .btn { flex:none; }
+  /* Phones: Add Recipient is a compact person-plus icon (same action, same accessible name). */
+  .cx .addrec { width:34px; padding:0; }
+  .cx .addrec .addrec-t, .cx .addrec .addrec-plus { display:none; }
+  .cx .addrec .addrec-icon { display:inline; }
+  .cx .circle { flex-wrap:wrap; min-height:0; }
+  .cx .circle .scope { width:100%; }
+  .cx .circle .scope button { flex:1 1 0; }
+  .cx .circle .chips { flex-wrap:nowrap; width:100%; }
+  .cx .lbl-long { display:none; }
+  .cx .seg.small button { flex:1 1 0; }
+}
 `;

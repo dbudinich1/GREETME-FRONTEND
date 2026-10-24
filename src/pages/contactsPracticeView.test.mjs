@@ -31,7 +31,9 @@ test("normal Recipients behavior is UNCHANGED when Practice View is absent (prod
   assert.match(C, /api\.updateContact\(/);
   assert.match(C, /api\.deleteContact\(/);
   // ordinary action controls remain (Send / Edit / Delete)
-  assert.match(C, /Send Greet-Me/);
+  // Walkthrough 2026-10-24: the old Business header's "Send Greet-Me" button went with that layout (both contexts use
+  // the Celebrations workspace); each person keeps their own Send, wired to the send flow.
+  assert.match(C, /onSend=\{\(c\) => navigate\(`\/dashboard\/send\?contactId=\$\{c\._id \|\| c\.id\}`\)\}/);
   assert.match(C, /openEditModal/);
   assert.match(C, /setDeleteConfirm/);
   // return-to-wizard target

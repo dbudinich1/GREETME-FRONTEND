@@ -5,7 +5,6 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 // Neither query learns about the other.
 import {
   VIEW_SCOPE, canUseBusinessView, effectiveScope, businessOrganizations,
-  CORPORATE_TYPE_FILTERS, filterByCorporateType, corporateTypeCounts,
   BUSINESS_READ_ONLY_NOTICE, contactsFromCorporateResponse,
 } from './contactScopeView.js';
 import { createCorporateCampaignsClient } from '../api/corporateCampaigns.js';
@@ -13,7 +12,6 @@ import { createCorporateCampaignsClient } from '../api/corporateCampaigns.js';
 // DIFFERENT dormancy flag than the campaign reads, so they get their own client rather than a
 // method bolted onto one whose base path is only correct for half the calls.
 import { createCorporateContactsClient, campaignsContainingContact, deleteWarningLine } from '../api/corporateContacts.js';
-import { Plus, Upload, Search, Edit, Trash2, ArrowLeft, Users, Calendar, Gift, Clock, Send } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from "../api/api";
 import RecipientsPracticeView from '../components/RecipientsPracticeView';
@@ -25,92 +23,20 @@ import ContactForm from '../components/ContactForm';
 import CSVImport from '../components/CSVImport';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
-import { getOccasionIcon, getOccasionLabel } from '../utils/helpers';
-import { getOccasionCadenceLabel } from '../utils/occasionCadence';
 import { autoAddRecipientPhotosToLibrary } from '../utils/mediaLibrary';
 import { getErrorMessage } from '../utils/errorMessages';
 import { autoGiftScheduledOccasions } from '../utils/scheduledPhysicalGift';
 import { useAuth } from '../context/AuthContext';
 import { resolveRecipientLimit, recipientLimitMessage, isAtRecipientCap } from '../utils/sendGating';
-import { getHoverHandlers } from '../utils/hoverable';
-import { RELATIONS_BY_CATEGORY, RELATIONSHIP_CATEGORIES } from '../import/completionModel.js';
 import CelebrationsWorkspace from '../components/celebrations/CelebrationsWorkspace';
-import { launcherChoicesForOccasion } from '../utils/celebrationsModel';
+import { launcherChoicesForOccasion, businessCelebrationContacts } from '../utils/celebrationsModel';
 import { saveLauncherState } from '../utils/dashboardLauncherState';
-
-// Human relationship labels the wizard already uses (value → label), so display shows "Family Member"
-// (not raw "family_member"). Stored data is UNCHANGED. Source of truth: src/import/completionModel.js.
-const RELATIONSHIP_LABELS = (() => {
-  const m = {};
-  for (const c of RELATIONSHIP_CATEGORIES) m[c.value] = c.label;
-  for (const arr of Object.values(RELATIONS_BY_CATEGORY)) for (const r of arr) m[r.value] = r.label;
-  return m;
-})();
-function relationshipLabel(v) { return (v && RELATIONSHIP_LABELS[v]) || v || ''; }
 
 // Session storage key (must match ContactForm.jsx)
 const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
 
-// The gift carousel moved to the dashboard's gift step (founder 2026-10-18, Report 103).
-
-// Deterministic premium fallback-avatar gradients. Curated jewel tones —
-// every lighter stop is dark enough for the white monogram to hold AA on
-// large bold text; the centered initial sits over the darker blended midpoint.
-const AVATAR_GRADIENTS = [
-  ['#667eea', '#764ba2'], ['#c0456b', '#7d1f3f'], ['#0f9d8f', '#0b5e63'],
-  ['#4f46e5', '#3730a3'], ['#b07515', '#6f4310'], ['#2f855a', '#184e37'],
-  ['#556080', '#2f3a52'], ['#8b3fd0', '#5a1a8f'],
-];
-function avatarGradient(name) {
-  const s = name || '';
-  let h = 0;
-  for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  const [a, b] = AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length];
-  return `linear-gradient(135deg, ${a} 0%, ${b} 100%)`;
-}
-
-// One restrained easing curve for all hover/focus transitions.
-const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
-
-// Side-by-side workspace panel chrome — shared by the Recipients and
-// Upcoming Occasions columns so both read as one system.
-const PANEL_STYLE = {
-  background: 'var(--bg-primary)',
-  border: '1px solid rgba(15, 23, 42, 0.05)',
-  borderRadius: 'var(--radius-xl)',
-  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
-  padding: '22px',
-  minWidth: 0,
-};
-const PANEL_TITLE = {
-  fontSize: '1.0625rem',
-  fontWeight: 700,
-  letterSpacing: '-0.01em',
-  color: 'var(--text-primary)',
-  margin: 0,
-};
-const PANEL_VIEWPORT = {
-  height: 'min(480px, 50dvh)',
-  overflowY: 'auto',
-  overflowX: 'hidden',
-  WebkitOverflowScrolling: 'touch',
-  borderRadius: 'var(--radius-lg)',
-  padding: '2px',
-};
-
-// Upcoming Occasions is organised into a fixed, always-present set of
-// automation categories. Each renders the soonest real occasion (or an
-// invitation to schedule). Order is intentional and must not change.
-const KNOWN_OCCASION_KEYS = ['birthday', 'anniversary', 'christmas', 'valentines', 'mothers_day', 'fathers_day'];
-const OCCASION_CATEGORIES = [
-  { key: 'birthday',    label: 'Birthday',        icon: '🎂', match: (t) => t === 'birthday' },
-  { key: 'anniversary', label: 'Anniversary',     icon: '💑', match: (t) => t === 'anniversary' },
-  { key: 'christmas',   label: 'Christmas',       icon: '🎄', match: (t) => t === 'christmas' },
-  { key: 'valentines',  label: "Valentine's Day", icon: '💝', match: (t) => t === 'valentines' },
-  { key: 'mothers_day', label: "Mother's Day",    icon: '💐', match: (t) => t === 'mothers_day' },
-  { key: 'fathers_day', label: "Father's Day",    icon: '👔', match: (t) => t === 'fathers_day' },
-  { key: 'custom',      label: 'Custom Occasion', icon: '✨', match: (t) => !KNOWN_OCCASION_KEYS.includes(t) },
-];
+// Walkthrough 2026-10-24: the old Business two-column layout (and its panel/avatar/occasion-tile helpers) is gone;
+// both contexts render the Celebrations workspace.
 
 export default function Recipients() {
   const navigate = useNavigate();
@@ -150,7 +76,6 @@ export default function Recipients() {
   const { user } = useAuth();
   const [serverRecipientCount, setServerRecipientCount] = useState(null);
   const [recipientCapLimit, setRecipientCapLimit] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
 
   // ── SLICE E6 — Personal / Business ─────────────────────────────────────────────────────────
   const [requestedScope, setRequestedScope] = useState(VIEW_SCOPE.PERSONAL);
@@ -158,7 +83,6 @@ export default function Recipients() {
   const [businessContacts, setBusinessContacts] = useState([]);
   const [businessLoading, setBusinessLoading] = useState(false);
   const [businessError, setBusinessError] = useState(null);
-  const [typeFilter, setTypeFilter] = useState('all');
   const corporateClient = useMemo(() => createCorporateCampaignsClient(), []);
   const corporateWrites = useMemo(() => createCorporateContactsClient(), []);
   // Campaigns are loaded in the Business view for ONE reason: to warn, before a delete, that
@@ -222,20 +146,7 @@ export default function Recipients() {
   const [alert, setAlert] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [viewMode, setViewMode] = useState('recipients');
-  const [occasionSearch, setOccasionSearch] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [reduceMotion, setReduceMotion] = useState(() => {
-    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
-  });
-
-  // Respect the OS reduced-motion preference (gates hover transforms only).
-  useEffect(() => {
-    let m;
-    try { m = window.matchMedia('(prefers-reduced-motion: reduce)'); } catch { return undefined; }
-    const onChange = () => setReduceMotion(m.matches);
-    m.addEventListener ? m.addEventListener('change', onChange) : m.addListener(onChange);
-    return () => { m.removeEventListener ? m.removeEventListener('change', onChange) : m.removeListener(onChange); };
-  }, []);
   const hasAutoOpenedRef = useRef(false);
   const hasAutoOpenedAddRef = useRef(false);
 
@@ -629,12 +540,9 @@ export default function Recipients() {
   // SLICE E6 — the list follows the scope. The two sources are chosen between, never combined:
   // `recipients` came from the personal endpoint with its own fail-closed scope predicate, and
   // `businessContacts` from the corporate one. Search applies to whichever is in view.
-  const scopedContacts = isBusiness ? filterByCorporateType(businessContacts, typeFilter) : recipients;
-  const filteredRecipients = scopedContacts.filter(contact =>
-    contact.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  const businessCounts = corporateTypeCounts(businessContacts);
+  // Walkthrough 2026-10-24: the Business categories (All / Employees / Clients / Vendors) are shown and filtered inside
+  // the Celebrations workspace (same filterByCorporateType, same counts). Actions always get the stored roster record.
+  const businessRecord = (c) => businessContacts.find((b) => b && c && b.id === c.id) || c;
 
   // PRACTICE VIEW — render the session-scoped Test Drive contacts in the normal layout, in place of the
   // ordinary Recipients page. Genuine recipients are never fetched or shown here (fail-closed above).
@@ -646,621 +554,17 @@ export default function Recipients() {
     return <LoadingSpinner text="Loading recipients..." />;
   }
 
-  // Example placeholder data for empty state
-  const placeholderRecipients = [
-    { name: 'Mom', relationship: 'Parent', occasions: [{ type: 'birthday' }], hasGift: true },
-    { name: 'Best Friend', relationship: 'Friend', occasions: [{ type: 'birthday' }, { type: 'christmas' }], hasGift: false },
-    { name: 'Partner', relationship: 'Partner', occasions: [{ type: 'birthday' }, { type: 'anniversary' }], hasGift: true }
-  ];
-
-  // Flatten occasions for occasions view
-  const allOccasions = recipients.flatMap(contact =>
-    (contact.occasions || []).map(occasion => ({
-      ...occasion,
-      recipientName: contact.name,
-      recipientRelationship: contact.relationship,
-      contactId: contact.id
-    }))
-  ).filter(occ =>
-    !occasionSearch ||
-    occ.type?.toLowerCase().includes(occasionSearch.toLowerCase()) ||
-    getOccasionLabel(occ.type)?.toLowerCase().includes(occasionSearch.toLowerCase()) ||
-    occ.recipientName?.toLowerCase().includes(occasionSearch.toLowerCase())
-  ).sort((a, b) => {
-    const dateA = new Date(a.date || '9999-12-31');
-    const dateB = new Date(b.date || '9999-12-31');
-    return dateA - dateB;
-  });
-
-  // Shared premium empty-state — icon badge + primary line + optional secondary.
-  // Matches the Upcoming Occasions empty-state language. Restrained; no illustration.
-  const renderEmptyState = (Icon, primary, secondary) => (
-    <div style={{
-      textAlign: 'center',
-      padding: '44px 24px',
-      background: 'var(--bg-primary)',
-      borderRadius: 'var(--radius-xl)',
-      border: '1px solid rgba(15, 23, 42, 0.05)',
-      boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: '14px'
-    }}>
-      <div style={{
-        width: '52px',
-        height: '52px',
-        borderRadius: '50%',
-        background: 'rgba(102, 126, 234, 0.08)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <Icon size={24} style={{ color: '#8b93d6' }} />
-      </div>
-      <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9375rem', fontWeight: 600, letterSpacing: '-0.005em' }}>
-        {primary}
-      </p>
-      {secondary && (
-        <p style={{ margin: 0, color: 'var(--text-tertiary)', fontSize: '0.8125rem', lineHeight: 1.5, maxWidth: '22rem' }}>
-          {secondary}
-        </p>
-      )}
-    </div>
-  );
-
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
-      {isBusiness ? (
-      <>
-      {/* Premium page shell — unifies header, gift presentation, and workspace
-          into one elevated luxury surface. Visual only; no structural change. */}
-      <div style={{
-        background: 'linear-gradient(180deg, #ffffff 0%, #f7f5fc 100%)',
-        borderRadius: isMobile ? 'var(--radius-xl)' : '28px',
-        border: '1px solid rgba(102, 126, 234, 0.10)',
-        boxShadow: '0 24px 60px rgba(76, 61, 143, 0.10), 0 2px 6px rgba(15, 23, 42, 0.04)',
-        padding: isMobile ? '1.25rem' : '2.5rem'
-      }}>
-      {/* Header Banner */}
-      <div style={{
-        position: 'relative',
-        background: 'radial-gradient(120% 140% at 15% 0%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 45%), linear-gradient(135deg, #6d74ee 0%, #764ba2 55%, #6a3f96 100%)',
-        borderRadius: 'var(--radius-xl)',
-        padding: isMobile ? '30px 20px' : '46px 40px',
-        marginBottom: isMobile ? '24px' : '32px',
-        border: '1px solid rgba(255, 255, 255, 0.14)',
-        boxShadow: '0 16px 38px rgba(76, 61, 143, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.24)'
-      }}>
-        {/* Title Row with Back Arrow on Left, Recipients Centered */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          position: 'relative',
-          marginBottom: '12px'
-        }}>
-          <button
-            onClick={() => navigate('/dashboard')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'rgba(255, 255, 255, 0.2)',
-              border: 'none',
-              color: 'white',
-              cursor: 'pointer',
-              padding: '6px',
-              borderRadius: '50%',
-              fontFamily: 'inherit',
-              position: 'absolute',
-              left: 0
-            }}
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <h1 style={{
-            fontSize: isMobile ? '1.625rem' : '1.875rem',
-            fontWeight: 700,
-            letterSpacing: '-0.01em',
-            color: 'white',
-            margin: 0,
-            lineHeight: 1.2,
-            width: '100%',
-            textAlign: 'center',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px'
-          }}>
-            My People
-            {recipients.length > 0 && (
-              <span style={{
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: 'rgba(255, 255, 255, 0.85)',
-                background: 'rgba(255, 255, 255, 0.14)',
-                padding: '2px 9px',
-                borderRadius: '9999px',
-                textAlign: 'center',
-                alignSelf: 'center'
-              }}>{recipients.length}</span>
-            )}
-          </h1>
-        </div>
-
-        {/* Subtitle — sentence-case value proposition; wraps naturally, centered */}
-        <p style={{
-          margin: '0 auto',
-          maxWidth: '44rem',
-          textAlign: 'center',
-          color: 'rgba(255, 255, 255, 0.90)',
-          fontSize: isMobile ? '1.09375rem' : '1.25rem',
-          fontWeight: 500,
-          lineHeight: 1.7,
-          letterSpacing: '-0.005em'
-        }}>
-          Automate personalized Greet-Me greetings, gifts, and unforgettable moments for the people who matter most. Forget them NOT!
-        </p>
-
-        {/* Header actions — one balanced row: Send (primary) · Add (secondary) · Import (tertiary) */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          gap: '10px',
-          justifyContent: 'center',
-          marginTop: '22px'
-        }}>
-          <button
-            onClick={() => navigate('/dashboard/send')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '7px',
-              padding: '11px 20px',
-              background: '#ffffff',
-              color: '#5a4fcf',
-              border: 'none',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.8125rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: '0 4px 14px rgba(20, 12, 60, 0.20)',
-              fontFamily: 'inherit',
-              whiteSpace: 'nowrap',
-              flexShrink: 0
-            }}
-            {...getHoverHandlers({
-              onEnter: (e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 18px rgba(20, 12, 60, 0.28)';
-              },
-              onLeave: (e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 14px rgba(20, 12, 60, 0.20)';
-              },
-            })}
-          >
-            <Send size={14} />
-            Send Greet-Me
-          </button>
-          <button
-            onClick={openAddRecipient}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              padding: '11px 18px',
-              background: 'rgba(255, 255, 255, 0.16)',
-              color: 'white',
-              border: '1px solid rgba(255, 255, 255, 0.28)',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              fontFamily: 'inherit',
-              whiteSpace: 'nowrap',
-              flexShrink: 0
-            }}
-            {...getHoverHandlers({
-              onEnter: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.26)'; },
-              onLeave: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.16)'; },
-            })}
-          >
-            Add Recipient
-          </button>
-          <button
-            onClick={() => {
-              // Rollback-controlled migration: VITE_IMPORT_WIZARD_ENTRY==="true" routes to the new
-              // Import Wizard; unset/false keeps the legacy CSVImport modal. Manual Add Recipient
-              // and the CSVImport component both remain fully available regardless of the flag.
-              if (import.meta.env.VITE_IMPORT_WIZARD_ENTRY === 'true') navigate('/dashboard/import-wizard');
-              else setShowImportModal(true);
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              padding: '11px 18px',
-              background: 'transparent',
-              color: 'rgba(255, 255, 255, 0.92)',
-              border: '1px solid rgba(255, 255, 255, 0.22)',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              fontFamily: 'inherit',
-              whiteSpace: 'nowrap',
-              flexShrink: 0
-            }}
-            {...getHoverHandlers({
-              onEnter: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'; },
-              onLeave: (e) => { e.currentTarget.style.background = 'transparent'; },
-            })}
-          >
-            Import Contacts
-          </button>
-        </div>
-      </div>
-
-      {/* LANE E2 — recipient cap, with the number and an Upgrade link, before any form is filled. */}
-      {showRecipientCapNotice && (
-        <div
-          id="recipient-cap-notice"
-          data-testid="recipient-cap-notice"
-          role="status"
-          style={{
-            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem 1rem',
-            padding: '0.75rem 1rem', marginBottom: '1rem', borderRadius: '0.625rem',
-            border: '1px solid #fcd34d', background: '#fffbeb', color: '#92400e', fontSize: '0.875rem',
-          }}
-        >
-          <span style={{ flex: '1 1 16rem' }}>{recipientLimitMessage(capNoticeLimit)}</span>
-          <button
-            type="button"
-            data-testid="recipient-cap-upgrade"
-            onClick={() => navigate('/pricing')}
-            style={{
-              padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', background: '#b45309',
-              color: '#fff', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
-            }}
-          >
-            Upgrade
-          </button>
-        </div>
-      )}
-
-      {/* Alert */}
-      {alert && (
-        <Alert
-          type={alert.type}
-          message={alert.message}
-          onClose={() => setAlert(null)}
-        />
-      )}
-
-      {/* Premium workspace container — unifies tabs, search, filters, recipient
-          list, and upcoming occasions in one surface. Layout/functionality within
-          is unchanged. */}
-      <div style={{
-        padding: 0
-      }}>
-      {/* Side-by-side workspace — Recipients | Upcoming Occasions */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-        gap: '20px',
-        alignItems: 'start'
-      }}>
-        {/* ── LEFT PANEL · Recipients ─────────────────────────── */}
-        <div style={PANEL_STYLE}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-            <Users size={18} style={{ color: '#667eea', flexShrink: 0 }} />
-            <h3 style={PANEL_TITLE}>Recipients</h3>
-            {/* Premium CTA — reuses the existing Add Recipient handler; no new behavior.
-                SLICE E7 — now present in BOTH views. It was hidden in Business while no corporate
-                create endpoint existed; one exists, so the button is real rather than a promise. */}
-            <button
-              data-testid="add-recipient"
-              aria-describedby={showRecipientCapNotice ? 'recipient-cap-notice' : undefined}
-              onClick={openAddRecipient}
-              style={{
-                marginLeft: 'auto',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                padding: '9px 22px',
-                background: 'linear-gradient(135deg, #6d74ee 0%, #764ba2 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: '0.8125rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                boxShadow: '0 4px 14px rgba(76, 61, 143, 0.28)',
-                fontFamily: 'inherit',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
-              {...getHoverHandlers({
-                onEnter: (e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(76, 61, 143, 0.36)'; },
-                onLeave: (e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(76, 61, 143, 0.28)'; },
-              })}
-            >
-              + Add Recipient
-            </button>
-          </div>
-
-          {/* Search — Spotlight-style inset surface */}
-          <div style={{ position: 'relative', marginBottom: '16px' }}>
-            <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
-            <input
-              type="text"
-              placeholder="Find someone…"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              autoComplete="off"
-              style={{ width: '100%', padding: '12px 16px 12px 44px', border: '1px solid transparent', borderRadius: 'var(--radius-xl)', fontSize: '0.9375rem', fontFamily: 'inherit', background: 'rgba(15, 23, 42, 0.035)', color: 'var(--text-primary)', outline: 'none', transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s' }}
-              onFocus={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.35)'; e.currentTarget.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.12)'; }}
-              onBlur={(e) => { e.currentTarget.style.background = 'rgba(15, 23, 42, 0.035)'; e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = 'none'; }}
-            />
-          </div>
-
-          {/* Recipient list — fixed-height internal scroll */}
-          {/* SLICE E6 — PERSONAL / BUSINESS.
-              Shown only to someone with an active corporate membership, so a personal-only user
-              never sees a control that would lead nowhere. */}
-          {businessAvailable ? (
-            <div data-testid="scope-toggle" role="tablist" aria-label="Which contacts to show"
-              style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
-              {[{ key: VIEW_SCOPE.PERSONAL, label: 'Personal' }, { key: VIEW_SCOPE.BUSINESS, label: 'Business' }].map((t) => {
-                const on = scope === t.key;
-                return (
-                  <button key={t.key} type="button" role="tab" aria-selected={on}
-                    data-testid={`scope-${t.key}`}
-                    onClick={() => { setRequestedScope(t.key); setSearchTerm(''); }}
-                    style={{
-                      padding: '7px 14px', fontSize: '0.8125rem', fontWeight: 700,
-                      borderRadius: '999px', cursor: 'pointer',
-                      border: on ? '1px solid #667eea' : '1px solid var(--border, rgba(0,0,0,.12))',
-                      background: on ? 'rgba(102,126,234,.10)' : 'transparent',
-                      color: on ? '#4a3fb0' : 'var(--text-secondary)',
-                    }}>
-                    {t.label}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-
-          {isBusiness ? (
-            <>
-              {/* Filter by contact type — the same three categories the campaign audience uses,
-                  with the same tags that appear on the corporate dashboard. */}
-              <div data-testid="business-type-filter" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
-                {CORPORATE_TYPE_FILTERS.map((f) => {
-                  const on = typeFilter === f.key;
-                  return (
-                    <button key={f.key} type="button" data-testid={`type-filter-${f.key}`}
-                      aria-pressed={on} onClick={() => setTypeFilter(f.key)}
-                      style={{
-                        padding: '5px 11px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '8px', cursor: 'pointer',
-                        border: on ? '1px solid #667eea' : '1px solid var(--border, rgba(0,0,0,.12))',
-                        background: on ? 'rgba(102,126,234,.10)' : 'transparent',
-                        color: on ? '#4a3fb0' : 'var(--text-secondary)',
-                      }}>
-                      {f.label} ({businessCounts[f.key] ?? 0})
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* SLICE E7 — no longer a read-only notice. Single-record writes exist now, so
-                  this points at import for what import is actually best at: many people at once,
-                  and correcting many at once, since a re-import updates people already here. */}
-              <div data-testid="business-import-notice" role="status"
-                style={{
-                  marginBottom: '12px', padding: '10px 12px', borderRadius: '10px',
-                  background: 'rgba(214,145,16,.07)', border: '1px solid rgba(214,145,16,.26)',
-                  fontSize: '0.78rem', lineHeight: 1.45, color: 'var(--text-secondary)',
-                }}>
-                <span>{BUSINESS_READ_ONLY_NOTICE.text}</span>{' '}
-                <button type="button" data-testid="business-import-cta"
-                  onClick={() => navigate(BUSINESS_READ_ONLY_NOTICE.actionPath)}
-                  style={{ padding: 0, background: 'none', border: 'none', color: '#4a3fb0', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', textDecoration: 'underline' }}>
-                  {BUSINESS_READ_ONLY_NOTICE.actionLabel}
-                </button>
-              </div>
-
-              {businessError ? (
-                <p data-testid="business-error" role="status" style={{ margin: '0 0 12px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{businessError}</p>
-              ) : null}
-            </>
-          ) : null}
-
-          {isBusiness && businessLoading ? (
-            <p data-testid="business-loading" style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-tertiary)' }}>Loading business contacts\u2026</p>
-          ) : filteredRecipients.length === 0 ? (
-            <div style={{ ...PANEL_VIEWPORT, overflowY: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', textAlign: 'center' }}>
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '1rem', fontWeight: 600, letterSpacing: '-0.01em' }}>{searchTerm ? `No one matches “${searchTerm}”` : 'No people yet'}</p>
-              <p style={{ margin: 0, color: 'var(--text-tertiary)', fontSize: '0.875rem' }}>{searchTerm ? 'Try a different name or email.' : 'Add someone you care about.'}</p>
-            </div>
-          ) : (
-            <div style={PANEL_VIEWPORT}>
-              {filteredRecipients.map((contact) => {
-                const primaryOcc = (contact.occasions || []).filter(o => o.date).sort((a, b) => new Date(a.date) - new Date(b.date))[0];
-                return (
-                  <div
-                    key={contact.id}
-                    style={{ padding: '14px', marginBottom: '10px', border: '1px solid rgba(15, 23, 42, 0.05)', borderRadius: '16px', background: '#ffffff', boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)', transition: `box-shadow 0.2s ${EASE}, border-color 0.2s ${EASE}, transform 0.2s ${EASE}` }}
-                    {...getHoverHandlers({
-                      onEnter: (e) => { e.currentTarget.style.boxShadow = '0 12px 28px rgba(76, 61, 143, 0.14)'; e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.35)'; e.currentTarget.style.transform = reduceMotion ? 'none' : 'translateY(-2px)'; },
-                      onLeave: (e) => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.05)'; e.currentTarget.style.borderColor = 'rgba(15, 23, 42, 0.05)'; e.currentTarget.style.transform = 'translateY(0)'; },
-                    })}
-                  >
-                    {/* Identity */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-                      <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: contact.avatar ? `url(${contact.avatar}) center/cover` : `radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 46%), ${avatarGradient(contact.name)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '1.125rem', textShadow: contact.avatar ? 'none' : '0 1px 2px rgba(20, 14, 40, 0.28)', flexShrink: 0, boxShadow: '0 0 0 3px #fffdf9, 0 4px 12px rgba(20, 14, 40, 0.22)' }}>
-                        {!contact.avatar && contact.name?.charAt(0)?.toUpperCase()}
-                      </div>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9375rem', letterSpacing: '-0.01em', lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contact.name}</div>
-                        {contact.relationship && (
-                          <span style={{ display: 'inline-block', marginTop: '4px', background: 'rgba(102, 126, 234, 0.10)', color: '#5a4fcf', padding: '2px 10px', borderRadius: '9999px', fontSize: '0.6875rem', fontWeight: 600, textTransform: 'capitalize' }}>{relationshipLabel(contact.relationship)}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Primary occasion — nearest scheduled date.
-                        SURFACE 2 W04/W06 — cadence ("Repeats yearly" / "One-time") shown distinct from
-                        the occasion name and date, so this never reads as a single ambiguous "it's
-                        scheduled" claim. */}
-                    <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '7px', color: 'var(--text-secondary)', fontSize: '0.8125rem', minWidth: 0 }}>
-                      {primaryOcc ? (
-                        <>
-                          <span style={{ fontSize: '0.9375rem', flexShrink: 0 }}>{getOccasionIcon(primaryOcc.type)}</span>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {getOccasionLabel(primaryOcc.type)} · {new Date(primaryOcc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                            <span style={{ color: 'var(--text-tertiary)' }}> · {getOccasionCadenceLabel(primaryOcc.type)}</span>
-                          </span>
-                        </>
-                      ) : (
-                        <span style={{ color: 'var(--text-tertiary)' }}>No occasions yet</span>
-                      )}
-                    </div>
-
-                    {/* Actions — Send / Edit / Delete (always visible) */}
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '12px' }}>
-                      <button
-                        onClick={() => navigate(`/dashboard/send?contactId=${contact._id || contact.id}`)}
-                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '0 12px', height: '40px', background: '#22c55e', color: 'white', border: 'none', borderRadius: 'var(--radius-lg)', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'inherit', boxShadow: '0 2px 6px rgba(34, 197, 94, 0.28)' }}
-                        {...getHoverHandlers({ onEnter: (e) => { e.currentTarget.style.background = '#16a34a'; }, onLeave: (e) => { e.currentTarget.style.background = '#22c55e'; } })}
-                      >
-                        <Send size={14} />
-                        Send
-                      </button>
-                      {/* SLICE E7 — Edit and Delete now work in both views. Each handler
-                          branches on the scope, so a corporate record is written through the
-                          corporate router and never through a personal endpoint that would
-                          (correctly) refuse it. */}
-                      <>
-                      <button
-                        onClick={() => openEditModal(contact)}
-                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '0 12px', height: '40px', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid rgba(15, 23, 42, 0.12)', borderRadius: 'var(--radius-lg)', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'inherit' }}
-                        {...getHoverHandlers({ onEnter: (e) => { e.currentTarget.style.background = 'rgba(102, 126, 234, 0.08)'; e.currentTarget.style.color = '#5a4fcf'; e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.40)'; }, onLeave: (e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'rgba(15, 23, 42, 0.12)'; } })}
-                      >
-                        <Edit size={14} />
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm(contact)}
-                        title="Delete"
-                        aria-label="Delete recipient"
-                        style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', padding: 0, background: 'transparent', color: 'var(--text-tertiary)', border: '1px solid rgba(15, 23, 42, 0.10)', borderRadius: 'var(--radius-lg)', cursor: 'pointer', transition: 'all 0.2s' }}
-                        {...getHoverHandlers({ onEnter: (e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.borderColor = '#dc2626'; }, onLeave: (e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.borderColor = 'rgba(15, 23, 42, 0.10)'; } })}
-                        onFocus={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.borderColor = '#dc2626'; }}
-                        onBlur={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.borderColor = 'rgba(15, 23, 42, 0.10)'; }}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                      </>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* ── RIGHT PANEL · Upcoming Occasions ────────────────── */}
-        <div style={PANEL_STYLE}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-            <Clock size={18} style={{ color: '#667eea', flexShrink: 0 }} />
-            <h3 style={PANEL_TITLE}>Upcoming Occasions</h3>
-          </div>
-
-          {/* Search */}
-          <div style={{ position: 'relative', marginBottom: '16px' }}>
-            <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
-            <input
-              type="text"
-              placeholder="Find an occasion…"
-              value={occasionSearch}
-              onChange={(e) => setOccasionSearch(e.target.value)}
-              autoComplete="off"
-              style={{ width: '100%', padding: '12px 16px 12px 44px', border: '1px solid transparent', borderRadius: 'var(--radius-xl)', fontSize: '0.9375rem', fontFamily: 'inherit', background: 'rgba(15, 23, 42, 0.035)', color: 'var(--text-primary)', outline: 'none', transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s' }}
-              onFocus={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.35)'; e.currentTarget.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.12)'; }}
-              onBlur={(e) => { e.currentTarget.style.background = 'rgba(15, 23, 42, 0.035)'; e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = 'none'; }}
-            />
-          </div>
-
-          {/* Category tiles — fixed order, always present; real data or an invitation to schedule */}
-          <div style={{ ...PANEL_VIEWPORT, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {OCCASION_CATEGORIES.map((cat) => {
-              const items = allOccasions.filter(o => o.date && cat.match(o.type));
-              const soonest = items[0];
-              return (
-                <div
-                  key={cat.key}
-                  style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '14px 16px', background: '#ffffff', border: '1px solid rgba(15, 23, 42, 0.05)', borderRadius: '16px', boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)', transition: `box-shadow 0.2s ${EASE}, transform 0.2s ${EASE}` }}
-                  {...getHoverHandlers({ onEnter: (e) => { e.currentTarget.style.boxShadow = '0 12px 28px rgba(76, 61, 143, 0.14)'; e.currentTarget.style.transform = reduceMotion ? 'none' : 'translateY(-2px)'; }, onLeave: (e) => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.05)'; e.currentTarget.style.transform = 'translateY(0)'; } })}
-                >
-                  <span aria-hidden="true" style={{ flexShrink: 0, width: '34px', height: '34px', borderRadius: '50%', background: '#ffffff', border: '1px solid rgba(15, 23, 42, 0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.0625rem' }}>{cat.icon}</span>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9375rem', letterSpacing: '-0.005em' }}>{cat.label}</div>
-                    {soonest ? (
-                      <>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', marginTop: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {soonest.recipientName} · {new Date(soonest.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </div>
-                        {/* SURFACE 2 W04/W06 — cadence distinct from the occasion/date line above. */}
-                        <div style={{ color: 'var(--text-tertiary)', fontSize: '0.6875rem', marginTop: '1px' }}>
-                          {getOccasionCadenceLabel(soonest.type)}
-                        </div>
-                        {items.length > 1 && (
-                          <div style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', marginTop: '2px' }}>+{items.length - 1} more</div>
-                        )}
-                      </>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '5px', flexWrap: 'wrap' }}>
-                        <span style={{ padding: '3px 9px', borderRadius: '9999px', background: 'rgba(102, 126, 234, 0.10)', color: '#5a4fcf', fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Ready to Automate</span>
-                        <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>Schedule the love.</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Closing brand tile — SURFACE 2 W14: "Schedule the love." used brand-purple, bold,
-                letter-spaced styling that reads as a clickable CTA even without underline/hover,
-                with no destination behind it. No approved occasion-management destination exists
-                yet, so this is now ordinary informational copy — same neutral treatment as the
-                "Schedule the love." line in the empty-occasion tiles above it. */}
-            <div style={{ marginTop: '2px', padding: '18px 16px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.06) 0%, rgba(118, 75, 162, 0.06) 100%)', border: '1px solid rgba(102, 126, 234, 0.12)', textAlign: 'center' }}>
-              <p style={{ margin: 0, fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9375rem', letterSpacing: '-0.01em' }}>Moments are better shared.</p>
-              <p style={{ margin: '5px 0 0', color: 'var(--text-secondary)', fontSize: '0.8125rem', lineHeight: 1.5 }}>Add dates and Greet-Me will take care of the rest. Schedule the love.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-      </div>
-      {/* End premium workspace container */}
-      </div>
-      {/* End premium page shell */}
-      </>
-      ) : (
-      <>
-      {/* Celebrations (Report 135): personal recipients and their occasions, two ways into the same Occasion Scheduler. */}
-      {/* LANE E2 — recipient cap, with the number and an Upgrade link, before any form is filled. */}
+      {/* Walkthrough revision 2026-10-24 (founder): Personal and Business use the same approved Celebrations design.
+          Switching context changes the data and the categories, never the page. ONE PAGE, TWO ENDPOINTS still: the
+          workspace is handed whichever roster is in view (recipients from the personal endpoint, businessContacts from
+          the corporate one), never both. The business roster is shown through businessCelebrationContacts (display
+          only: its dates are month-day), and every action receives the ORIGINAL roster record (businessRecord).
+          Business keeps exactly its previous actions: Edit opens the same editor the old Business view opened
+          (openEditModal), never at a particular occasion; Send, Delete and Add go through the same handlers, which
+          branch on the scope. Dates & gifts (personal recipients only) is not offered for Business. */}
+      {/* LANE E2 — recipient cap, with the number and an Upgrade link, before any form is filled (personal only). */}
       {showRecipientCapNotice && (
         <div
           id="recipient-cap-notice"
@@ -1297,26 +601,21 @@ export default function Recipients() {
       )}
 
       <CelebrationsWorkspace
-        contacts={recipients}
-        upcomingRows={upcomingRows}
-        sent={sentGreetings}
+        context={isBusiness ? 'business' : 'personal'}
+        contacts={isBusiness ? businessCelebrationContacts(businessContacts) : recipients}
+        upcomingRows={isBusiness ? [] : upcomingRows}
+        sent={isBusiness ? [] : sentGreetings}
+        listNote={isBusiness && businessLoading ? { testid: 'business-loading', text: 'Loading business contacts\u2026' }
+          : isBusiness && businessError ? { testid: 'business-error', text: businessError } : null}
         scopeToggle={(
           businessAvailable ? (
-            <div data-testid="scope-toggle" role="tablist" aria-label="Which contacts to show"
-              style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+            <div data-testid="scope-toggle" role="tablist" aria-label="Which contacts to show" className="seg small scope">
               {[{ key: VIEW_SCOPE.PERSONAL, label: 'Personal' }, { key: VIEW_SCOPE.BUSINESS, label: 'Business' }].map((t) => {
                 const on = scope === t.key;
                 return (
                   <button key={t.key} type="button" role="tab" aria-selected={on}
                     data-testid={`scope-${t.key}`}
-                    onClick={() => { setRequestedScope(t.key); setSearchTerm(''); }}
-                    style={{
-                      padding: '7px 14px', fontSize: '0.8125rem', fontWeight: 700,
-                      borderRadius: '999px', cursor: 'pointer',
-                      border: on ? '1px solid #667eea' : '1px solid var(--border, rgba(0,0,0,.12))',
-                      background: on ? 'rgba(102,126,234,.10)' : 'transparent',
-                      color: on ? '#4a3fb0' : 'var(--text-secondary)',
-                    }}>
+                    onClick={() => setRequestedScope(t.key)}>
                     {t.label}
                   </button>
                 );
@@ -1324,18 +623,16 @@ export default function Recipients() {
             </div>
           ) : null
         )}
-        onOpenScheduler={openScheduler}
+        onOpenScheduler={isBusiness ? (c) => openEditModal(businessRecord(c)) : openScheduler}
         onSend={(c) => navigate(`/dashboard/send?contactId=${c._id || c.id}`)}
-        onDelete={(c) => setDeleteConfirm(c)}
+        onDelete={(c) => setDeleteConfirm(isBusiness ? businessRecord(c) : c)}
         onAddRecipient={openAddRecipient}
-        onImport={openImport}
+        onImport={isBusiness ? () => navigate(BUSINESS_READ_ONLY_NOTICE.actionPath) : openImport}
         onAddGift={(slide) => navigate(slide === 'qrcash' ? '/dashboard/gifts?tab=qrcash' : '/dashboard/gifts')}
         initialPath={celebrationsEntryRef.current.path}
         initialOccasion={celebrationsEntryRef.current.occasion}
-        onScheduleGroup={scheduleGroupFromOccasion}
+        onScheduleGroup={isBusiness ? null : scheduleGroupFromOccasion}
       />
-      </>
-      )}
 
       {/* Add Recipient Modal */}
       <Modal
