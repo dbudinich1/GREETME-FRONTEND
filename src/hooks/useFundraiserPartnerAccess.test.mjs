@@ -219,15 +219,17 @@ test("B3: existing personal navigation entries are unchanged in label and order"
   assert.deepEqual(names, [
     "Home",
     "Celebrations", // Report 135: the Recipients page, renamed (same path, same place)
-    "Plans & Pricing",
-    "Greet-Me Gifts",
-    "❤️ Hearts Hub",
-    "🥇 Greet-Me™ Hero™",
+    // Walkthrough revision 2026-10-24 (founder): new order and labels. "Gift Place" was "Greet-Me Gifts",
+    // "Hero" was "🥇 Greet-Me™ Hero™", "Hearts" was "❤️ Hearts Hub". Paths and gates are pinned below.
+    "Gift Place",
     "For Business",
     "Corporate Campaign Dashboard", // nested child of For Business
     // Report 87 A7 (rev 6): "Greet-Me Fundraise" became "Fundraisers" with the partner child.
     "Fundraisers",
     "Partner Dashboard", // nested child of Fundraisers (partner administrators only)
+    "Plans & Pricing",
+    "Hero",
+    "Hearts",
     // TEAM 5 (six-team merge, 2026-09-29): Founder Central Command, the new consolidated
     // founder-only entry point. Appended after the existing fundraiser entry, so every entry
     // above it keeps its exact label and position. Pre-existing gap on Team 5's own branch: this

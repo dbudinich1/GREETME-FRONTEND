@@ -125,9 +125,9 @@ const drawer = () => [...document.querySelectorAll("div")].find((d) => d.style.z
 const buttonIn = (scope, label) => [...scope.querySelectorAll("button")].find((b) => b.textContent.trim() === label);
 const ACCOUNT = [["Media Library", "/dashboard/media"], ["My Orders", "/dashboard/merch/orders"], ["Settings", "/dashboard/settings"]];
 
-test("desktop: the header keeps the user icon and its dropdown (Media Library, My Orders, Settings, Logout) and the xlarge logo", async () => {
+test("desktop: the header keeps the user icon and its dropdown (Media Library, My Orders, Settings, Logout) and the large logo", async () => {
   await mount(1440);
-  assert.equal(logoSize(), "xlarge");
+  assert.equal(logoSize(), "large"); // walkthrough 2026-10-24 compact header (was "xlarge")
   assert.ok(userIcon(), "user icon in the desktop header");
   assert.equal(userIcon().textContent.trim(), "M");
   for (const [label, path] of ACCOUNT) {
@@ -188,5 +188,5 @@ test("resizing from desktop to phone removes the user icon; back to desktop rest
   assert.equal(logoSize(), "small");
   window.innerWidth = 1440; await act(async () => { window.dispatchEvent(new Event("resize")); }); await settle();
   assert.ok(userIcon());
-  assert.equal(logoSize(), "xlarge");
+  assert.equal(logoSize(), "large"); // walkthrough 2026-10-24 compact header (was "xlarge")
 });

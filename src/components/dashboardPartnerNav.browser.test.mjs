@@ -410,7 +410,9 @@ test("B3fix: desktop AND mobile consumers both reflect the shared navigation res
 
 test("B3fix: existing personal navigation entries are unchanged in presence and order", async () => {
   await mount({ next: OK(1) });
-  const expected = ["/dashboard", "/dashboard/contacts", "/pricing", "/dashboard/gifts", "/dashboard/rewards", "/dashboard/hero", "/business"];
+  // Walkthrough revision 2026-10-24 (founder): Home / Celebrations / Gift Place / For Business / Fundraisers /
+  // Plans & Pricing / Hero / Hearts. Same entries and paths, new order.
+  const expected = ["/dashboard", "/dashboard/contacts", "/dashboard/gifts", "/business", "/pricing", "/dashboard/hero", "/dashboard/rewards"];
   for (const href of expected) {
     assert.ok(document.querySelector(`[data-nav="${href}"]`), `personal nav entry ${href} must still render`);
   }
@@ -419,6 +421,7 @@ test("B3fix: existing personal navigation entries are unchanged in presence and 
   const firstIdx = expected.map((h) => all.indexOf(h));
   assert.deepEqual(firstIdx, [...firstIdx].sort((a, b) => a - b), "personal navigation order preserved");
   assert.ok(all.indexOf("/fundraisers") > all.indexOf("/business"), "A7: the Fundraisers item takes the partner entry's position after For Business");
+  assert.ok(all.indexOf("/fundraisers") < all.indexOf("/pricing"), "walkthrough 2026-10-24: Fundraisers sits before Plans & Pricing");
 });
 
 test("B3fix: the nested Corporate Campaign Dashboard child is untouched", async () => {

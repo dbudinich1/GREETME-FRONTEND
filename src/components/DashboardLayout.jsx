@@ -16,6 +16,7 @@ import { SETUP_REVISIT_EVENT } from './setupRevisit';
 import { isGuidedSetupExcludedRoute } from './guidedSetupRouteExclusion.js';
 import { useAccountState } from '../hooks/useAccountState';
 import { useFundraiserPartnerAccess } from '../hooks/useFundraiserPartnerAccess'; // TEAM B B3 — server-derived partner-nav visibility
+import { capitalizeFirst } from '../utils/displayName.js';
 
 export default function DashboardLayout({ children }) {
   const { user, logout, isAuthenticated, loading: authLoading } = useAuth();
@@ -24,7 +25,8 @@ export default function DashboardLayout({ children }) {
   // Defensive display-name fallbacks: avatar/greeting must never collapse to
   // a bare 'U' when `name` is briefly absent (e.g. login payload omits it).
   const displayName = user?.name || user?.email || 'User';
-  const firstName = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'User';
+  // Walkthrough revision 2026-10-24: the displayed first name starts with a capital; the other letters are kept as typed.
+  const firstName = capitalizeFirst(user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'User');
   const avatarInitial = (displayName.charAt(0) || 'U').toUpperCase();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -197,13 +199,14 @@ export default function DashboardLayout({ children }) {
     navigate('/login');
   };
 
+  // Walkthrough revision 2026-10-24 (founder): the main navigation reads Home / Celebrations / Gift Place / For Business /
+  // Fundraisers / Plans & Pricing / Hero / Hearts / Founder Central Command. Order and visible labels only: every
+  // path and every gate below is unchanged. The founder-only Fundraising and Salespeople links stay (after Founder
+  // Central Command) until the founder approves the duplicate mapping in Report 138.
   const navigation = [
     { name: 'Home', path: '/dashboard', icon: null },
     { name: 'Celebrations', path: '/dashboard/contacts', icon: Users }, // Report 135: the Recipients page, renamed (people and their occasions)
-    { name: 'Plans & Pricing', path: '/pricing', icon: null },
-    { name: 'Greet-Me Gifts', path: '/dashboard/gifts', icon: Gift },
-    { name: '❤️ Hearts Hub', path: '/dashboard/rewards', icon: null },
-    { name: '🥇 Greet-Me™ Hero™', path: '/dashboard/hero', icon: null },
+    { name: 'Gift Place', path: '/dashboard/gifts', icon: Gift }, // was 'Greet-Me Gifts'
     // NAV-02 — FOR BUSINESS carries a nested submenu → Corporate Campaign Dashboard (Team B's
     // canonical evolving surface at /dashboard/campaigns). The parent link to the marketing page is kept.
     { name: 'For Business', path: '/business', icon: null, children: [
@@ -223,6 +226,9 @@ export default function DashboardLayout({ children }) {
     // with "Partner Dashboard" (/dashboard/fundraiser). Display-only; grants no access.
     ...(isFundraiserUiEnabled() ? [{ name: 'Fundraisers', path: '/fundraisers', icon: null,
       ...(isPartnerAdmin ? { children: [{ name: 'Partner Dashboard', path: '/dashboard/fundraiser' }] } : {}) }] : []),
+    { name: 'Plans & Pricing', path: '/pricing', icon: null },
+    { name: 'Hero', path: '/dashboard/hero', icon: null }, // was '🥇 Greet-Me™ Hero™'
+    { name: 'Hearts', path: '/dashboard/rewards', icon: null }, // was '❤️ Hearts Hub'
     // TEAM 5 (2026-09-29) — Founder Central Command: the consolidated founder-only entry point.
     // Added, not a replacement — the individual Fundraising/Salespeople entries below (and their
     // routes) stay exactly as they are; existing deep links and bookmarks keep working. Same
@@ -258,7 +264,8 @@ export default function DashboardLayout({ children }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          height: isNarrow ? '4rem' : '7rem',
+          // Walkthrough 2026-10-24 compact pass (founder's 75% reference at normal zoom): 7rem -> 5rem on desktop.
+          height: isNarrow ? '4rem' : '5rem',
           gap: isNarrow ? '0.375rem' : '1rem'
         }}>
           {/* Hamburger Menu Button - Mobile Only */}
@@ -323,7 +330,7 @@ export default function DashboardLayout({ children }) {
                 <GreetMeLogo size="small" clickable={true} />
               </div>
             ) : (
-              <GreetMeLogo size="xlarge" clickable={true} />
+              <GreetMeLogo size="large" clickable={true} />
             )}
           </div>
 
@@ -854,7 +861,7 @@ export default function DashboardLayout({ children }) {
         overflowX: 'visible',
         WebkitOverflowScrolling: 'touch',
         position: 'sticky',
-        top: '7rem',
+        top: '5rem', // follows the compact desktop header height above
         zIndex: 49
       }}>
         <div style={{
@@ -877,9 +884,9 @@ export default function DashboardLayout({ children }) {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
-                    padding: '1rem 0.5rem 1rem 1.25rem',
+                    padding: '0.7rem 0.25rem 0.7rem 0.7rem',
                     textDecoration: 'none',
-                    fontSize: '1rem',
+                    fontSize: '0.875rem',
                     fontWeight: 500,
                     transition: 'all 0.2s',
                     borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
@@ -901,7 +908,7 @@ export default function DashboardLayout({ children }) {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    padding: '1rem 1rem 1rem 0.25rem',
+                    padding: '0.7rem 0.6rem 0.7rem 0.15rem',
                     background: 'transparent',
                     border: 'none',
                     borderBottom: '2px solid transparent',
@@ -966,9 +973,9 @@ export default function DashboardLayout({ children }) {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.5rem',
-                  padding: '1rem 1.25rem',
+                  padding: '0.7rem 0.7rem',
                   textDecoration: 'none',
-                  fontSize: '1rem',
+                  fontSize: '0.875rem',
                   fontWeight: 500,
                   transition: 'all 0.2s',
                   borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
