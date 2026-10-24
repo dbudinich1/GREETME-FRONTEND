@@ -7,7 +7,8 @@
 export const LAUNCHER_STATE_KEY = 'gm_dashboard_launcher_v1';
 export const LAUNCHER_STATE_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 
-const FIELDS = ['mode', 'occasions', 'audience', 'picks', 'excluded', 'words', 'memoryPhotos', 'gift', 'whoDone', 'persDone', 'rows', 'groupDefaultGift', 'datesOpen'];
+// 'confirmed' (walkthrough 2026-10-24): the section Save confirmations; 'persDone' is kept so older snapshots still read.
+const FIELDS = ['mode', 'occasions', 'audience', 'picks', 'excluded', 'words', 'memoryPhotos', 'gift', 'whoDone', 'persDone', 'confirmed', 'rows', 'groupDefaultGift', 'datesOpen'];
 
 /**
  * Keep the launcher's choices. Memory photos are large (data URLs); if they don't fit, the rest is kept without them.

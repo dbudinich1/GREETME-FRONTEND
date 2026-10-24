@@ -50,6 +50,7 @@ import InfoTip from '../components/dashboard/InfoTip';
 import G1G1Badge from '../components/G1G1Badge';
 import { qrCashQuote, centsToDollarString, validateQrCashDollars } from '../utils/qrCashAmount';
 import { DASHBOARD_HOME_CSS } from './dashboardHomeStyles';
+import { displayFirstName } from '../utils/displayName';
 import { OCCASION_CHIPS, OCCASION_MENUS } from '../utils/dashboardOccasions';
 import { occasionSummaries, OCCASION_GROUPS } from '../utils/celebrationsModel';
 import ScheduledGiftPicker from '../components/scheduledGift/ScheduledGiftPicker';
@@ -103,10 +104,11 @@ const QR_HOW_IT_WORKS_CTA = 'Add QR Cash';
 // plus the send page's Thank You, Congratulations, Just Because and the generic Season's Greetings. GREETING_RULES untouched.
 // Base44 "Send to" segments mapped onto the recipient's existing relationshipCategory (family | friend | professional).
 // The lower card's Recipients filter: the same relationshipCategory values, All by default.
-// Report 135: the same organisation as the Celebrations page — Individuals | Friends | Family | Professional, shown
-// below the Recipients | Occasions toggle and above the search. Individuals (key 'all') lists everyone, one by one.
+// Report 135: the same organisation as the Celebrations page — All | Friends | Family | Professional, shown
+// below the People | Occasions toggle and above the search. All (key 'all') lists everyone, one by one.
+// Walkthrough 2026-10-24 (founder): "Individuals" reads "All" and the Recipients tab reads "People".
 const RECIPIENT_FILTERS = [
-  { key: 'all', label: 'Individuals', people: 'recipients' },
+  { key: 'all', label: 'All', people: 'recipients' },
   { key: 'friend', label: 'Friends', people: 'friends' },
   { key: 'family', label: 'Family', people: 'family members' },
   { key: 'professional', label: 'Professional', people: 'professional contacts' },
@@ -120,6 +122,8 @@ const AUDIENCES = [
 ];
 // Every occasion the dashboard offers: restored choices are kept only when they are one of these (Team 5 F-C2).
 const OFFERED_OCCASIONS = new Set([...OCCASION_CHIPS, ...OCCASION_MENUS.flatMap((m) => m.groups.flatMap((g) => g.items))]);
+// The occasion rule's footer line when nothing more specific applies (hidden on phones, founder 2026-10-24).
+const RULE_DEFAULT = 'One person: choose one or more occasions. Several people: one shared occasion.';
 const SENDER_PHOTO_REQUIRED_MESSAGE = 'Every Greet-Me includes your photo so the recipient knows it is from you. Add a profile photo to send — your greeting stays saved while you do.';
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 
@@ -332,7 +336,10 @@ export default function DashboardHome() {
   const [photoNote, setPhotoNote] = useState('');
   const [gift, setGift] = useState(['qrcash', 'gift'].includes(K('gift', null)) ? K('gift', null) : null);
   const [whoDone, setWhoDone] = useState(K('whoDone', false));
-  const [persDone, setPersDone] = useState(K('persDone', false));
+  // Walkthrough 2026-10-24 (founder): each section's Save confirms that section's choices only. A confirmation is the
+  // section's choices as they were when Save was pressed; any later edit clears it until Save is pressed again.
+  // Display only: what Send/Save may do is decided exactly as before (canContinue below), never by these marks.
+  const [confirmed, setConfirmed] = useState(() => { const c = K('confirmed', null); return c && typeof c === 'object' && !Array.isArray(c) ? { occ: typeof c.occ === 'string' ? c.occ : null, who: typeof c.who === 'string' ? c.who : null, pers: typeof c.pers === 'string' ? c.pers : null } : {}; });
   const [ruleNote, setRuleNote] = useState('');
   const [giftNote, setGiftNote] = useState('');
   const [rows, setRows] = useState(K('rows', {}));
@@ -369,12 +376,12 @@ export default function DashboardHome() {
 
   const voiceDone = Boolean(user?.voiceId || user?.voiceUrl);
   const photoDone = Boolean(user?.photoUrl);
-  const firstName = first(user?.name);
+  const firstName = displayFirstName(user?.name); // Walkthrough 2026-10-24: first letter capitalised, the rest kept as typed
   const goAddRecipient = () => navigate('/dashboard/contacts', { state: { openAddRecipient: true } });
   // Editing a recipient (or opening their Occasion Scheduler) from here keeps the in-progress choices and brings the
   // sender back to them after saving or closing the edit (Contacts.jsx returnTo).
   const keepChoices = () => {
-    const kept2 = saveLauncherState(window.sessionStorage, user?.id, { mode, occasions, audience, picks, excluded, words, memoryPhotos, gift, whoDone, persDone, rows, groupDefaultGift, datesOpen });
+    const kept2 = saveLauncherState(window.sessionStorage, user?.id, { mode, occasions, audience, picks, excluded, words, memoryPhotos, gift, whoDone, confirmed, rows, groupDefaultGift, datesOpen });
     if (kept2 === 'without_photos') showManualToast('Photos not kept', 'Your memory photos were too large to keep on this device while you edit. Your other choices are kept.', COMMS_CATEGORIES.SYSTEM);
   };
   const goAddFromFlow = () => { keepChoices(); navigate('/dashboard/contacts', { state: { openAddRecipient: true, returnTo: 'dashboard' } }); };
@@ -401,12 +408,6 @@ export default function DashboardHome() {
     if (!picks.includes(id) && picks.length >= GROUP_MAX) { setRuleNote('cap'); return; }
     setRuleNote(''); setSaveMsg(null); setPicks((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   };
-  const pickFromHero = (c) => {
-    if (audience !== 'one') { if (occasions.length > 1) { setRuleNote('who'); return; } }
-    else if (!picks.includes(c.id) && occasions.length > 1 && picks.length >= 1) { setRuleNote('who'); return; }
-    else if (!picks.includes(c.id) && picks.length >= GROUP_MAX) { setRuleNote('cap'); return; }
-    setRuleNote(''); setSaveMsg(null); setAudience('one'); setPicks((cur) => (cur.includes(c.id) ? cur : [...cur, c.id]));
-  };
   const chooseAudience = (k) => {
     if (k !== 'one' && occasions.length > 1) { setRuleNote('group'); return; }
     setRuleNote(''); setSaveMsg(null); setAudience(k); setExcluded([]); setPickerOpen(false);
@@ -422,11 +423,34 @@ export default function DashboardHome() {
     : ruleNote === 'who' || ruleNote === 'group' ? 'Several occasions go to one person. To send to several people, keep just one occasion.'
       : ruleNote.startsWith('sched:') ? `${ruleNote.slice(6)} is sent on its own with Send Now. Several occasions for one person are each scheduled in their Occasion Scheduler, so they must all be occasions it holds.`
         : notSchedulable ? `${notSchedulable} isn’t an Occasion Scheduler occasion, so it can’t be scheduled. Choose Send Now for it.`
-          : occLocked ? 'Several people share one occasion.'
-            : whoLocked ? 'Several occasions go to one person.'
-              : 'One person: choose one or more occasions. Several people: one shared occasion.';
+          // Walkthrough 2026-10-24 (founder): "Several people share one occasion." is no longer shown; the rule itself is
+          // unchanged (toggleOcc still refuses a second occasion for several people, with the 'occ' reason above).
+          : whoLocked ? 'Several occasions go to one person.'
+            : RULE_DEFAULT;
+  const ruleIsDefault = ruleText === RULE_DEFAULT; // phones hide this footer line (founder 2026-10-24); warnings still show
   const step1Done = Boolean(mode) && occasions.length > 0;
   const step2Done = chosen.length > 0 && whoDone;
+  // Section confirmations (see `confirmed` above). The signature is the section's own choices.
+  const occSig = JSON.stringify([mode, occasions]);
+  const whoSig = JSON.stringify([audience, picks, excluded]);
+  const persSig = JSON.stringify([words, memoryPhotos.map((p) => `${String(p).length}:${String(p).slice(-24)}`)]);
+  const occValid = Boolean(mode) && occasions.length > 0 && !notSchedulable;
+  const whoValid = chosen.length > 0 && !overCap;
+  const occSaved = Boolean(confirmed.occ) && confirmed.occ === occSig;
+  const whoSaved = Boolean(confirmed.who) && confirmed.who === whoSig;
+  const persSaved = Boolean(confirmed.pers) && confirmed.pers === persSig;
+  useEffect(() => {
+    // An edit clears that section's confirmation; returning to the same choices does not bring it back.
+    setConfirmed((c) => {
+      const next = { ...c };
+      let changed = false;
+      if (c.occ && c.occ !== occSig) { next.occ = null; changed = true; }
+      if (c.who && c.who !== whoSig) { next.who = null; changed = true; }
+      if (c.pers && c.pers !== persSig) { next.pers = null; changed = true; }
+      return changed ? next : c;
+    });
+  }, [occSig, whoSig, persSig]);
+  const confirmSection = (k, sig, valid) => { if (valid) setConfirmed((c) => ({ ...c, [k]: sig })); };
 
   // ── Inline date-and-gift resolver (one recipient): several occasions, or Schedule the Love for one scheduler occasion.
   const resolverOn = chosen.length === 1 && occasions.length >= 1 && occasions.every(isSchedulerOccasion)
@@ -625,6 +649,7 @@ export default function DashboardHome() {
   // Step 2's Save: one clear action. It confirms who it is for and, when the choices are schedules, opens Dates & gifts.
   const completeWho = () => {
     if (!chosen.length) return;
+    confirmSection('who', whoSig, whoValid);
     setWhoDone(true); setPickerOpen(false);
     if (resolverOn || groupSchedOn) setDatesOpen(true);
   };
@@ -712,8 +737,18 @@ export default function DashboardHome() {
         : mode === 'occasion' ? 'Nothing is scheduled until you save it.'
           : 'Next: the send flow, where you review it. Nothing is sent, and no gift is charged, until you confirm there.';
 
-  const StepHead = ({ n, label, isDone }) => (
-    <div className="step-label"><span className={`num ${isDone ? 'done' : ''}`}>{isDone ? <Check size={13} /> : n}</span>{label}</div>
+  const StepHead = ({ n, label, isDone, sub }) => (
+    <>
+      <div className="step-label"><span className={`num ${isDone ? 'done' : ''}`}>{isDone ? <Check size={13} /> : n}</span>{label}</div>
+      {sub ? <p className="step-sub">{sub}</p> : null}
+    </>
+  );
+  // Walkthrough 2026-10-24: one anchored Save for each section (the same control in steps 1, 2 and 3). Green only
+  // after a valid Save; it confirms the choices and nothing else (no send, schedule, payment or consent step).
+  const SectionSave = ({ testid, saved, disabled, onSave }) => (
+    <button type="button" className={`btn btn-sm btn-primary secsave-btn ${saved ? 'is-saved' : ''}`} style={{ height: 40 }} data-testid={testid} data-saved={saved ? 'true' : 'false'} disabled={disabled} onClick={onSave}>
+      <Check size={15} /> {saved ? 'Saved' : 'Save'}
+    </button>
   );
 
   if (loading) {
@@ -770,20 +805,9 @@ export default function DashboardHome() {
           </div>
           <div style={{ position: 'relative' }}>
             <h1>{firstName ? `${firstName}, who would you like to celebrate today?` : 'Who would you like to celebrate today?'}<button type="button" className="quick" data-testid="gx-quick-hero" onClick={() => navigate('/dashboard/gifts')}><Gift size={15} /> Quick Gift <ChevronRight size={15} /></button></h1>
-            <p className="lede">Send a personalized Greet-Me now, or set one to arrive on their occasion. Tap a face to begin.</p>
-            {contacts.length > 0 ? (
-              <>
-                <p className="people-label">Your people</p>
-                <div className="people">
-                  {contacts.slice(0, 6).map((c) => (
-                    <button key={c.id} type="button" className="pick" aria-pressed={audience === 'one' && picks.includes(c.id)} onClick={() => pickFromHero(c)}>
-                      <span className="av">{initials(c.name)}</span>
-                      <span><b>{c.name}</b><small>{c.relationship || 'Someone you love'}</small></span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : null}
+            {/* Walkthrough 2026-10-24 (founder): no "Your People" name chips here and no "Tap a face to begin."; people are
+                chosen in "Who is it for?" below. */}
+            <p className="lede">Send a personalized Greet-Me now, or set one to arrive on their occasion.</p>
           </div>
         </section>
 
@@ -801,8 +825,8 @@ export default function DashboardHome() {
         {/* 2. Greeting flow — a persistent screen */}
         <section className="card flow" id="gx-flow" data-testid="gx-flow" style={{ scrollMarginTop: 90 }}>
           <div className="flow-head">
-            <div><h2>Greet-Me, right now, or right on time?</h2></div>
-            <p>You review everything, and pay for any gift, before anything is sent.</p>
+            {/* Walkthrough 2026-10-24 (founder): the heading alone, centred, with no subtitle. */}
+            <h2>Greet-Me now or right on time?</h2>
           </div>
 
           {pendingRun ? (
@@ -825,7 +849,7 @@ export default function DashboardHome() {
           </div>
 
           <div className="step" data-testid="gx-step-1" style={{ marginTop: 6 }}>
-            <StepHead n={1} label="Choose your moment: what are we celebrating?" isDone={step1Done} />
+            <StepHead n={1} label={<>Choose your moment<span className="lbl-long">: what are we celebrating?</span><span className="lbl-short">.</span></>} isDone={occSaved} />
             <div className="chips" data-testid="gx-occasion">
               {OCCASION_CHIPS.map((o) => <button key={o} type="button" className={`chip-btn occ ${occLocked && !occasions.includes(o) ? 'locked' : ''}`} aria-pressed={occasions.includes(o)} aria-disabled={occLocked && !occasions.includes(o)} onClick={() => toggleOcc(o)}>{o}</button>)}
               {OCCASION_MENUS.map((m) => {
@@ -853,11 +877,15 @@ export default function DashboardHome() {
                 );
               })}
             </div>
-            <p className={`rule ${ruleNote || notSchedulable || overCap ? 'warn2' : ''}`} data-testid="gx-rule" role="status" aria-live="polite">{ruleText}</p>
+            <p className={`rule ${ruleNote || notSchedulable || overCap ? 'warn2' : ''} ${ruleIsDefault ? 'is-default' : ''}`} data-testid="gx-rule" role="status" aria-live="polite">{ruleText}</p>
+            <div className="donerow secsave" data-testid="gx-occ-donerow">
+              <span className="hint">{occSaved ? 'Saved' : !mode ? 'Choose Send Now or Schedule the Love' : occasions.length === 0 ? 'Choose an occasion' : `${occasions.length} selected`}</span>
+              <SectionSave testid="gx-occ-save" saved={occSaved} disabled={!occValid} onSave={() => confirmSection('occ', occSig, occValid)} />
+            </div>
           </div>
 
           <div className="step" data-testid="gx-step-2">
-            <StepHead n={2} label="Who is it for?" isDone={step2Done} />
+            <StepHead n={2} label="Who is it for?" sub="Make everyone on your list feel remembered." isDone={whoSaved} />
             <div className="whobox" data-testid="gx-whobox">
               {contacts.length === 0 ? (
                 <div className="empty" data-testid="gx-recipients-empty" style={{ margin: 0, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
@@ -943,10 +971,10 @@ export default function DashboardHome() {
                   </div>
                   {/* Save: confirms who it is for (nothing is scheduled or sent here). For schedules it opens the
                       Dates & gifts pop-up, which keeps these choices. */}
-                  <div className="donerow whosave" data-testid="gx-who-donerow">
+                  <div className="donerow whosave secsave" data-testid="gx-who-donerow">
                     <span className="hint">{!chosen.length ? 'Select at least one person'
                       : `${chosen.length} selected · ${resolverOn || groupSchedOn ? 'next, dates & gifts' : 'nothing is sent yet'}`}</span>
-                    <button type="button" className="btn btn-sm btn-primary" style={{ height: 40 }} data-testid="gx-who-done" disabled={!chosen.length} onClick={completeWho}><Check size={15} /> Save</button>
+                    <SectionSave testid="gx-who-done" saved={whoSaved} disabled={!chosen.length} onSave={completeWho} />
                   </div>
                 </>
               )}
@@ -954,7 +982,8 @@ export default function DashboardHome() {
           </div>
 
           <div className="step" data-testid="gx-step-3">
-            <StepHead n={3} label="Personalize" isDone={persDone} />
+            <StepHead n={3} label="Personalize" sub="Bring your Greet-Me to life." isDone={persSaved} />
+            <p className="step-support">Your voice, your words, your memories—make this moment unmistakably yours.</p>
             <div className="ptiles">
               <div className="ptile" data-testid="gx-voice-tile">
                 <span className={`ic ${voiceDone ? 'okc' : 'hero'}`}>{voiceDone ? <Check size={20} /> : <Mic size={20} />}</span>
@@ -964,8 +993,11 @@ export default function DashboardHome() {
                   <div className="acts2">
                     {voiceDone ? (
                       <>
-                        {voiceSrc ? <button type="button" className="btn btn-xs btn-line" data-testid="gx-play-voice" onClick={togglePlay}>{playingVoice ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Play</>}</button> : null}
-                        <button type="button" className="btn btn-xs btn-line" data-testid="gx-rerecord" onClick={openSetupRevisit}><RotateCcw size={14} /> Re-record</button>
+                        {/* Phones: Play and Re-record stay side by side on one row (founder 2026-10-24). */}
+                        <span className="pairrow" data-testid="gx-voice-pair">
+                          {voiceSrc ? <button type="button" className="btn btn-xs btn-line" data-testid="gx-play-voice" onClick={togglePlay}>{playingVoice ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Play</>}</button> : null}
+                          <button type="button" className="btn btn-xs btn-line" data-testid="gx-rerecord" onClick={openSetupRevisit}><RotateCcw size={14} /> Re-record</button>
+                        </span>
                         <button type="button" className="link" data-testid="gx-revisit" onClick={openSetupRevisit}>Revisit setup · voice &amp; photo</button>
                       </>
                     ) : (
@@ -988,10 +1020,12 @@ export default function DashboardHome() {
             </div>
             {!photoDone ? <div className="warn"><AlertCircle size={16} style={{ flex: 'none', marginTop: 2 }} /><span>{SENDER_PHOTO_REQUIRED_MESSAGE}</span></div> : null}
             <label className="words" style={{ display: 'block' }}>
-              <span className="fieldlabel">A few words from you (optional)</span>
+              <span className="fieldlabel">A few words from the heart</span>
+              <span className="fieldsub">Tell them what makes this moment special.</span>
               <textarea data-testid="gx-words" value={words} onChange={(e) => setWords(e.target.value)} maxLength={HANDOFF_MAX_WORDS} placeholder="Happy birthday, and thank you for always showing up for me…" />
             </label>
-            <div className="fieldlabel" style={{ marginTop: 12 }}>Memory photos (optional)</div>
+            <div className="fieldlabel" style={{ marginTop: 12 }}>Make it extra special</div>
+            <div className="fieldsub">Add the moments that matter most.</div>
             {/* Fixed-size drop box (the approved size): added photos show inside it, so nothing below moves. */}
             <div className="moments" data-testid="gx-moments">
               {memoryPhotos.length === 0 ? (
@@ -1014,9 +1048,9 @@ export default function DashboardHome() {
               )}
             </div>
             <input ref={memoryInputRef} type="file" accept="image/jpeg,image/jpg,image/png" multiple onChange={addMemoryPhotos} style={{ display: 'none' }} data-testid="gx-moments-input" />
-            <div className="donerow">
-              <span className="hint">Words and memory photos are optional.</span>
-              <button type="button" className="btn btn-sm btn-primary" style={{ height: 40 }} data-testid="gx-pers-done" onClick={() => setPersDone(true)}><Check size={15} /> Done</button>
+            <div className="donerow secsave" data-testid="gx-pers-donerow">
+              <span className="hint">{persSaved ? 'Saved' : 'Words and memory photos are optional.'}</span>
+              <SectionSave testid="gx-pers-done" saved={persSaved} disabled={false} onSave={() => confirmSection('pers', persSig, true)} />
             </div>
           </div>
 
@@ -1050,12 +1084,18 @@ export default function DashboardHome() {
             and internal scrolling, both always mounted with independent state. Celebration Manager: Recipients |
             Occasions. Celebration Schedule: Upcoming Occasions | Past Occasions, with its own search. */}
         <section className="card tabcard" data-testid="gx-manager">
-          <div className="tabhead">
+          {/* Walkthrough 2026-10-24 (founder): the title is centred; Import Wizard sits at the top right with Add Recipient,
+              which is a compact person-plus icon on phones (same action, same accessible name). */}
+          <div className="tabhead mgrhead">
+            <span aria-hidden="true" />
             <div className="ctitle">Celebration Manager</div>
-            <div className="tabact"><button type="button" className="btn btn-sm btn-primary" style={{ height: 38 }} onClick={goAddRecipient}><UserPlus size={15} /> Add Recipient</button></div>
+            <div className="tabact mgracts">
+              <button type="button" className="btn btn-sm btn-line" style={{ height: 38 }} data-testid="gx-mgr-import" onClick={() => navigate('/dashboard/import-wizard')}><Upload size={15} /> Import Wizard</button>
+              <button type="button" className="btn btn-sm btn-primary addrec" style={{ height: 38 }} data-testid="gx-mgr-add" aria-label="Add Recipient" title="Add Recipient" onClick={goAddRecipient}><UserPlus size={15} /><span className="addrec-t">Add Recipient</span></button>
+            </div>
           </div>
           <div className="tabs ctabs" role="tablist" aria-label="Your people and occasions">
-            <button type="button" role="tab" id="gx-tab-recipients" data-testid="gx-lower-recipients" aria-selected={mgrTab === 'recipients'} aria-controls="gx-tabpanel" onClick={() => setMgrTab('recipients')}>Recipients</button>
+            <button type="button" role="tab" id="gx-tab-recipients" data-testid="gx-lower-recipients" aria-selected={mgrTab === 'recipients'} aria-controls="gx-tabpanel" onClick={() => setMgrTab('recipients')}>People</button>
             <button type="button" role="tab" id="gx-tab-occasions" data-testid="gx-lower-occasions" aria-selected={mgrTab === 'occasions'} aria-controls="gx-tabpanel" onClick={() => setMgrTab('occasions')}>Occasions</button>
           </div>
           <div className="tabbody cbody" id="gx-tabpanel" role="tabpanel" aria-labelledby={`gx-tab-${mgrTab}`} data-testid="gx-tabbody">
@@ -1113,7 +1153,7 @@ export default function DashboardHome() {
         </section>
 
         <section className="card tabcard" data-testid="gx-schedule">
-          <div className="tabhead">
+          <div className="tabhead schedhead">
             <div className="ctitle">Celebration Schedule</div>
             <div className="tabact">
               {schedTab === 'past' ? <button type="button" className="link" onClick={() => navigate('/dashboard/sent')}>See all</button>
@@ -1121,8 +1161,9 @@ export default function DashboardHome() {
             </div>
           </div>
           <div className="tabs ctabs" role="tablist" aria-label="Upcoming or past occasions" data-testid="gx-when">
-            {[['upcoming', 'Upcoming Occasions'], ['past', 'Past Occasions']].map(([k, t]) => (
-              <button key={k} type="button" role="tab" id={`gx-tab-${k}`} aria-selected={schedTab === k} aria-controls="gx-schedpanel" onClick={() => setSchedTab(k)}>{t}</button>
+            {/* Phones read Upcoming | Past (founder 2026-10-24); the word "Occasions" is hidden there, not removed. */}
+            {[['upcoming', 'Upcoming'], ['past', 'Past']].map(([k, t]) => (
+              <button key={k} type="button" role="tab" id={`gx-tab-${k}`} aria-selected={schedTab === k} aria-controls="gx-schedpanel" onClick={() => setSchedTab(k)}>{t}<span className="lbl-long"> Occasions</span></button>
             ))}
           </div>
           <div className="tabbody cbody" id="gx-schedpanel" role="tabpanel" aria-labelledby={`gx-tab-${schedTab}`} data-testid="gx-schedbody">

@@ -211,7 +211,9 @@ test("renders the sections; occasions are the Recipients page's list and groups 
   // N-6 (founder 2026-10-18): a recorded voice is required for group sending; words and memory photos stay optional
   assert.equal($("[data-testid=gx-step-3]").textContent.includes("Personalize — optional"), false);
   const step3 = $("[data-testid=gx-step-3]").textContent;
-  assert.match(step3, /A few words from you \(optional\)/); assert.match(step3, /Memory photos \(optional\)/);
+  // Walkthrough 2026-10-24 (founder wording): the field titles changed; both stay optional (the Save row says so).
+  assert.match(step3, /A few words from the heart/); assert.match(step3, /Make it extra special/);
+  assert.match(step3, /Words and memory photos are optional\./);
   assert.deepEqual(globalThis.__calls.find((c) => c[0] === "upcoming"), ["upcoming", 60]);
   assert.equal(document.body.textContent.includes("SIMULATED"), false, "no preview simulation ships");
 });
@@ -784,7 +786,7 @@ test("N-6: with no recorded voice, Personalize says the voice is required for gr
   assert.match($("[data-testid=gx-voice-tile]").textContent, /Record your voice.*Required for group sending — about 15 seconds is plenty\./);
   assert.equal(/Personalize — optional|Optional — about 15|Nothing here is required/.test(step3), false);
   assert.match(step3, /Words and memory photos are optional\./);
-  assert.match(step3, /A few words from you \(optional\)/); assert.match(step3, /Memory photos \(optional\)/);
+  assert.match(step3, /A few words from the heart/); assert.match(step3, /Make it extra special/); // walkthrough 2026-10-24 wording
 });
 
 test("Step 2 Save: one clear action — inside the people box, the picker's Done completes the step too; for a send it opens nothing", async () => {
@@ -1134,13 +1136,16 @@ test("Lower area (Report 135 layout): Celebration Manager (Recipients | Occasion
   const mgr = $("[data-testid=gx-manager]"), sch = $("[data-testid=gx-schedule]");
   assert.ok(mgr && sch && mgr !== sch);
   assert.match(mgr.textContent, /Celebration Manager/); assert.match(sch.textContent, /Celebration Schedule/);
-  assert.deepEqual($$("[aria-label='Your people and occasions'] [role=tab]").map((b) => b.textContent), ["Recipients", "Occasions"]);
+  // Walkthrough 2026-10-24 (founder): Recipients reads People and Individuals reads All. The schedule tabs keep their
+  // full names in the text; phones hide " Occasions" (CSS) so they read Upcoming | Past.
+  assert.deepEqual($$("[aria-label='Your people and occasions'] [role=tab]").map((b) => b.textContent), ["People", "Occasions"]);
   assert.deepEqual($$("[data-testid=gx-when] [role=tab]").map((b) => b.textContent), ["Upcoming Occasions", "Past Occasions"]);
+  assert.deepEqual($$("[data-testid=gx-when] [role=tab] .lbl-long").map((b) => b.textContent), [" Occasions", " Occasions"]);
   const names = () => $$("[data-testid=gx-manager-recipients] .row .name").map((e) => e.textContent);
   const seg = $("[data-testid=gx-recip-segments]");
-  assert.deepEqual([...seg.querySelectorAll("button")].map((b) => b.textContent), ["Individuals", "Friends", "Family", "Professional"]);
+  assert.deepEqual([...seg.querySelectorAll("button")].map((b) => b.textContent), ["All", "Friends", "Family", "Professional"]);
   assert.ok(seg.compareDocumentPosition($("[data-testid=gx-manager-recipients] input")) & window.Node.DOCUMENT_POSITION_FOLLOWING, "the filter row is above the search");
-  assert.deepEqual(names(), ["Theresa Morgan", "Margaret Rivera", "Daniel Okafor"], "Individuals by default");
+  assert.deepEqual(names(), ["Theresa Morgan", "Margaret Rivera", "Daniel Okafor"], "All by default");
   await click($("[data-testid=gx-recip-filter-friend]")); assert.deepEqual(names(), ["Theresa Morgan"]);
   await click($("[data-testid=gx-recip-filter-professional]")); assert.deepEqual(names(), ["Daniel Okafor"]);
   await setValue($("[data-testid=gx-manager-recipients] input"), "zz");
@@ -1277,4 +1282,128 @@ test("Report 136: Add a gift on the QR Cash slide opens the Gift Place on its QR
   await click($$("[data-testid=gx-carousel] .dot")[0]);
   await click($("[data-testid=gx-add-gift]"));
   assert.equal(window.sessionStorage.getItem("gm_giftplace_tab_v1"), null);
+});
+
+// ── Walkthrough revision 2026-10-24 (founder) ──────────────────────────────────────────────────────────────────────
+const saved = (id) => $(`[data-testid=${id}]`).dataset.saved === "true";
+const bubbleDone = (step) => Boolean($(`[data-testid=gx-step-${step}] .step-label .num.done`));
+
+test("walkthrough: the welcome banner has no name chips and no 'Tap a face'; the composer heading stands alone", async () => {
+  await mount();
+  const hero = $("[data-testid=gx-hero]");
+  assert.equal(hero.querySelector(".people, .pick, .people-label"), null, "no Your People chips");
+  assert.equal(/Your people|Tap a face/i.test(hero.textContent), false);
+  assert.ok(hero.querySelector("[data-testid=gx-quick-hero]"), "Quick Gift is kept");
+  const head = $("[data-testid=gx-flow] .flow-head");
+  assert.equal(head.querySelector("h2").textContent, "Greet-Me now or right on time?");
+  assert.equal(head.querySelector("p"), null, "no subtitle and no payment line beneath it");
+  // Recipient selection stays in the composer.
+  await pickPerson("Theresa");
+  assert.deepEqual(state().picks, ["TMTheresa Morgan"]);
+});
+
+test("walkthrough: the founder's section wording", async () => {
+  await mount({ user: { id: "u1", name: "Alex Rivera", voiceId: "v1", voiceUrl: "v.mp3", photoUrl: "p.jpg" } }); // a saved voice URL shows Play
+  const t = (n) => $(`[data-testid=gx-step-${n}]`).textContent;
+  assert.match(t(2), /Who is it for\?Make everyone on your list feel remembered\./);
+  assert.match(t(3), /PersonalizeBring your Greet-Me to life\./);
+  assert.match(t(3), /Your voice, your words, your memories—make this moment unmistakably yours\./);
+  assert.match(t(3), /A few words from the heartTell them what makes this moment special\./);
+  assert.match(t(3), /Make it extra specialAdd the moments that matter most\./);
+  assert.ok($("[data-testid=gx-voice-pair]").contains($("[data-testid=gx-play-voice]")) && $("[data-testid=gx-voice-pair]").contains($("[data-testid=gx-rerecord]")), "Play and Re-record share one row");
+  const { DASHBOARD_HOME_CSS } = await import(pathToFileURL(join(__dirname, "dashboardHomeStyles.js")).href);
+  assert.match(DASHBOARD_HOME_CSS, /\.gx \.pairrow \{ display:inline-flex; flex-wrap:nowrap;/);
+});
+
+test("walkthrough: occasion Save turns the button and bubble green only after a valid Save; an edit clears it until saved again", async () => {
+  await mount();
+  assert.equal($("[data-testid=gx-occ-save]").disabled, true, "nothing chosen: Save is not available");
+  await click(byText(".mode", "Send Now"));
+  assert.equal($("[data-testid=gx-occ-save]").disabled, true, "no occasion yet");
+  await click(occ("Birthday"));
+  assert.equal(saved("gx-occ-save"), false); assert.equal(bubbleDone(1), false, "choosing alone does not turn it green");
+  await click($("[data-testid=gx-occ-save]"));
+  assert.equal(saved("gx-occ-save"), true); assert.equal(bubbleDone(1), true);
+  assert.equal($("[data-testid=gx-occ-save]").textContent.trim(), "Saved");
+  await click(occ("Anniversary"));
+  assert.equal(saved("gx-occ-save"), false, "an edit clears the confirmation"); assert.equal(bubbleDone(1), false);
+  await click(occ("Anniversary"));
+  assert.equal(saved("gx-occ-save"), false, "undoing the edit does not restore it without a Save");
+  await click($("[data-testid=gx-occ-save]"));
+  assert.equal(saved("gx-occ-save"), true);
+  await click(byText(".mode", "Schedule the Love"));
+  assert.equal(saved("gx-occ-save"), false, "changing the timing is an edit too");
+});
+
+test("walkthrough: Who and Personalize Saves behave the same; Personalize's floating Done is replaced by the anchored Save", async () => {
+  await mount();
+  await click(byText(".mode", "Send Now")); await click(occ("Birthday"));
+  await pickPerson("Theresa");
+  assert.equal(bubbleDone(2), false);
+  await click($("[data-testid=gx-who-done]"));
+  assert.equal(saved("gx-who-done"), true); assert.equal(bubbleDone(2), true);
+  await pickPerson("Margaret");
+  assert.equal(saved("gx-who-done"), false); assert.equal(bubbleDone(2), false);
+  await click($("[data-testid=gx-who-done]"));
+  assert.equal(saved("gx-who-done"), true);
+  // Personalize
+  const row = $("[data-testid=gx-pers-donerow]");
+  assert.ok(row && row.classList.contains("secsave") && row.contains($("[data-testid=gx-pers-done]")));
+  assert.equal($("[data-testid=gx-pers-done]").textContent.trim(), "Save");
+  assert.equal(bubbleDone(3), false);
+  await click($("[data-testid=gx-pers-done]"));
+  assert.equal(saved("gx-pers-done"), true); assert.equal(bubbleDone(3), true);
+  await setValue($("[data-testid=gx-words]"), "Happy birthday!");
+  assert.equal(saved("gx-pers-done"), false, "new words clear it"); assert.equal(bubbleDone(3), false);
+  // Every section uses the same anchored row and control.
+  for (const id of ["gx-occ-donerow", "gx-who-donerow", "gx-pers-donerow"]) assert.ok($(`[data-testid=${id}]`).classList.contains("secsave"), id);
+  for (const id of ["gx-occ-save", "gx-who-done", "gx-pers-done"]) assert.ok($(`[data-testid=${id}]`).classList.contains("secsave-btn"), id);
+});
+
+test("walkthrough: section Saves confirm only; the final Send is enabled and runs exactly as before, and a section Save sends, saves or charges nothing", async () => {
+  await mount();
+  await click(byText(".mode", "Send Now")); await click(occ("Birthday"));
+  await click($("[data-testid=gx-occ-save]"));
+  await pickPerson("Theresa");
+  await click($("[data-testid=gx-pers-done]"));
+  assert.equal(globalThis.__nav.length, 0); assert.equal(globalThis.__saves.length, 0); assert.equal(globalThis.__sends.length, 0); assert.equal(globalThis.__charges.length, 0);
+  assert.equal(state().cont.disabled, true, "Send still needs Who's Save, exactly as before");
+  await click($("[data-testid=gx-who-done]"));
+  assert.equal(state().cont.disabled, false);
+  await pickPerson("Margaret"); await pickPerson("Margaret"); // an edit clears the green mark only
+  assert.equal(saved("gx-who-done"), false);
+  assert.equal(state().cont.disabled, false, "the green mark never gates Send (its gating is unchanged)");
+  await click(state().cont);
+  assert.match(globalThis.__nav.at(-1).to, /^\/dashboard\/send\?contactId=/, "Send goes to the send flow's own review");
+});
+
+test("walkthrough: the occasion rule no longer says 'Several people share one occasion' and the rule still holds; phones hide the default footer line", async () => {
+  await mount();
+  await click(byText(".mode", "Send Now")); await click(occ("Congratulations"));
+  await pickPerson("Theresa"); await pickPerson("Margaret");
+  assert.equal(/Several people share one occasion/.test(state().rule), false);
+  await click(occ("Thank You"));
+  assert.deepEqual(state().occ, ["Congratulations"], "a second occasion for several people is still refused");
+  const { DASHBOARD_HOME_CSS } = await import(pathToFileURL(join(__dirname, "dashboardHomeStyles.js")).href);
+  assert.match(DASHBOARD_HOME_CSS, /\.gx \.rule\.is-default \{ display:none; \}/);
+  await mount();
+  assert.ok($("[data-testid=gx-rule]").classList.contains("is-default"));
+  assert.match($("[data-testid=gx-step-1] .step-label").textContent, /^1Choose your moment: what are we celebrating\?\.$/);
+  assert.equal($("[data-testid=gx-step-1] .step-label .lbl-short").textContent, ".", "phones read 'Choose your moment.'");
+});
+
+test("walkthrough: the displayed first name starts with a capital, the rest as typed", async () => {
+  await mount({ user: { id: "u1", name: "mcKenna rivera", voiceId: "v1", photoUrl: "p.jpg" } });
+  assert.match($("[data-testid=gx-hero] h1").textContent, /^McKenna, who would you like to celebrate today\?/);
+});
+
+test("walkthrough: Celebration Manager card: centred title, Import Wizard and Add Recipient at the top right (icon on phones, same label)", async () => {
+  await mount();
+  assert.ok($("[data-testid=gx-manager] .mgrhead"));
+  await click($("[data-testid=gx-mgr-import]"));
+  assert.deepEqual(globalThis.__nav.at(-1), { to: "/dashboard/import-wizard", opts: undefined });
+  const add = $("[data-testid=gx-mgr-add]");
+  assert.equal(add.getAttribute("aria-label"), "Add Recipient");
+  await click(add);
+  assert.deepEqual(globalThis.__nav.at(-1), { to: "/dashboard/contacts", opts: { state: { openAddRecipient: true } } });
 });

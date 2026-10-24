@@ -516,4 +516,48 @@ export const DASHBOARD_HOME_CSS = `
   .gx .ctabs button { flex:1 1 0; }
   .gx .cbody { height:420px; }
 }
+/* ---- Walkthrough revision 2026-10-24 (founder). Appended; the approved rules above stay as they were. ---- */
+/* Section wording: a short line under each step title, and the supporting line under Personalize. */
+.gx .step-sub { margin:4px 0 0 34px; font-size:14px; color:var(--body); }
+.gx .step-support { margin:2px 0 0 34px; font-size:13.5px; color:var(--muted); font-style:italic; }
+.gx .fieldsub { display:block; margin-top:2px; font-size:13px; color:var(--muted); }
+/* One anchored Save per section (steps 1, 2 and 3): the same row, the same place, the same control. */
+.gx .secsave { justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px solid var(--p100); }
+.gx .secsave .hint { min-width:0; }
+.gx .secsave-btn { min-width:128px; }
+.gx .secsave-btn.is-saved { background:var(--ok); border-color:var(--ok); box-shadow:0 12px 26px -18px rgba(44,106,75,.9); }
+/* Labels with a long (desktop) and a short (phone) ending. */
+.gx .lbl-short { display:none; }
+/* Play and Re-record stay together on one row. */
+.gx .pairrow { display:inline-flex; flex-wrap:nowrap; gap:8px; align-items:center; }
+/* Celebration Manager: centred title; Import Wizard and Add Recipient at the top right. */
+.gx .mgrhead { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:10px; }
+.gx .mgrhead .ctitle { text-align:center; }
+.gx .mgracts { justify-content:flex-end; gap:8px; }
+.gx .schedhead { justify-content:space-between; }
+/* Compact pass (founder's 75% reference, reached at normal zoom through spacing and sizing; text sizes kept readable). */
+.gx { padding:12px; gap:10px; }
+.gx .hero { padding:16px 24px 18px; }
+.gx .hero h1 { font-size:28px; margin-top:6px; }
+.gx .flow { padding:14px 22px 0; }
+.gx .flow-head h2 { font-size:22px; margin-top:2px; }
+.gx .step { padding:10px 0; }
+.gx .tabcard { padding:12px 16px 14px; }
+@media (max-width: 640px) {
+  .gx .lbl-long { display:none; }
+  .gx .lbl-short { display:inline; }
+  /* The rule's default footer line is not shown on phones; a refusal or warning still is. */
+  .gx .rule.is-default { display:none; }
+  .gx .rule { min-height:0; }
+  .gx .step-sub, .gx .step-support { margin-left:0; }
+  .gx .pairrow .btn-xs { padding:0 11px; }
+  .gx .secsave-btn { min-width:108px; }
+  .gx .mgrhead { grid-template-columns:minmax(0,1fr); grid-template-areas:"acts" "title"; gap:6px; }
+  .gx .mgrhead > span[aria-hidden] { display:none; }
+  .gx .mgrhead .ctitle { grid-area:title; }
+  .gx .mgracts { grid-area:acts; height:auto; }
+  .gx .mgracts .addrec { width:38px; min-width:38px; padding:0; }
+  .gx .mgracts .addrec-t { display:none; }
+  .gx .hero h1 { font-size:22px; }
+}
 `;
