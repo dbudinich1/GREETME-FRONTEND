@@ -8,6 +8,7 @@ import { QrCode, X, Gift } from 'lucide-react';
 import {
   validateQrCashDollars, qrCashQuote, centsToDollarString, QR_CASH_MIN_DOLLARS, QR_CASH_MAX_DOLLARS, QR_CASH_PRESET_DOLLARS,
 } from '../../utils/qrCashAmount';
+import { QrCashHowItWorksLink } from './QrCashHowItWorks';
 
 const INK = '#2C1D46';
 
@@ -40,7 +41,11 @@ export default function QrCashAmountPanel({ mode = 'standalone', tagline = '', o
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.875rem' }}>
         <span aria-hidden="true" style={{ width: '2.75rem', height: '2.75rem', borderRadius: '0.75rem', flex: 'none', display: 'grid', placeItems: 'center', background: '#FBF0D2', color: '#7A5B0C' }}><QrCode size={22} /></span>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <h2 id="qrcash-panel-title" style={{ margin: 0, fontSize: isNarrow ? '1.25rem' : '1.375rem', fontWeight: 700, color: INK }}>QR Cash™</h2>
+          {/* Founder 2026-10-24 (§6): "How it works" sits beside the QR Cash title and opens the shared explanation. */}
+          <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', columnGap: '0.75rem', rowGap: '0.125rem' }}>
+            <h2 id="qrcash-panel-title" style={{ margin: 0, fontSize: isNarrow ? '1.25rem' : '1.375rem', fontWeight: 700, color: INK }}>QR Cash™</h2>
+            <QrCashHowItWorksLink />
+          </div>
           <p style={{ margin: '0.25rem 0 0', fontSize: '0.9375rem', color: '#5b4f72', lineHeight: 1.5 }}>
             {tagline}
           </p>

@@ -225,8 +225,9 @@ function GalleryCard({ card, actionLabel, onAction, selected, isNarrow, disabled
         ) : null}
       </div>
       <div style={{ padding: isNarrow ? '0.625rem' : '0.75rem 0.875rem 0.875rem', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem' }}>
-          <h3 style={{ margin: 0, minWidth: 0, fontFamily: '"Playfair Display", Georgia, serif', fontSize: isNarrow ? '0.875rem' : '1rem', fontWeight: 700, color: '#2C1D46', lineHeight: 1.25 }}>{card.name}</h3>
+        {/* The price drops beneath the name when the card is too narrow for both (founder 2026-10-24: no overlap). */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', columnGap: '0.5rem', rowGap: '0.125rem' }}>
+          <h3 style={{ margin: 0, minWidth: 0, flex: '1 1 5.5rem', overflowWrap: 'anywhere', fontFamily: '"Playfair Display", Georgia, serif', fontSize: isNarrow ? '0.875rem' : '1rem', fontWeight: 700, color: '#2C1D46', lineHeight: 1.25 }}>{card.name}</h3>
           <span data-testid={`gift-card-price-${card.id}`} style={{ flex: 'none', fontFamily: '"Playfair Display", Georgia, serif', fontSize: isNarrow ? '0.875rem' : '1rem', fontWeight: 700, color: '#b4232f', whiteSpace: 'nowrap' }}>{card.priceLabel}{priceNote ? <span data-testid={`gift-card-price-note-${card.id}`} style={{ fontFamily: 'Inter, -apple-system, "Segoe UI", Roboto, sans-serif', fontSize: '0.6875rem', fontWeight: 600, color: '#6B6079', marginLeft: '0.25rem' }}>{priceNote}</span> : null}</span>
         </div>
         <p data-testid={`gift-card-desc-${card.id}`} style={{

@@ -40,6 +40,7 @@ import ManageCatalogModal from '../components/founderCatalog/ManageCatalogModal'
 // a second grid.
 import { GiftProductGrid } from '../components/giftPlace/GiftProductCard';
 import QrCashAmountPanel from '../components/giftPlace/QrCashAmountPanel';
+import GiftPlaceHeroIcon from '../components/giftPlace/GiftPlaceHeroIcon';
 import { qrCashGiftSettings } from '../utils/qrCashAmount';
 import { takeGiftPlaceTab } from '../utils/dashboardSendHandoff';
 import { readPendingGiftLink } from './pendingGiftLink';
@@ -76,6 +77,9 @@ export default function Merch() {
   // "View Smart Card options" step: each tile IS the entry point once tiles are present.
   const [giftCardTiles, setGiftCardTiles] = useState(null);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
+  // Founder 2026-10-24 (walkthrough §5) "mobile only" changes — category drop-down, Min $/Max $ fields, catalogue cog
+  // and the compact banner — apply on phones: the app's own phone breakpoint (below 768px, as the header uses).
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showCartModal, setShowCartModal] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState(null);
   const [pickerProduct, setPickerProduct] = useState(null);
@@ -500,7 +504,7 @@ export default function Merch() {
 
   // Handle resize for mobile detection
   useEffect(() => {
-    const handleResize = () => setIsNarrow(window.innerWidth < 420);
+    const handleResize = () => { setIsNarrow(window.innerWidth < 420); setIsMobile(window.innerWidth < 768); };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -670,6 +674,31 @@ export default function Merch() {
     navigate('/dashboard/send?returnTo=send');
   };
 
+  const emblem = (
+    <img src={greetmeFlags} alt="Greet-Me™ American Made" data-testid="gift-place-emblem" style={{
+      width: isMobile ? '2rem' : '2.5rem', height: isMobile ? '2rem' : '2.5rem', borderRadius: '50%', objectFit: 'cover',
+      border: '2px solid rgba(255, 255, 255, 0.85)', background: 'white', flex: 'none', alignSelf: 'flex-start'
+    }} />
+  );
+  // The phone category drop-down's value for the QR Cash tab (not a catalogue category).
+  const QR_CASH_CHOICE = '__qrcash';
+  // Return to the recipient's settings or to the greeting being written (one control; placed in the banner below).
+  const returnButton = (returnRecipientId || cameFromSendGreeting) ? (
+    <button
+      type="button"
+      onClick={returnRecipientId ? handleReturnToRecipient : handleReturnToGreeting}
+      style={{
+        flex: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+        padding: isNarrow ? '0.375rem 0.625rem' : '0.5rem 0.875rem', borderRadius: '9999px', border: 'none',
+        background: 'white', color: '#2C1D46', fontSize: isNarrow ? '0.75rem' : '0.8125rem', fontWeight: 700,
+        cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', minHeight: 0
+      }}
+    >
+      <ArrowLeft size={14} />
+      {returnRecipientId ? 'Return to Recipient Settings' : 'Return to Greeting'}
+    </button>
+  ) : null;
+
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
       {/* Background Frame for Page Body */}
@@ -677,20 +706,38 @@ export default function Merch() {
         {/* COMPACT BRANDED HEADER (founder 2026-10-22, Base44 reference): the emblem, title and line in one band, with
             the category tabs on the strip beneath it, so the first row of gifts is in view on arrival. */}
         <div data-testid="gift-place-header" style={{ borderRadius: '0.875rem', overflow: 'hidden', marginBottom: '0.75rem', boxShadow: '0 10px 28px -22px rgba(31, 42, 92, 0.8)' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: isNarrow ? '0.625rem' : '0.875rem',
-            padding: isNarrow ? '0.625rem 0.75rem' : '0.75rem 1.25rem',
+          {/* Founder 2026-10-24 (walkthrough §5): the flags emblem in the band's top-left corner; the Hero icon beside the
+              title; the title and line keep a comfortable width (the controls wrap beneath them on desktop and sit in the
+              title row as a compact cog on phones, so the wording is never squeezed into a narrow column). */}
+          <div data-testid="gift-place-banner" style={{
+            display: 'flex', alignItems: 'flex-start', flexWrap: isMobile ? 'nowrap' : 'wrap',
+            columnGap: isMobile ? '0.5rem' : '0.875rem', rowGap: '0.5rem',
+            // Founder 2026-10-24: the compact density of the 75% reference, at normal zoom, through spacing and sizing.
+            padding: isMobile ? '0.5rem 0.625rem' : '0.625rem 1rem',
             background: 'linear-gradient(100deg, #1f2a5c 0%, #2b2d6e 55%, #4a2c79 100%)', color: 'white'
           }}>
-            {/* AGP-04 — flag emblem, now a compact mark beside the title */}
-            <img src={greetmeFlags} alt="Greet-Me™ American Made" style={{
-              width: isNarrow ? '2.5rem' : '3rem', height: isNarrow ? '2.5rem' : '3rem', borderRadius: '50%', objectFit: 'cover',
-              border: '2px solid rgba(255, 255, 255, 0.85)', background: 'white', flex: 'none'
-            }} />
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <h1 style={{ margin: 0, color: 'white', fontFamily: '"Playfair Display", Georgia, serif', fontSize: isNarrow ? '1.125rem' : '1.375rem', fontWeight: 700, lineHeight: 1.2 }}>
-                American Gift Place™
-              </h1>
+            {/* AGP-04 — the flags emblem, in the uppermost left corner (phones: first in the title row, so the line
+                beneath can use the band's full width and the band stays short). */}
+            {!isMobile && emblem}
+            <div style={{ minWidth: 0, flex: isMobile ? '1 1 auto' : '1 1 22rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.375rem' : '0.5rem', minHeight: isMobile ? '2rem' : '2.5rem' }}>
+                {isMobile && emblem}
+                {/* Phones: the title keeps one line beside the emblem, Hero icon and cog (15px at 320 up to 17px). */}
+                <h1 style={{ margin: 0, minWidth: 0, color: 'white', fontFamily: '"Playfair Display", Georgia, serif', fontSize: isMobile ? 'clamp(0.9375rem, 4.6vw, 1.0625rem)' : '1.25rem', fontWeight: 700, lineHeight: 1.2, whiteSpace: isMobile ? 'nowrap' : 'normal' }}>
+                  American Gift Place™
+                </h1>
+                <GiftPlaceHeroIcon />
+                {/* Phones: the founder-only catalogue entry is a compact cog at the end of the title row. */}
+                {founder && isMobile && (
+                  <button type="button" data-testid="manage-catalog-button" aria-label="Manage Catalog" title="Manage Catalog"
+                    onClick={() => setCatalogOpen(true)}
+                    style={{ marginLeft: 'auto', flex: 'none', width: '2rem', height: '2rem', minHeight: 0, padding: 0, borderRadius: '50%',
+                      border: '1px solid rgba(255, 255, 255, 0.5)', background: 'rgba(255, 255, 255, 0.08)', color: 'white',
+                      display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+                    <Settings size={15} />
+                  </button>
+                )}
+              </div>
               {/* Shopping for a recipient or a greeting: the context sits in the band (it used to be its own bar above
                   the page), so the first row of gifts stays in view. Report 135's context label is unchanged. */}
               {returnRecipientId ? (
@@ -713,40 +760,32 @@ export default function Merch() {
                   Supporting American businesses, veterans, and first responders through meaningful giving.
                 </p>
               )}
+              {/* Phones: Return sits under the line, full width of the band, so it never narrows the wording. */}
+              {isMobile && returnButton ? <div style={{ marginTop: '0.375rem' }}>{returnButton}</div> : null}
             </div>
-            {(returnRecipientId || cameFromSendGreeting) && (
-              <button
-                type="button"
-                onClick={returnRecipientId ? handleReturnToRecipient : handleReturnToGreeting}
-                style={{
-                  flex: 'none', display: 'flex', alignItems: 'center', gap: '0.375rem',
-                  padding: isNarrow ? '0.4375rem 0.625rem' : '0.5rem 0.875rem', borderRadius: '9999px', border: 'none',
-                  background: 'white', color: '#2C1D46', fontSize: isNarrow ? '0.75rem' : '0.8125rem', fontWeight: 700,
-                  cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap'
-                }}
-              >
-                <ArrowLeft size={14} />
-                {returnRecipientId ? 'Return to Recipient Settings' : 'Return to Greeting'}
-              </button>
-            )}
-            {/* CHECKPOINT 2 — founder-only entry point. A non-founder never renders this control, and
-                the backend refuses them regardless. */}
-            {founder && (
-              <button
-                type="button"
-                data-testid="manage-catalog-button"
-                onClick={() => setCatalogOpen(true)}
-                style={{
-                  flex: 'none', display: 'flex', alignItems: 'center', gap: '0.375rem',
-                  padding: '0.4375rem 0.875rem', borderRadius: '9999px',
-                  border: '1px solid rgba(255, 255, 255, 0.5)', background: 'rgba(255, 255, 255, 0.08)',
-                  color: 'white', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap'
-                }}
-              >
-                <Settings size={13} />
-                {isNarrow ? 'Catalog' : 'Manage Catalog'}
-              </button>
-            )}
+            {!isMobile && (returnButton || founder) ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto', alignSelf: 'center', flex: 'none' }}>
+                {returnButton}
+                {/* CHECKPOINT 2 — founder-only entry point. A non-founder never renders this control, and
+                    the backend refuses them regardless. */}
+                {founder && (
+                  <button
+                    type="button"
+                    data-testid="manage-catalog-button"
+                    onClick={() => setCatalogOpen(true)}
+                    style={{
+                      flex: 'none', display: 'flex', alignItems: 'center', gap: '0.375rem',
+                      padding: '0.4375rem 0.875rem', borderRadius: '9999px',
+                      border: '1px solid rgba(255, 255, 255, 0.5)', background: 'rgba(255, 255, 255, 0.08)',
+                      color: 'white', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <Settings size={13} />
+                    Manage Catalog
+                  </button>
+                )}
+              </div>
+            ) : null}
           </div>
 
       {/* GIFTS — UNIFIED SELECTOR ROW, on the header's strip.
@@ -763,7 +802,32 @@ export default function Merch() {
 
           Responsive: one horizontal row that scrolls on narrow screens. No selector is stacked into its own
           panel, none is hidden, and the row cannot widen the page. */}
-          <div style={{ background: '#3b2163', padding: isNarrow ? '0.4375rem 0.5rem' : '0.5rem 1rem' }}>
+          <div style={{ background: '#3b2163', padding: isMobile ? '0.375rem 0.5rem' : '0.375rem 0.875rem' }}>
+      {/* Founder 2026-10-24 (§5), phones: one drop-down holding every category, QR Cash and View All (in the tabs'
+          order), instead of the scrolling tabs. Choosing does exactly what tapping the tab does. */}
+      {isMobile ? (
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+          <span style={{ flex: 'none', fontSize: '0.75rem', fontWeight: 700, color: 'rgba(255, 255, 255, 0.86)', letterSpacing: '0.02em' }}>Show</span>
+          <select
+            data-testid="gift-place-category-select"
+            aria-label="Gift category"
+            value={qrOpen ? QR_CASH_CHOICE : selectedCategory}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === QR_CASH_CHOICE) { setQrOpen(true); return; }
+              setPriceRange(null); // a range belongs to the catalog it was chosen over (as the tabs do)
+              setSelectedCategory(v);
+              setQrOpen(false);
+            }}
+            style={{ flex: 1, minWidth: 0, height: '2.25rem', padding: '0 0.625rem', borderRadius: '0.625rem', border: '1px solid rgba(255, 255, 255, 0.55)', background: 'white', color: '#2C1D46', fontSize: '0.9375rem', fontWeight: 700, fontFamily: 'inherit' }}
+          >
+            {SELECTOR_ROW.flatMap((sel) => [
+              <option key={sel.id} value={sel.id}>{sel.label}</option>,
+              ...(sel.id === 'gift_cards' ? [<option key={QR_CASH_CHOICE} value={QR_CASH_CHOICE}>QR Cash™</option>] : []),
+            ])}
+          </select>
+        </label>
+      ) : (
       <div data-testid="gift-place-tabs" style={{
         display: 'flex',
         gap: '0.375rem',
@@ -851,6 +915,7 @@ export default function Merch() {
           );
         })}
       </div>
+      )}
           </div>
         </div>
 
@@ -867,6 +932,8 @@ export default function Merch() {
           {selectedCategory !== 'gift_cards' && bounds && (
             <div style={{ flex: '1 1 420px', minWidth: 0 }}>
             <PriceRangeFilter
+              // A new catalogue starts with empty Min/Max fields (the range is reset on every category change).
+              key={selectedCategory}
               floor={bounds.floor}
               ceiling={bounds.ceiling}
               minCents={minCents}
@@ -874,6 +941,8 @@ export default function Merch() {
               onChange={(min, max) => setPriceRange({ min, max })}
               onReset={() => setPriceRange(null)}
               isNarrow={isNarrow}
+              // Founder 2026-10-24: Min $ / Max $ fields at every width (blank = no limit), in place of the slider.
+              fields
               trailing={gridState === 'ready' ? `${cards.length} ${cards.length === 1 ? 'gift' : 'gifts'}` : null}
             />
             </div>

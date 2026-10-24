@@ -461,7 +461,8 @@ test("the personal-greeting round trip and direct entry are preserved", () => {
   // (Founder 2026-10-22: the session context now sits in the Gift Place header band, still conditional.)
   assert.match(SRC, /\{returnRecipientId \? \(/);
   assert.match(SRC, /\) : cameFromSendGreeting \? \(/);
-  assert.match(SRC, /\{\(returnRecipientId \|\| cameFromSendGreeting\) && \(/);
+  // Founder 2026-10-24: the one Return control is a conditional constant placed in the banner (same condition).
+  assert.match(SRC, /const returnButton = \(returnRecipientId \|\| cameFromSendGreeting\) \? \(/);
 });
 
 // ============================================================

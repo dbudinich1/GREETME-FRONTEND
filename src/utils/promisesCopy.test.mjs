@@ -82,7 +82,8 @@ const PINNED = [
   ["src/pages/DashboardHome.jsx", "Send • Claim • Spend"],
   ["src/pages/Landing.jsx", "New accounts include 5 free sends during your 7-day trial."],
   ["src/components/GuidedSetupFlow.jsx", "received 5 free sends to use in your first 7 days."],
-  ["src/pages/DashboardHome.jsx", `Once redeemed, we review and send the cash to their chosen ${PAYOUT_LIST}. Payouts are processed manually.`],
+  // Founder 2026-10-24 (walkthrough §6): the dashboard's QR Cash explanation is the shared, approved one.
+  ["src/components/giftPlace/QrCashHowItWorks.jsx", "and provide their payout details. Our team reviews the claim and sends the payment."],
   ["src/pages/Profile.jsx", "Voice: Record at least 10 seconds in a quiet environment."],
   ["src/pages/Profile.jsx", "AI will use relationship context to personalize your messages."],
   ["src/components/hub/hubConfig.js", "A good fit for regular gifters"],

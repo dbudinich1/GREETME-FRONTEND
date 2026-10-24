@@ -1408,3 +1408,19 @@ test("walkthrough: Celebration Manager card: centred title, Import Wizard and Ad
   await click(add);
   assert.deepEqual(globalThis.__nav.at(-1), { to: "/dashboard/contacts", opts: { state: { openAddRecipient: true } } });
 });
+
+test("§6 Home: on the QR Cash slide 'How it works' sits beside the title and opens the shared approved explanation, with its Add QR Cash action", async () => {
+  await mount();
+  await click($$(".dot").at(-1));
+  const link = $("[data-testid=gx-qr-howitworks]");
+  assert.ok(link, "the link");
+  assert.ok(link.closest(".slide-t"), "inside the slide's title, beside 'QR Cash™'");
+  assert.match(link.closest(".slide-t").textContent, /^QR Cash™/);
+  await click(link);
+  const d = $("[data-testid=qrcash-howitworks]");
+  assert.ok(d);
+  assert.match(d.textContent, /Add a little extra love/);
+  assert.match(d.textContent, /\(Zelle, Venmo, Cash App or PayPal\)/);
+  assert.doesNotMatch(d.textContent, /print|automatically|Track Your Gifts|spend anywhere/i, "the old modal's claims are gone");
+  assert.equal($("[data-testid=qr-howitworks-cta]").textContent.trim(), "Add QR Cash");
+});
