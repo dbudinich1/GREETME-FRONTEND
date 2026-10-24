@@ -869,7 +869,10 @@ export default function DashboardLayout({ children }) {
           margin: '0 auto',
           display: 'flex',
           justifyContent: 'space-evenly',
-          alignItems: 'center'
+          alignItems: 'center',
+          // Walkthrough 2026-10-24: never a sideways scroll. The full founder nav fits on one row at 1280 and 1440
+          // (measured, Report 138); narrower desktop windows wrap it onto a second row instead of widening the page.
+          flexWrap: 'wrap'
         }}>
           {navigation.map((item) => (
             item.children ? (
