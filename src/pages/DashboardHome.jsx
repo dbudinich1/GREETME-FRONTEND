@@ -16,7 +16,6 @@ import QRCode from 'qrcode';
 import {
   Send, UserPlus, QrCode, ChevronRight, ChevronLeft, Search, Smartphone, Check, CalendarDays, Gift, Zap, Upload,
   AlertCircle, Plus, ChevronDown, X, Mic, Camera, Play, Pause, ImagePlus, Users, Award, RotateCcw, Pencil, DollarSign,
-  CreditCard,
 } from 'lucide-react';
 import api from '../api/api';
 import { getOccasionIcon, occasionTypes } from '../utils/helpers';
