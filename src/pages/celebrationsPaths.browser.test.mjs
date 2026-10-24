@@ -225,6 +225,23 @@ test("per-recipient occasions: birthday dates belong to each person; a missing o
   for (const id of ["c2", "c3"]) { assert.equal(rosterRow(id).dataset.source, "missing"); assert.match(rosterRow(id).textContent, /Date needed/); }
 });
 
+test("occasion cards (founder 2026-10-24): no date-kind badge and no explanatory line on personal or shared occasions; saved dates and 'Date needed' stay", async () => {
+  await open("/dashboard/contacts");
+  await click(tid("cx-path-occasions"));
+  for (const occ of ["birthday", "christmas"]) {
+    await click(tid(`cx-occ-${occ}`));
+    const card = tid("cx-roster");
+    assert.equal(card.querySelector('[data-testid="cx-kind"]'), null, `${occ}: no badge`);
+    assert.equal(card.querySelector('[data-testid="cx-rule"]'), null, `${occ}: no explanatory line`);
+    assert.doesNotMatch(card.querySelector("h3").textContent, /own date|Shared calendar date/);
+  }
+  await click(tid("cx-occ-birthday"));
+  assert.equal(rosterRow("c1").dataset.source, "saved");
+  assert.match(rosterRow("c2").textContent, /Date needed/);
+  await click(tid("cx-occ-christmas"));
+  assert.match(rosterRow("c2").textContent, /Dec 25/, "the shared calendar date is still shown in the row");
+});
+
 test("Occasions path, several people: Set dates & gifts opens the dashboard's own Dates & gifts with exactly those people and that occasion", async () => {
   await open("/dashboard/contacts");
   await click(tid("cx-path-occasions"));

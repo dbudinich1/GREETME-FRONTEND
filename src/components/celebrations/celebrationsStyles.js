@@ -84,9 +84,6 @@ export const CELEBRATIONS_CSS = `
 .cx .occbtn .ol { font:600 14px var(--sans); color:var(--ink); }
 .cx .occbtn .os { font-size:12px; color:var(--muted); grid-column:2; }
 .cx .occbtn .cnt { grid-row:span 2; font:600 12px var(--sans); color:var(--p700); background:var(--p50); border-radius:999px; padding:2px 8px; }
-.cx .kind { display:inline-flex; align-items:center; gap:5px; font:600 11.5px var(--sans); border-radius:999px; padding:2px 9px; }
-.cx .kind.shared { color:#1e4f8a; background:#e7f0fb; }
-.cx .kind.personal { color:#7a3e8a; background:#f5e9f8; }
 .cx .roster { border:1px solid var(--line); border-radius:16px; padding:14px 16px; min-width:0; }
 .cx .roster h3 { font-size:21px; display:flex; align-items:center; gap:8px; }
 .cx .rule { margin-top:6px; font-size:13.5px; color:var(--body); background:var(--p50); border:1px solid var(--p100); border-radius:12px; padding:8px 10px; }

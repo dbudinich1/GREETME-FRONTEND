@@ -160,10 +160,6 @@ export default function CelebrationsWorkspace({
 
   const heldRows = roster.rows.filter((r) => r.held);
   const otherRows = roster.rows.filter((r) => !r.held);
-  const ruleText = roster.kind === 'personal'
-    ? `${roster.label} dates belong to each person. Saved dates are shown; anyone without one is asked for theirs.`
-    : roster.sharedDate ? `${roster.label} is on the same calendar date for everyone: ${day(roster.sharedDate, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}. It is filled in for people who don't have it saved yet.`
-      : `${roster.label} shares one calendar date, but its date isn't calculated here. Enter it in each person's Occasion Scheduler.`;
   const rosterRow = (r) => {
     const c = r.contact;
     return (
@@ -218,8 +214,8 @@ export default function CelebrationsWorkspace({
           ))}
         </div>
         <div className="roster" data-testid="cx-roster" data-kind={roster.kind}>
-          <h3><span aria-hidden="true">{occasionIcon(occ)}</span>{roster.label} <span className={`kind ${roster.kind}`} data-testid="cx-kind">{roster.kind === 'personal' ? 'Each person’s own date' : 'Shared calendar date'}</span></h3>
-          <p className="rule" data-testid="cx-rule">{ruleText}</p>
+          <h3><span aria-hidden="true">{occasionIcon(occ)}</span>{roster.label}</h3>
+          {/* Founder 2026-10-24: no date-kind badge or explanatory line on occasion cards; saved dates and "Date needed" stay in each row. */}
           <div className="rosterbody">
             <div className="rsec">Saved for {heldRows.length} {heldRows.length === 1 ? 'person' : 'people'}</div>
             {heldRows.length ? heldRows.map(rosterRow) : <p className="empty" style={{ padding: '12px 0' }}>No one has {roster.label} saved yet.</p>}
