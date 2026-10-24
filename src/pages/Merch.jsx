@@ -682,20 +682,23 @@ export default function Merch() {
   );
   // The phone category drop-down's value for the QR Cash tab (not a catalogue category).
   const QR_CASH_CHOICE = '__qrcash';
-  // Return to the recipient's settings or to the greeting being written (one control; placed in the banner below).
+  // Return to the recipient's settings or to the greeting being written. Report 138 correction 5 (founder 2026-10-24):
+  // a left-arrow control instead of the button's words, at the start of the banner's context line; its accessible name
+  // and tooltip keep the words, and the return itself is unchanged.
+  const returnLabel = returnRecipientId ? 'Return to recipient settings' : 'Return to greeting';
   const returnButton = (returnRecipientId || cameFromSendGreeting) ? (
     <button
       type="button"
+      data-testid="gift-place-return"
+      aria-label={returnLabel}
+      title={returnLabel}
       onClick={returnRecipientId ? handleReturnToRecipient : handleReturnToGreeting}
       style={{
-        flex: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
-        padding: isNarrow ? '0.375rem 0.625rem' : '0.5rem 0.875rem', borderRadius: '9999px', border: 'none',
-        background: 'white', color: '#2C1D46', fontSize: isNarrow ? '0.75rem' : '0.8125rem', fontWeight: 700,
-        cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', minHeight: 0
+        flex: 'none', width: '1.75rem', height: '1.75rem', minHeight: 0, padding: 0, borderRadius: '50%', border: 'none',
+        background: 'white', color: '#2C1D46', display: 'inline-grid', placeItems: 'center', cursor: 'pointer'
       }}
     >
-      <ArrowLeft size={14} />
-      {returnRecipientId ? 'Return to Recipient Settings' : 'Return to Greeting'}
+      <ArrowLeft size={16} strokeWidth={2.5} />
     </button>
   ) : null;
 
@@ -705,7 +708,7 @@ export default function Merch() {
       <div data-testid="gift-place-body">
         {/* COMPACT BRANDED HEADER (founder 2026-10-22, Base44 reference): the emblem, title and line in one band, with
             the category tabs on the strip beneath it, so the first row of gifts is in view on arrival. */}
-        <div data-testid="gift-place-header" style={{ borderRadius: '0.875rem', overflow: 'hidden', marginBottom: '0.75rem', boxShadow: '0 10px 28px -22px rgba(31, 42, 92, 0.8)' }}>
+        <div data-testid="gift-place-header" style={{ borderRadius: '0.875rem', overflow: 'hidden', marginBottom: '0.5rem', boxShadow: '0 10px 28px -22px rgba(31, 42, 92, 0.8)' }}>
           {/* Founder 2026-10-24 (walkthrough §5): the flags emblem in the band's top-left corner; the Hero icon beside the
               title; the title and line keep a comfortable width (the controls wrap beneath them on desktop and sit in the
               title row as a compact cog on phones, so the wording is never squeezed into a narrow column). */}
@@ -741,12 +744,15 @@ export default function Merch() {
               {/* Shopping for a recipient or a greeting: the context sits in the band (it used to be its own bar above
                   the page), so the first row of gifts stays in view. Report 135's context label is unchanged. */}
               {returnRecipientId ? (
-                <p style={{ margin: '0.125rem 0 0', fontSize: isNarrow ? '0.75rem' : '0.8125rem', lineHeight: 1.4, color: 'rgba(255, 255, 255, 0.92)', fontWeight: 600 }}>
-                  🎁 Shopping for Recipient
+                <p style={{ margin: '0.125rem 0 0', fontSize: isNarrow ? '0.75rem' : '0.8125rem', lineHeight: 1.4, color: 'rgba(255, 255, 255, 0.92)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {returnButton}
+                  <span>🎁 Shopping for Recipient</span>
                 </p>
               ) : cameFromSendGreeting ? (
-                <p style={{ margin: '0.125rem 0 0', fontSize: isNarrow ? '0.75rem' : '0.8125rem', lineHeight: 1.4, color: 'rgba(255, 255, 255, 0.92)', display: 'flex', flexWrap: 'wrap', columnGap: '0.5rem' }}>
-                  {/* On phones the Return to Greeting button says it; the label is left out so the first row stays in view. */}
+                <p style={{ margin: '0.125rem 0 0', fontSize: isNarrow ? '0.75rem' : '0.8125rem', lineHeight: 1.4, color: 'rgba(255, 255, 255, 0.92)', display: 'flex', flexWrap: isNarrow ? 'nowrap' : 'wrap', alignItems: 'center', columnGap: '0.5rem', rowGap: '0.25rem' }}>
+                  {/* Narrow phones: the arrow and the context share one row (the context wraps beside the arrow). */}
+                  {returnButton}
+                  {/* On phones the arrow and the context say it; the label is left out so the first row stays in view. */}
                   {!isNarrow && <span style={{ fontWeight: 700, color: '#EBD07A' }}>💝 Shopping for Your Greeting</span>}
                   {/* Report 135: who, what for and when, carried from the greeting being composed. */}
                   {greetingGiftContext ? (
@@ -760,12 +766,9 @@ export default function Merch() {
                   Supporting American businesses, veterans, and first responders through meaningful giving.
                 </p>
               )}
-              {/* Phones: Return sits under the line, full width of the band, so it never narrows the wording. */}
-              {isMobile && returnButton ? <div style={{ marginTop: '0.375rem' }}>{returnButton}</div> : null}
             </div>
-            {!isMobile && (returnButton || founder) ? (
+            {!isMobile && founder ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto', alignSelf: 'center', flex: 'none' }}>
-                {returnButton}
                 {/* CHECKPOINT 2 — founder-only entry point. A non-founder never renders this control, and
                     the backend refuses them regardless. */}
                 {founder && (
@@ -787,8 +790,10 @@ export default function Merch() {
               </div>
             ) : null}
           </div>
+        </div>
 
-      {/* GIFTS — UNIFIED SELECTOR ROW, on the header's strip.
+      {/* GIFTS — UNIFIED SELECTOR ROW. Report 138 correction 1 (founder 2026-10-24): OUTSIDE and below the Gift Place
+          banner (it used to be the banner's own strip), on the page itself; the phone drop-down stays.
           ONE row, Brandable Goods first and selected by default; QR Cash™ sits beside Gift Cards (founder
           2026-10-22: a gift type chosen here, not a catalogue category — it opens the amount screen in place
           of the product area).
@@ -802,12 +807,12 @@ export default function Merch() {
 
           Responsive: one horizontal row that scrolls on narrow screens. No selector is stacked into its own
           panel, none is hidden, and the row cannot widen the page. */}
-          <div style={{ background: '#3b2163', padding: isMobile ? '0.375rem 0.5rem' : '0.375rem 0.875rem' }}>
+          <div data-testid="gift-place-categories" style={{ marginBottom: isMobile ? '0.5rem' : '0.625rem' }}>
       {/* Founder 2026-10-24 (§5), phones: one drop-down holding every category, QR Cash and View All (in the tabs'
           order), instead of the scrolling tabs. Choosing does exactly what tapping the tab does. */}
       {isMobile ? (
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-          <span style={{ flex: 'none', fontSize: '0.75rem', fontWeight: 700, color: 'rgba(255, 255, 255, 0.86)', letterSpacing: '0.02em' }}>Show</span>
+          <span style={{ flex: 'none', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>Show</span>
           <select
             data-testid="gift-place-category-select"
             aria-label="Gift category"
@@ -819,7 +824,7 @@ export default function Merch() {
               setSelectedCategory(v);
               setQrOpen(false);
             }}
-            style={{ flex: 1, minWidth: 0, height: '2.25rem', padding: '0 0.625rem', borderRadius: '0.625rem', border: '1px solid rgba(255, 255, 255, 0.55)', background: 'white', color: '#2C1D46', fontSize: '0.9375rem', fontWeight: 700, fontFamily: 'inherit' }}
+            style={{ flex: 1, minWidth: 0, height: '2.25rem', padding: '0 0.625rem', borderRadius: '0.625rem', border: '1px solid #d9cfe9', background: 'white', color: '#2C1D46', fontSize: '0.9375rem', fontWeight: 700, fontFamily: 'inherit' }}
           >
             {SELECTOR_ROW.flatMap((sel) => [
               <option key={sel.id} value={sel.id}>{sel.label}</option>,
@@ -849,7 +854,7 @@ export default function Merch() {
                   flexShrink: 0,
                   width: '1px',
                   alignSelf: 'stretch',
-                  background: 'rgba(255, 255, 255, 0.25)',
+                  background: '#d9cfe9',
                   margin: '0 0.25rem'
                 }} />
               )}
@@ -871,9 +876,9 @@ export default function Merch() {
                   gap: '0.375rem',
                   padding: isNarrow ? '0.375rem 0.75rem' : '0.375rem 0.875rem',
                   borderRadius: '9999px',
-                  border: isSelected ? '1px solid white' : (isUtility ? '1px dashed rgba(255, 255, 255, 0.4)' : '1px solid transparent'),
-                  background: isSelected ? 'white' : 'transparent',
-                  color: isSelected ? '#2C1D46' : 'rgba(255, 255, 255, 0.86)',
+                  border: isSelected ? '1px solid #2C1D46' : (isUtility ? '1px dashed #b9acd0' : '1px solid transparent'),
+                  background: isSelected ? '#2C1D46' : 'transparent',
+                  color: isSelected ? 'white' : '#2C1D46',
                   fontSize: '0.8125rem',
                   fontWeight: isSelected || isCollection ? 700 : 600,
                   cursor: 'pointer',
@@ -897,9 +902,9 @@ export default function Merch() {
                     gap: '0.375rem',
                     padding: isNarrow ? '0.375rem 0.75rem' : '0.375rem 0.875rem',
                     borderRadius: '9999px',
-                    border: '1px solid #EBD07A',
+                    border: '1px solid #D9AE3C',
                     background: qrOpen ? '#E0BE55' : 'transparent',
-                    color: qrOpen ? '#2C1D46' : '#EBD07A',
+                    color: qrOpen ? '#2C1D46' : '#7A5B0C',
                     fontSize: '0.8125rem',
                     fontWeight: 700,
                     cursor: 'pointer',
@@ -917,7 +922,6 @@ export default function Merch() {
       </div>
       )}
           </div>
-        </div>
 
       {/* GIFTS — PRICE RANGE, directly beneath the selector row and above everything it filters.
           One compact row, not a panel. It is hidden for Gift Cards, whose panel is deliberately

@@ -246,7 +246,8 @@ async function chooseCategory(host, label) {
 }
 const pickFirstCard = async (host) => click(host.querySelector('[data-testid^="gift-card-action-"]'));
 // The header bar's button comes first in the page; the confirmation's own button is rendered last.
-const headerReturn = (host) => buttonsByText(host, /Return to Greeting/)[0];
+// Report 138 correction 5: the banner's return is a left-arrow control (no words), found by its id; its name stays.
+const headerReturn = (host) => { const b = host.querySelector('[data-testid="gift-place-return"]'); if (b) assert.equal(b.getAttribute("aria-label"), "Return to greeting"); return b; };
 const confirmationReturn = (host) => buttonsByText(host, /Return to Greeting/).at(-1);
 
 /** Back on the Send page: press Done & Send and return the review's main action button. */

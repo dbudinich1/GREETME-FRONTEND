@@ -252,7 +252,10 @@ test("Add a gift from the dashboard opens the Gift Place (not the gift-type choo
 test("Return to Greeting brings back the same recipient and occasion, and the banner names Birthday, not Just Because", async () => {
   const m = await mountAt(DASH);
   try {
-    await click(buttonsByText(m.host, /Return to Greeting/)[0]);
+    // Report 138 correction 5: the banner's return is a left-arrow control named "Return to greeting".
+    const back = m.host.querySelector('[data-testid="gift-place-return"]');
+    assert.equal(back.getAttribute("aria-label"), "Return to greeting");
+    await click(back);
     await settle(8);
     assert.equal(location(m.host).split("?")[0], "/dashboard/send");
     assert.equal(text(m.host.querySelector('[data-testid="send-banner-occasion"]')), "Birthday");
