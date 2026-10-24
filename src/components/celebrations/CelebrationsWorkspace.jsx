@@ -249,8 +249,8 @@ export default function CelebrationsWorkspace({
         <div className="segrow-c">
           {/* Phones read Upcoming | Past (founder 2026-10-24); " Occasions" is hidden there by CSS. */}
           <div className="seg small" role="tablist" aria-label="When" data-testid="cx-when">
-            <button type="button" role="tab" aria-selected={when === 'upcoming'} data-testid="cx-when-upcoming" onClick={() => setWhen('upcoming')}>Upcoming<span className="lbl-long"> Occasions</span></button>
-            <button type="button" role="tab" aria-selected={when === 'past'} data-testid="cx-when-past" onClick={() => setWhen('past')}>Past<span className="lbl-long"> Occasions</span></button>
+            <button type="button" role="tab" aria-selected={when === 'upcoming'} data-testid="cx-when-upcoming" onClick={() => setWhen('upcoming')}><span>Upcoming<span className="lbl-long"> Occasions</span></span></button>
+            <button type="button" role="tab" aria-selected={when === 'past'} data-testid="cx-when-past" onClick={() => setWhen('past')}><span>Past<span className="lbl-long"> Occasions</span></span></button>
           </div>
         </div>
         <label className="search"><Search size={16} color="#8a8199" /><input value={schedTerm} onChange={(e) => setSchedTerm(e.target.value)} placeholder="Find an occasion…" aria-label="Find in the schedule" data-testid="cx-schedule-search" /></label>

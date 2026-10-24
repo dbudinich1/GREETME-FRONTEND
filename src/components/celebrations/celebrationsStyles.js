@@ -251,5 +251,9 @@ export const CELEBRATIONS_CSS = `
   .cx .circle .chips { flex-wrap:nowrap; width:100%; }
   .cx .lbl-long { display:none; }
   .cx .seg.small button { flex:1 1 0; }
+  /* Rechecked after Business moved into this design (Report 138, 390 and 320): the Occasions view showed about two
+     occasions and two people. Both views share one fixed viewport, so switching People | Occasions stays stable. */
+  .cx .mgrbody { height:760px; }
+  .cx .mgrview .occgrid { grid-template-rows:230px minmax(0,1fr); }
 }
 `;

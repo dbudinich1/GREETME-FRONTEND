@@ -560,4 +560,13 @@ export const DASHBOARD_HOME_CSS = `
   .gx .mgracts .addrec-t { display:none; }
   .gx .hero h1 { font-size:22px; }
 }
+/* The narrowest phones (320-380): Play and Re-record keep one row inside the tile (labels kept, icons dropped), and
+   "Who is it for?" grows instead of letting its Save row overlap the people (measured at 320, Report 138). */
+@media (max-width: 380px) {
+  .gx .pairrow { gap:6px; }
+  .gx .pairrow .btn-xs { padding:0 10px; gap:0; }
+  .gx .pairrow .btn-xs svg { display:none; }
+  .gx .whobox { height:auto; min-height:312px; }
+  .gx .secsave-btn { min-width:0; padding:0 16px; }
+}
 `;

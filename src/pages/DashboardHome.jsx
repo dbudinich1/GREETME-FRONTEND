@@ -739,7 +739,7 @@ export default function DashboardHome() {
 
   const StepHead = ({ n, label, isDone, sub }) => (
     <>
-      <div className="step-label"><span className={`num ${isDone ? 'done' : ''}`}>{isDone ? <Check size={13} /> : n}</span>{label}</div>
+      <div className="step-label"><span className={`num ${isDone ? 'done' : ''}`}>{isDone ? <Check size={13} /> : n}</span><span className="step-text">{label}</span></div>
       {sub ? <p className="step-sub">{sub}</p> : null}
     </>
   );
@@ -1163,7 +1163,7 @@ export default function DashboardHome() {
           <div className="tabs ctabs" role="tablist" aria-label="Upcoming or past occasions" data-testid="gx-when">
             {/* Phones read Upcoming | Past (founder 2026-10-24); the word "Occasions" is hidden there, not removed. */}
             {[['upcoming', 'Upcoming'], ['past', 'Past']].map(([k, t]) => (
-              <button key={k} type="button" role="tab" id={`gx-tab-${k}`} aria-selected={schedTab === k} aria-controls="gx-schedpanel" onClick={() => setSchedTab(k)}>{t}<span className="lbl-long"> Occasions</span></button>
+              <button key={k} type="button" role="tab" id={`gx-tab-${k}`} aria-selected={schedTab === k} aria-controls="gx-schedpanel" onClick={() => setSchedTab(k)}><span>{t}<span className="lbl-long"> Occasions</span></span></button>
             ))}
           </div>
           <div className="tabbody cbody" id="gx-schedpanel" role="tabpanel" aria-labelledby={`gx-tab-${schedTab}`} data-testid="gx-schedbody">
