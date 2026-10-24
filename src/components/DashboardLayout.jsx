@@ -714,6 +714,7 @@ export default function DashboardLayout({ children }) {
                   <div style={{ display: 'flex', alignItems: 'center' }}>
                     <NavLink
                       to={item.path}
+                      end={item.path === '/dashboard'}
                       onClick={() => setMobileMenuOpen(false)}
                       style={({ isActive }) => ({
                         display: 'flex',
@@ -883,6 +884,7 @@ export default function DashboardLayout({ children }) {
               <div key={item.path} style={{ position: 'relative', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                 <NavLink
                   to={item.path}
+                  end={item.path === '/dashboard'}
                   style={({ isActive }) => ({
                     display: 'flex',
                     alignItems: 'center',
@@ -972,6 +974,7 @@ export default function DashboardLayout({ children }) {
               <NavLink
                 key={item.path}
                 to={item.path}
+                end={item.path === '/dashboard'}
                 style={({ isActive }) => ({
                   display: 'flex',
                   alignItems: 'center',

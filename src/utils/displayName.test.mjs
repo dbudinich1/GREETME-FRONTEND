@@ -51,3 +51,12 @@ test("navigation: the founder's order, labels, paths and gates (walkthrough 2026
   ]);
   assert.match(block, /isPartnerAdmin \? \{ children: \[\{ name: 'Partner Dashboard', path: '\/dashboard\/fundraiser' \}\] \}/, "partner child gate unchanged");
 });
+
+test("navigation: Home is active only on Home itself, so Gift Place (/dashboard/gifts) is the only active tab there", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../components/DashboardLayout.jsx", import.meta.url), "utf8");
+  const tops = [...src.matchAll(/to=\{item\.path\}\s*\n\s*end=\{item\.path === '\/dashboard'\}/g)];
+  const all = [...src.matchAll(/to=\{item\.path\}/g)];
+  assert.equal(all.length, 3, "desktop link, desktop link with submenu, phone menu link");
+  assert.equal(tops.length, all.length, "every top-level nav link ends-matches Home");
+});
