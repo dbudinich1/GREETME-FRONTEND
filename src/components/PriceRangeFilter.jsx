@@ -21,7 +21,66 @@
 // inline, so it carries a scoped <style> block with gm-prf- prefixed class names. Nothing global
 // is touched.
 
+import { useState } from 'react';
+
 const centsToDollars = (c) => `$${(c / 100).toFixed(c % 100 === 0 ? 0 : 2)}`;
+
+// Founder 2026-10-24 (walkthrough §5, then "replace the price slide with min / max fields" on desktop too): blank
+// Min $ / Max $ fields instead of the slider, at every width. Blank means no limit on that side; both blank is the full
+// range. A typed amount is dollars (cents allowed); it is sent on as cents. "Any price" clears both.
+const NO_MAX_CENTS = Number.MAX_SAFE_INTEGER; // the filter treats a non-finite bound as "no filter at all"
+const dollarsToCents = (text) => {
+  const t = String(text).trim();
+  if (t === '') return null;
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) return NaN;
+  return Math.round(Number(t) * 100);
+};
+
+function PriceFields({ onChange, onReset, isNarrow, trailing }) {
+  const [minText, setMinText] = useState('');
+  const [maxText, setMaxText] = useState('');
+  const lo = dollarsToCents(minText);
+  const hi = dollarsToCents(maxText);
+  const invalid = Number.isNaN(lo) || Number.isNaN(hi);
+  const crossed = !invalid && lo !== null && hi !== null && lo > hi;
+  const apply = (minT, maxT) => {
+    const a = dollarsToCents(minT);
+    const b = dollarsToCents(maxT);
+    if (Number.isNaN(a) || Number.isNaN(b) || (a !== null && b !== null && a > b)) return; // shown below; nothing applied
+    if (a === null && b === null) onReset();
+    else onChange(a === null ? 0 : a, b === null ? NO_MAX_CENTS : b);
+  };
+  const clear = () => { setMinText(''); setMaxText(''); onReset(); };
+  const field = (id, label, value, set, other, isMin) => (
+    <label htmlFor={id} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flex: isNarrow ? '1 1 0' : '0 1 11rem', minWidth: 0 }}>
+      <span style={{ flex: 'none', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>{label}</span>
+      <input id={id} data-testid={id} type="text" inputMode="decimal" autoComplete="off" placeholder="Any" value={value}
+        aria-label={isMin ? 'Minimum price in dollars' : 'Maximum price in dollars'}
+        onChange={(e) => { set(e.target.value); if (isMin) apply(e.target.value, other); else apply(other, e.target.value); }}
+        style={{ flex: 1, minWidth: 0, height: '2.25rem', padding: '0 0.625rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', fontSize: '0.9375rem', fontFamily: 'inherit', background: '#fff' }} />
+    </label>
+  );
+  return (
+    <div data-testid="price-range-filter" data-mode="fields" style={{ marginBottom: isNarrow ? '0.5rem' : '0.625rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+        {field('gm-price-min-field', 'Min $', minText, setMinText, maxText, true)}
+        {field('gm-price-max-field', 'Max $', maxText, setMaxText, minText, false)}
+        {(minText !== '' || maxText !== '') ? (
+          <button type="button" data-testid="price-range-any" onClick={clear}
+            style={{ flexShrink: 0, minHeight: 0, padding: '0.375rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--primary)', fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            Any price
+          </button>
+        ) : null}
+        {trailing ? <span data-testid="price-range-trailing" style={{ flexShrink: 0, marginLeft: isNarrow ? 0 : 'auto', fontSize: '0.75rem', color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>{trailing}</span> : null}
+      </div>
+      {invalid || crossed ? (
+        <p data-testid="price-range-note" role="alert" style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: '#b91c1c' }}>
+          {invalid ? 'Enter a dollar amount, like 25 or 25.50.' : 'Min $ is more than Max $.'}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 export default function PriceRangeFilter({
   floor,
@@ -32,7 +91,9 @@ export default function PriceRangeFilter({
   onReset,
   isNarrow,
   trailing = null,
+  fields = false,
 }) {
+  if (fields) return <PriceFields onChange={onChange} onReset={onReset} isNarrow={isNarrow} trailing={trailing} />;
   // A catalog where everything costs the same gives the shopper nothing to choose between, and a
   // zero-width track would divide by zero below. Render nothing rather than an inert control.
   if (!Number.isFinite(floor) || !Number.isFinite(ceiling) || ceiling <= floor) return null;

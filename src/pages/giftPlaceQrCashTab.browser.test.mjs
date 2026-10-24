@@ -426,3 +426,108 @@ test("with nothing waiting, the new greeting starts clean: no previous greeting'
     assert.equal("sendRequestId" in kept, false);
   } finally { await m.unmount(); window.sessionStorage.removeItem("sendGreetingState"); }
 });
+
+// ===========================================================================================================
+// Founder 2026-10-24 walkthrough (§5 Gift Place, §6 QR Cash explanation)
+// ===========================================================================================================
+async function atWidth(w, fn) {
+  const was = window.innerWidth;
+  window.innerWidth = w;
+  try { return await fn(); } finally { window.innerWidth = was; }
+}
+const pick = async (sel, value) => {
+  const set = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value").set;
+  await act(async () => { set.call(sel, value); sel.dispatchEvent(new window.Event("change", { bubbles: true })); });
+  await act(async () => { await new Promise((r) => window.setTimeout(r, 0)); });
+};
+
+test("§5 phones: one category drop-down (every category, QR Cash after Gift Cards, View All last) replaces the scrolling tabs", async () => {
+  await atWidth(390, async () => {
+    const m = await mountGiftPlace();
+    try {
+      assert.equal(qr(m.host, "gift-place-tabs"), null, "no scrolling tabs on a phone");
+      const sel = qr(m.host, "gift-place-category-select");
+      assert.ok(sel, "the drop-down");
+      assert.equal(sel.getAttribute("aria-label"), "Gift category");
+      const labels = [...sel.options].map((o) => o.textContent);
+      assert.equal(labels[0], "Branded Goods");
+      assert.equal(labels[labels.indexOf("Gift Cards") + 1], "QR Cash™", "QR Cash sits after Gift Cards, as in the tabs");
+      assert.equal(labels.at(-1), "View All");
+      await pick(sel, "__qrcash");
+      assert.ok(qr(m.host, "qrcash-panel"), "QR Cash opens its amount screen, as the tab does");
+      assert.deepEqual(navigations, [], "choosing navigates nowhere");
+    } finally { await m.unmount(); }
+  });
+});
+
+test("§5 desktop keeps the category tabs; the drop-down is phones only", async () => {
+  await atWidth(1440, async () => {
+    const m = await mountGiftPlace();
+    try {
+      assert.ok(qr(m.host, "gift-place-tabs"));
+      assert.equal(qr(m.host, "gift-place-category-select"), null);
+    } finally { await m.unmount(); }
+  });
+});
+
+test("§5 price: Min $ / Max $ fields at every width, no slider (founder: desktop too); blank means any price", async () => {
+  for (const w of [390, 1440]) {
+    await atWidth(w, async () => {
+      const m = await mountGiftPlace();
+      try {
+        const f = qr(m.host, "price-range-filter");
+        assert.ok(f, `${w}: the price control`);
+        assert.equal(f.dataset.mode, "fields", `${w}: fields, not the slider`);
+        assert.equal(m.host.querySelectorAll('input[type="range"]').length, 0, `${w}: no slider`);
+        assert.equal(qr(m.host, "gm-price-min-field").value, "", `${w}: Min starts blank`);
+        assert.equal(qr(m.host, "gm-price-max-field").value, "", `${w}: Max starts blank`);
+        assert.equal(qr(m.host, "price-range-any"), null, `${w}: nothing to clear while blank`);
+      } finally { await m.unmount(); }
+    });
+  }
+});
+
+test("§5 the Hero icon beside the title: Home's icon — its accessible name and destination, and no words beside it at rest", async () => {
+  const m = await mountGiftPlace();
+  try {
+    const h = qr(m.host, "gift-place-hero-icon");
+    assert.ok(h);
+    assert.equal(h.getAttribute("aria-label"), "Greet-Me Hero");
+    const tip = h.querySelector(".gp-tip");
+    assert.equal(tip.getAttribute("aria-hidden"), "true", "the label is a hover/focus reveal, not extra spoken text");
+    const css = [...m.host.querySelectorAll("style")].map((s) => s.textContent).join("\n");
+    assert.match(css, /\.gp-heroicon \.gp-tip \{[^}]*opacity:0/, "hidden at rest");
+    assert.match(css, /\.gp-heroicon:hover \.gp-tip, \.gp-heroicon:focus-visible \.gp-tip \{ opacity:1; \}/, "revealed on hover and keyboard focus, as on Home");
+    assert.match(css, /\.gp-heroicon \{[^}]*width:32px; height:32px/, "Home's size");
+    await click(h);
+    assert.deepEqual(navigations, ["/dashboard/hero"], "opens the Hero page");
+  } finally { await m.unmount(); }
+});
+
+test("§6 'How it works' sits beside the QR Cash title and opens the approved explanation; no separate-delivery, printing or automatic-payout claim", async () => {
+  const m = await mountGiftPlace({ search: "?tab=qrcash" });
+  try {
+    const title = qr(m.host, "qrcash-panel").querySelector("h2");
+    const link = qr(m.host, "qrcash-howitworks-link");
+    assert.ok(link, "the link");
+    assert.equal(link.parentElement, title.parentElement, "beside the QR Cash title");
+    await click(link);
+    const d = window.document.querySelector('[data-testid="qrcash-howitworks"]');
+    assert.ok(d, "the explanation opens");
+    const t = text(d);
+    for (const s of [
+      "Add a little extra love", "Attach a QR Cash gift to your Greet-Me. Choose a preset amount or enter your own, from $5 to $100.",
+      "Delivered inside their Greet-Me", "Your recipient clicks or scans the gift’s QR code to open the claim page.",
+      "Claim their cash gift", "Our team reviews the claim and sends the payment.",
+    ]) assert.ok(t.includes(s), `approved text: ${s}`);
+    assert.match(t, /They choose a supported payment service \(Zelle, Venmo, Cash App or PayPal\) and provide their payout details\./);
+    assert.doesNotMatch(t, /print|automatic|by email|via email|spend anywhere/i, "no unsupported claims");
+    await click(window.document.querySelector('[data-testid="qrcash-howitworks-close"]'));
+    assert.equal(window.document.querySelector('[data-testid="qrcash-howitworks"]'), null, "closes");
+  } finally { await m.unmount(); }
+});
+
+test("§5 the founder-only catalogue entry is a compact cog on phones, with an accessible label (source: founder-gated as before)", () => {
+  assert.match(MERCH_SRC, /\{founder && isMobile && \(\s*<button type="button" data-testid="manage-catalog-button" aria-label="Manage Catalog"/);
+  assert.match(MERCH_SRC, /\{founder && \(\s*<button\s+type="button"\s+data-testid="manage-catalog-button"/, "desktop keeps Manage Catalog, founder-gated");
+});
