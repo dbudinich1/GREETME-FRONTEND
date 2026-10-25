@@ -46,8 +46,6 @@ test("navigation: the founder's order, labels, paths and gates (walkthrough 2026
     ["Hero", "/dashboard/hero", ""],
     ["Hearts", "/dashboard/rewards", ""],
     ["Founder Central Command", "/dashboard/founder/command", "isFounder(user)"],
-    ["Fundraising", "/dashboard/fundraiser/admin", "isFundraiserUiEnabled() && isFounder(user)"],
-    ["Salespeople", "/dashboard/founder/salespeople", "isFounder(user)"],
   ]);
   assert.match(block, /isPartnerAdmin \? \{ children: \[\{ name: 'Partner Dashboard', path: '\/dashboard\/fundraiser' \}\] \}/, "partner child gate unchanged");
 });
@@ -59,4 +57,21 @@ test("navigation: Home is active only on Home itself, so Gift Place (/dashboard/
   const all = [...src.matchAll(/to=\{item\.path\}/g)];
   assert.equal(all.length, 3, "desktop link, desktop link with submenu, phone menu link");
   assert.equal(tops.length, all.length, "every top-level nav link ends-matches Home");
+});
+
+test("navigation (founder 2026-10-24): no standalone Fundraising or Salespeople link; both stay reachable inside Founder Central Command with their routes", async () => {
+  const { readFileSync } = await import("node:fs");
+  const layout = readFileSync(new URL("../components/DashboardLayout.jsx", import.meta.url), "utf8");
+  const block = layout.slice(layout.indexOf("const navigation = ["), layout.indexOf("\n  ];", layout.indexOf("const navigation = [")));
+  assert.doesNotMatch(block, /name: 'Fundraising'|name: 'Salespeople'|path: '\/dashboard\/fundraiser\/admin'|path: '\/dashboard\/founder\/salespeople'/);
+  assert.match(block, /name: 'Fundraisers', path: '\/fundraisers'/, "the public Fundraisers link stays");
+  const fcc = readFileSync(new URL("../pages/founder/FounderCentralCommand.jsx", import.meta.url), "utf8");
+  const hubs = readFileSync(new URL("../pages/founder/commandCenter/Hubs.jsx", import.meta.url), "utf8");
+  assert.match(fcc, /href="#\/dashboard\/fundraiser\/admin"/, "Central Command links to Fundraising Management");
+  assert.match(fcc, /href="#\/dashboard\/founder\/salespeople"/, "Central Command links to Salespeople");
+  assert.match(hubs, /to: "\/dashboard\/fundraiser\/admin"/);
+  assert.match(hubs, /to: "\/dashboard\/founder\/salespeople"/);
+  const app = readFileSync(new URL("../App.jsx", import.meta.url), "utf8");
+  assert.match(app, /<Route path="fundraiser\/admin"/, "the Fundraising page route is unchanged");
+  assert.match(app, /<Route path="founder\/salespeople"/, "the Salespeople page route is unchanged");
 });

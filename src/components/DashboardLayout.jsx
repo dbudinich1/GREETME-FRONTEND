@@ -201,8 +201,8 @@ export default function DashboardLayout({ children }) {
 
   // Walkthrough revision 2026-10-24 (founder): the main navigation reads Home / Celebrations / Gift Place / For Business /
   // Fundraisers / Plans & Pricing / Hero / Hearts / Founder Central Command. Order and visible labels only: every
-  // path and every gate below is unchanged. The founder-only Fundraising and Salespeople links stay (after Founder
-  // Central Command) until the founder approves the duplicate mapping in Report 138.
+  // path and every gate below is unchanged. The standalone founder Fundraising and Salespeople links were removed
+  // (founder 2026-10-24); both remain inside Founder Central Command. The public Fundraisers link stays.
   const navigation = [
     { name: 'Home', path: '/dashboard', icon: null },
     { name: 'Celebrations', path: '/dashboard/contacts', icon: Users }, // Report 135: the Recipients page, renamed (people and their occasions)
@@ -230,16 +230,10 @@ export default function DashboardLayout({ children }) {
     { name: 'Hero', path: '/dashboard/hero', icon: null }, // was '🥇 Greet-Me™ Hero™'
     { name: 'Hearts', path: '/dashboard/rewards', icon: null }, // was '❤️ Hearts Hub'
     // TEAM 5 (2026-09-29) — Founder Central Command: the consolidated founder-only entry point.
-    // Added, not a replacement — the individual Fundraising/Salespeople entries below (and their
-    // routes) stay exactly as they are; existing deep links and bookmarks keep working. Same
-    // founder gate as every other founder-only entry here.
+    // Founder 2026-10-24: Central Command is the founders' single navigation entry. The standalone Fundraising and
+    // Salespeople links were removed from the navigation; both pages, their routes and permissions are unchanged and
+    // stay reachable inside Founder Central Command (Fundraiser and Sales cards). Same founder gate as before.
     ...(isFounder(user) ? [{ name: 'Founder Central Command', path: '/dashboard/founder/command', icon: null }] : []),
-    // TEAM B — Founder Admin fundraising access stays separate + hidden while the dark gate is false.
-    // TEAM D FE-GATE-1 — same founder gate as above.
-    ...(isFundraiserUiEnabled() && isFounder(user) ? [{ name: 'Fundraising', path: '/dashboard/fundraiser/admin', icon: null }] : []),
-    // TEAM B — SALES S1 founder control center. Same founder gate as the line above, so an
-    // ordinary user never sees the entry; the route and every endpoint behind it are gated too.
-    ...(isFounder(user) ? [{ name: 'Salespeople', path: '/dashboard/founder/salespeople', icon: null }] : []),
   ];
 
   return (

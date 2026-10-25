@@ -353,14 +353,14 @@ test("B3fix: unmount during an in-flight request performs no post-unmount update
 
 // ── surrounding navigation must be untouched ──
 
-test("B3fix: the founder 'Fundraising' entry is unchanged and independent of partner status", async () => {
-  // Founder (plan) who administers NO organization: partner entry hidden, founder entry shown.
+test("founder 2026-10-24: a founder sees Founder Central Command and no standalone Fundraising or Salespeople link; partner status is independent", async () => {
+  // Founder (plan) who administers NO organization: partner entry hidden; Central Command shown.
   await mount({ user: { id: "f1", plan: "founder" }, next: STATUS(200, { organizations: [] }) });
   assert.equal(partnerLinks().length, 0, "founder does not get the partner entry");
-  const f = founderLinks();
-  assert.ok(f.length >= 1, "founder admin entry still rendered");
-  assert.equal(f[0].getAttribute("href"), "/dashboard/fundraiser/admin");
-  assert.ok(f.some((l) => l.textContent.includes("Fundraising")));
+  assert.equal(founderLinks().length, 0, "no standalone Fundraising link (it lives inside Central Command)");
+  assert.equal(document.querySelectorAll('[data-nav="/dashboard/founder/salespeople"]').length, 0, "no standalone Salespeople link");
+  assert.ok(document.querySelectorAll('[data-nav="/dashboard/founder/command"]').length >= 1, "Founder Central Command is shown");
+  assert.ok(publicFundraisersLinks().length >= 1, "the public Fundraisers link stays");
 });
 
 test("B3fix: a non-founder never sees the founder administration entry", async () => {

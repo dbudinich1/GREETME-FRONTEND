@@ -203,12 +203,9 @@ test("B3: the target route and label are exactly the existing ones", async () =>
     !/isFounder\(user\)\s*\?\s*\[\{\s*name:\s*'Greet-Me Fundraise'/.test(src),
     "partner entry must no longer be founder-gated"
   );
-  // Founder administration entry UNCHANGED — still founder-gated, same label and route.
-  assert.match(
-    src,
-    /isFundraiserUiEnabled\(\)\s*&&\s*isFounder\(user\)\s*\?\s*\[\{\s*name:\s*'Fundraising',\s*path:\s*'\/dashboard\/fundraiser\/admin',/,
-    "founder admin entry must remain isFounder-gated at /dashboard/fundraiser/admin"
-  );
+  // Founder 2026-10-24: the standalone founder "Fundraising" nav link was removed; Fundraising Management stays
+  // reachable inside Founder Central Command (founder-gated there and at its route).
+  assert.doesNotMatch(src, /name:\s*'Fundraising',\s*path:\s*'\/dashboard\/fundraiser\/admin'/, "no standalone founder Fundraising link");
 });
 
 test("B3: existing personal navigation entries are unchanged in label and order", async () => {
@@ -235,10 +232,8 @@ test("B3: existing personal navigation entries are unchanged in label and order"
     // above it keeps its exact label and position. Pre-existing gap on Team 5's own branch: this
     // test was not updated alongside the nav addition; still an exact deepEqual.
     "Founder Central Command",
-    "Fundraising",
-    // TEAM B — SALES S1: the founder-gated Salesperson Control Center entry. Appended, so
-    // every personal entry above keeps its exact label and position. Still an exact deepEqual.
-    "Salespeople",
+    // Founder 2026-10-24: the standalone "Fundraising" and "Salespeople" links were removed; both are reached
+    // through Founder Central Command.
   ], "personal navigation entries, order, and the nested child are untouched");
 });
 
