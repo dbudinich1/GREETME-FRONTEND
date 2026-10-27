@@ -522,7 +522,7 @@ export default function DashboardLayout({ children }) {
                     position: 'absolute',
                     right: 0,
                     marginTop: '0.5rem',
-                    width: '12rem',
+                    width: '15rem', // founder 2026-10-27: was 12rem; fits 'Founder Central Command' with its icon
                     background: 'var(--bg-primary)',
                     borderRadius: 'var(--radius-lg)',
                     boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)',

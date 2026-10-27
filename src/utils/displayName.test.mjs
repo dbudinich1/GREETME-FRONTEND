@@ -86,4 +86,5 @@ test("Founder Central Command (founder 2026-10-27): not in the main navigation; 
   assert.match(src, /\.\.\.\(isFounder\(user\) \? \[\{ label: FOUNDER_MENU_ITEM\.label, icon: Users, path: FOUNDER_MENU_ITEM\.path, testid: 'mobilemenu-founder-command' \}\] : \[\]\)/, "phone account area: founder-only");
   const app = readFileSync(new URL("../App.jsx", import.meta.url), "utf8");
   assert.match(app, /founder\/command/, "the Central Command route is unchanged");
+  assert.match(src, /width: '15rem', \/\/ founder 2026-10-27/, "the user-icon menu is wide enough for the founder item and its icon (measured in reports/assets/140_founder_menu)");
 });
