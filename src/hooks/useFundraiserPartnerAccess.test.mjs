@@ -225,8 +225,9 @@ test("B3: existing personal navigation entries are unchanged in label and order"
     "Fundraisers",
     "Partner Dashboard", // nested child of Fundraisers (partner administrators only)
     "Plans & Pricing",
-    "Hero",
-    "Hearts",
+    // Founder 2026-10-27: the historical labels are restored, in the same positions.
+    "🥇 Greet-Me™ Hero™",
+    "❤️ Hearts Hub",
     // TEAM 5 (six-team merge, 2026-09-29): Founder Central Command, the new consolidated
     // founder-only entry point. Appended after the existing fundraiser entry, so every entry
     // above it keeps its exact label and position. Pre-existing gap on Team 5's own branch: this

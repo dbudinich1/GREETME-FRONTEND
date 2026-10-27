@@ -43,8 +43,8 @@ test("navigation: the founder's order, labels, paths and gates (walkthrough 2026
     ["For Business", "/business", ""],
     ["Fundraisers", "/fundraisers", "isFundraiserUiEnabled()"],
     ["Plans & Pricing", "/pricing", ""],
-    ["Hero", "/dashboard/hero", ""],
-    ["Hearts", "/dashboard/rewards", ""],
+    ["🥇 Greet-Me™ Hero™", "/dashboard/hero", ""], // historical label restored, founder 2026-10-27
+    ["❤️ Hearts Hub", "/dashboard/rewards", ""],
     // Founder 2026-10-27: Founder Central Command moved to the account menu (founder-only), see the test below.
   ]);
   assert.match(block, /isPartnerAdmin \? \{ children: \[\{ name: 'Partner Dashboard', path: '\/dashboard\/fundraiser' \}\] \}/, "partner child gate unchanged");

@@ -233,8 +233,8 @@ export default function DashboardLayout({ children }) {
     ...(isFundraiserUiEnabled() ? [{ name: 'Fundraisers', path: '/fundraisers', icon: null,
       ...(isPartnerAdmin ? { children: [{ name: 'Partner Dashboard', path: '/dashboard/fundraiser' }] } : {}) }] : []),
     { name: 'Plans & Pricing', path: '/pricing', icon: null },
-    { name: 'Hero', path: '/dashboard/hero', icon: null }, // was '🥇 Greet-Me™ Hero™'
-    { name: 'Hearts', path: '/dashboard/rewards', icon: null }, // was '❤️ Hearts Hub'
+    { name: '🥇 Greet-Me™ Hero™', path: '/dashboard/hero', icon: null }, // historical label restored (founder 2026-10-27; was 'Hero' in Report 138)
+    { name: '❤️ Hearts Hub', path: '/dashboard/rewards', icon: null }, // historical label restored (founder 2026-10-27; was 'Hearts' in Report 138)
     // Founder 2026-10-27: Founder Central Command moved out of the main navigation into the account menu (the
     // user-icon menu on desktop, the account area of the hamburger menu on phones), founder-only (FOUNDER_MENU_ITEM).
   ];
