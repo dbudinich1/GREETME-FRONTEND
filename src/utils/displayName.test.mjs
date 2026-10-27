@@ -45,7 +45,7 @@ test("navigation: the founder's order, labels, paths and gates (walkthrough 2026
     ["Plans & Pricing", "/pricing", ""],
     ["Hero", "/dashboard/hero", ""],
     ["Hearts", "/dashboard/rewards", ""],
-    ["Founder Central Command", "/dashboard/founder/command", "isFounder(user)"],
+    // Founder 2026-10-27: Founder Central Command moved to the account menu (founder-only), see the test below.
   ]);
   assert.match(block, /isPartnerAdmin \? \{ children: \[\{ name: 'Partner Dashboard', path: '\/dashboard\/fundraiser' \}\] \}/, "partner child gate unchanged");
 });
@@ -74,4 +74,16 @@ test("navigation (founder 2026-10-24): no standalone Fundraising or Salespeople 
   const app = readFileSync(new URL("../App.jsx", import.meta.url), "utf8");
   assert.match(app, /<Route path="fundraiser\/admin"/, "the Fundraising page route is unchanged");
   assert.match(app, /<Route path="founder\/salespeople"/, "the Salespeople page route is unchanged");
+});
+
+test("Founder Central Command (founder 2026-10-27): not in the main navigation; in both account menus behind isFounder(user)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../components/DashboardLayout.jsx", import.meta.url), "utf8");
+  const block = src.slice(src.indexOf("const navigation = ["), src.indexOf("\n  ];", src.indexOf("const navigation = [")));
+  assert.doesNotMatch(block, /name: 'Founder Central Command'|path: '\/dashboard\/founder\/command'/);
+  assert.match(src, /const FOUNDER_MENU_ITEM = Object\.freeze\(\{ label: 'Founder Central Command', path: '\/dashboard\/founder\/command' \}\);/);
+  assert.match(src, /\{isFounder\(user\) \? \(\s*<button\s*data-testid="usermenu-founder-command"/, "desktop user menu: founder-only");
+  assert.match(src, /\.\.\.\(isFounder\(user\) \? \[\{ label: FOUNDER_MENU_ITEM\.label, icon: Users, path: FOUNDER_MENU_ITEM\.path, testid: 'mobilemenu-founder-command' \}\] : \[\]\)/, "phone account area: founder-only");
+  const app = readFileSync(new URL("../App.jsx", import.meta.url), "utf8");
+  assert.match(app, /founder\/command/, "the Central Command route is unchanged");
 });

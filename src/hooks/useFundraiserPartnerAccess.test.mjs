@@ -231,9 +231,8 @@ test("B3: existing personal navigation entries are unchanged in label and order"
     // founder-only entry point. Appended after the existing fundraiser entry, so every entry
     // above it keeps its exact label and position. Pre-existing gap on Team 5's own branch: this
     // test was not updated alongside the nav addition; still an exact deepEqual.
-    "Founder Central Command",
     // Founder 2026-10-24: the standalone "Fundraising" and "Salespeople" links were removed; both are reached
-    // through Founder Central Command.
+    // through Founder Central Command. Founder 2026-10-27: Founder Central Command itself moved to the account menu.
   ], "personal navigation entries, order, and the nested child are untouched");
 });
 

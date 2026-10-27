@@ -353,13 +353,13 @@ test("B3fix: unmount during an in-flight request performs no post-unmount update
 
 // ── surrounding navigation must be untouched ──
 
-test("founder 2026-10-24: a founder sees Founder Central Command and no standalone Fundraising or Salespeople link; partner status is independent", async () => {
+test("founder 2026-10-24/27: a founder's main navigation has no Founder Central Command, Fundraising or Salespeople link (Central Command is in the account menu); partner status is independent", async () => {
   // Founder (plan) who administers NO organization: partner entry hidden; Central Command shown.
   await mount({ user: { id: "f1", plan: "founder" }, next: STATUS(200, { organizations: [] }) });
   assert.equal(partnerLinks().length, 0, "founder does not get the partner entry");
   assert.equal(founderLinks().length, 0, "no standalone Fundraising link (it lives inside Central Command)");
   assert.equal(document.querySelectorAll('[data-nav="/dashboard/founder/salespeople"]').length, 0, "no standalone Salespeople link");
-  assert.ok(document.querySelectorAll('[data-nav="/dashboard/founder/command"]').length >= 1, "Founder Central Command is shown");
+  assert.equal(document.querySelectorAll('[data-nav="/dashboard/founder/command"]').length, 0, "Founder Central Command moved to the account menu (phoneHeaderAccountMenu tests)");
   assert.ok(publicFundraisersLinks().length >= 1, "the public Fundraisers link stays");
 });
 

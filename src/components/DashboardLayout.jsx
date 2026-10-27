@@ -18,6 +18,10 @@ import { useAccountState } from '../hooks/useAccountState';
 import { useFundraiserPartnerAccess } from '../hooks/useFundraiserPartnerAccess'; // TEAM B B3 — server-derived partner-nav visibility
 import { capitalizeFirst } from '../utils/displayName.js';
 
+// Founder 2026-10-27: Founder Central Command is reached from the account menu, not the main navigation. The page
+// itself stays founder-gated (FounderCentralCommand isFounder) and the backend remains the authority.
+const FOUNDER_MENU_ITEM = Object.freeze({ label: 'Founder Central Command', path: '/dashboard/founder/command' });
+
 export default function DashboardLayout({ children }) {
   const { user, logout, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -200,7 +204,7 @@ export default function DashboardLayout({ children }) {
   };
 
   // Walkthrough revision 2026-10-24 (founder): the main navigation reads Home / Celebrations / Gift Place / For Business /
-  // Fundraisers / Plans & Pricing / Hero / Hearts / Founder Central Command. Order and visible labels only: every
+  // Fundraisers / Plans & Pricing / Hero / Hearts (Founder Central Command moved to the account menu, 2026-10-27). Order and visible labels only: every
   // path and every gate below is unchanged. The standalone founder Fundraising and Salespeople links were removed
   // (founder 2026-10-24); both remain inside Founder Central Command. The public Fundraisers link stays.
   const navigation = [
@@ -229,11 +233,8 @@ export default function DashboardLayout({ children }) {
     { name: 'Plans & Pricing', path: '/pricing', icon: null },
     { name: 'Hero', path: '/dashboard/hero', icon: null }, // was '🥇 Greet-Me™ Hero™'
     { name: 'Hearts', path: '/dashboard/rewards', icon: null }, // was '❤️ Hearts Hub'
-    // TEAM 5 (2026-09-29) — Founder Central Command: the consolidated founder-only entry point.
-    // Founder 2026-10-24: Central Command is the founders' single navigation entry. The standalone Fundraising and
-    // Salespeople links were removed from the navigation; both pages, their routes and permissions are unchanged and
-    // stay reachable inside Founder Central Command (Fundraiser and Sales cards). Same founder gate as before.
-    ...(isFounder(user) ? [{ name: 'Founder Central Command', path: '/dashboard/founder/command', icon: null }] : []),
+    // Founder 2026-10-27: Founder Central Command moved out of the main navigation into the account menu (the
+    // user-icon menu on desktop, the account area of the hamburger menu on phones), founder-only (FOUNDER_MENU_ITEM).
   ];
 
   return (
@@ -549,6 +550,18 @@ export default function DashboardLayout({ children }) {
                         whiteSpace: 'nowrap'
                       }}>{user?.email || 'user@example.com'}</p>
                     </div>
+                    {/* Founder 2026-10-27: Founder Central Command, founder-only, first in the account menu. */}
+                    {isFounder(user) ? (
+                      <button
+                        data-testid="usermenu-founder-command"
+                        onClick={() => { setUserMenuOpen(false); navigate(FOUNDER_MENU_ITEM.path); }}
+                        style={{ width: '100%', textAlign: 'left', padding: '0.625rem 0.75rem', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <Users size={16} /><span>{FOUNDER_MENU_ITEM.label}</span>
+                      </button>
+                    ) : null}
                     {/* NAV-02 — Media Library relocated here from the primary nav (same dropdown styling). */}
                     <button
                       onClick={() => { setUserMenuOpen(false); navigate('/dashboard/media'); }}
@@ -783,12 +796,15 @@ export default function DashboardLayout({ children }) {
               {/* Report 136: the header user menu's account actions, for phones (the header has no user icon there) */}
               <div style={{ borderTop: '1px solid var(--border)', marginTop: '0.25rem', paddingTop: '0.5rem' }}>
                 {[
+                  // Founder 2026-10-27: Founder Central Command lives in the phone account area too, founder-only.
+                  ...(isFounder(user) ? [{ label: FOUNDER_MENU_ITEM.label, icon: Users, path: FOUNDER_MENU_ITEM.path, testid: 'mobilemenu-founder-command' }] : []),
                   { label: 'Media Library', icon: ImageIcon, path: '/dashboard/media' },
                   { label: 'My Orders', icon: ShoppingBag, path: '/dashboard/merch/orders' },
                   { label: 'Settings', icon: SettingsIcon, path: '/dashboard/settings' },
                 ].map((item) => (
                   <button
                     key={item.path}
+                    data-testid={item.testid}
                     onClick={() => { setMobileMenuOpen(false); navigate(item.path); }}
                     style={{ width: '100%', textAlign: 'left', justifyContent: 'flex-start', padding: '0.875rem 1rem', marginBottom: '0.25rem', fontSize: '0.9375rem', fontWeight: 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
                   >

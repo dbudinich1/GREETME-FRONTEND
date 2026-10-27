@@ -105,10 +105,10 @@ after(() => { try { rmSync(BUNDLE, { force: true }); } catch { /* ignore */ } })
 const settle = async () => { for (let i = 0; i < 3; i++) await act(async () => { await new Promise((r) => setTimeout(r, 0)); }); };
 const click = async (el) => { await act(async () => { el.dispatchEvent(new window.MouseEvent("click", { bubbles: true })); }); await settle(); };
 
-async function mount(width) {
+async function mount(width, extra = {}) {
   window.innerWidth = width;
   globalThis.__navs = []; globalThis.__logouts = 0;
-  globalThis.__user = { id: "u1", name: "Margaret Lane", email: "margaret@example.com" };
+  globalThis.__user = { id: "u1", name: "Margaret Lane", email: "margaret@example.com", ...extra };
   document.body.innerHTML = "";
   const host = document.createElement("div"); document.body.appendChild(host);
   const root = createRoot(host);
@@ -189,4 +189,46 @@ test("resizing from desktop to phone removes the user icon; back to desktop rest
   window.innerWidth = 1440; await act(async () => { window.dispatchEvent(new Event("resize")); }); await settle();
   assert.ok(userIcon());
   assert.equal(logoSize(), "large"); // walkthrough 2026-10-24 compact header (was "xlarge")
+});
+
+// Founder 2026-10-27: Founder Central Command lives in the account menu (desktop user-icon menu; phone hamburger
+// account area), founder-only, and is no longer in the main navigation.
+const FCC = "Founder Central Command";
+const FCC_PATH = "/dashboard/founder/command";
+
+test("desktop founder: Founder Central Command is in the user-icon menu, not the main navigation, and opens Central Command", async () => {
+  await mount(1440, { plan: "founder" });
+  assert.equal(document.querySelectorAll(`[data-nav="${FCC_PATH}"]`).length, 0, "not in the main navigation");
+  await click(userIcon());
+  const item = header().querySelector('[data-testid="usermenu-founder-command"]');
+  assert.ok(item, "in the user-icon menu");
+  assert.equal(item.textContent.trim(), FCC);
+  await click(item);
+  assert.deepEqual(globalThis.__navs, [FCC_PATH]);
+  assert.equal(header().querySelector('[data-testid="usermenu-founder-command"]'), null, "menu closed");
+});
+
+test("phone founder: Founder Central Command is in the hamburger's account area and opens Central Command", async () => {
+  await mount(390, { plan: "founder" });
+  await click(hamburger());
+  const d = drawer();
+  assert.equal(d.querySelectorAll(`[data-nav="${FCC_PATH}"]`).length, 0, "not among the menu's navigation links");
+  const item = d.querySelector('[data-testid="mobilemenu-founder-command"]');
+  assert.ok(item, "in the account area");
+  assert.ok(buttonIn(d, "Media Library") && item.parentElement === buttonIn(d, "Media Library").parentElement, "beside the other account actions");
+  await click(item);
+  assert.deepEqual(globalThis.__navs, [FCC_PATH]);
+  assert.equal(drawer(), undefined, "menu closed");
+});
+
+test("non-founders never see Founder Central Command, on desktop or phone", async () => {
+  await mount(1440);
+  await click(userIcon());
+  assert.equal(header().querySelector('[data-testid="usermenu-founder-command"]'), null);
+  assert.equal(buttonIn(header(), FCC), undefined);
+  await mount(390);
+  await click(hamburger());
+  assert.equal(drawer().querySelector('[data-testid="mobilemenu-founder-command"]'), null);
+  assert.doesNotMatch(drawer().textContent, /Founder Central Command/);
+  assert.equal(document.querySelectorAll(`[data-nav="${FCC_PATH}"]`).length, 0);
 });
