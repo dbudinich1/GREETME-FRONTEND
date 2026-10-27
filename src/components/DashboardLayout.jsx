@@ -20,7 +20,9 @@ import { capitalizeFirst } from '../utils/displayName.js';
 
 // Founder 2026-10-27: Founder Central Command is reached from the account menu, not the main navigation. The page
 // itself stays founder-gated (FounderCentralCommand isFounder) and the backend remains the authority.
-const FOUNDER_MENU_ITEM = Object.freeze({ label: 'Founder Central Command', path: '/dashboard/founder/command' });
+// Label shortened to 'Central Command' (founder 2026-10-27: "you can use command central or an abbreviation") so it
+// fits the account menu with its icon.
+const FOUNDER_MENU_ITEM = Object.freeze({ label: 'Central Command', path: '/dashboard/founder/command' });
 
 export default function DashboardLayout({ children }) {
   const { user, logout, isAuthenticated, loading: authLoading } = useAuth();
@@ -522,7 +524,7 @@ export default function DashboardLayout({ children }) {
                     position: 'absolute',
                     right: 0,
                     marginTop: '0.5rem',
-                    width: '15rem', // founder 2026-10-27: was 12rem; fits 'Founder Central Command' with its icon
+                    width: '12rem',
                     background: 'var(--bg-primary)',
                     borderRadius: 'var(--radius-lg)',
                     boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)',
@@ -559,7 +561,7 @@ export default function DashboardLayout({ children }) {
                         onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                       >
-                        <Users size={16} /><span>{FOUNDER_MENU_ITEM.label}</span>
+                        <Users size={16} style={{ flexShrink: 0 }} /><span style={{ whiteSpace: 'nowrap' }}>{FOUNDER_MENU_ITEM.label}</span>
                       </button>
                     ) : null}
                     {/* NAV-02 — Media Library relocated here from the primary nav (same dropdown styling). */}

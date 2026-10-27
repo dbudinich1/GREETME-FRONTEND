@@ -193,7 +193,7 @@ test("resizing from desktop to phone removes the user icon; back to desktop rest
 
 // Founder 2026-10-27: Founder Central Command lives in the account menu (desktop user-icon menu; phone hamburger
 // account area), founder-only, and is no longer in the main navigation.
-const FCC = "Founder Central Command";
+const FCC = "Central Command"; // the menu label (shortened, founder 2026-10-27)
 const FCC_PATH = "/dashboard/founder/command";
 
 test("desktop founder: Founder Central Command is in the user-icon menu, not the main navigation, and opens Central Command", async () => {
@@ -229,6 +229,6 @@ test("non-founders never see Founder Central Command, on desktop or phone", asyn
   await mount(390);
   await click(hamburger());
   assert.equal(drawer().querySelector('[data-testid="mobilemenu-founder-command"]'), null);
-  assert.doesNotMatch(drawer().textContent, /Founder Central Command/);
+  assert.doesNotMatch(drawer().textContent, /Central Command/);
   assert.equal(document.querySelectorAll(`[data-nav="${FCC_PATH}"]`).length, 0);
 });
