@@ -16,6 +16,10 @@ export const FRP_CSS = `
 .frp ul { padding:0; list-style:none; }
 .frp img { display:block; }
 .frp button { font-family:inherit; min-height:0; }
+/* Grid children may shrink below their content's width (default min-width:auto let the hero's buttons widen its column past
+   the card at 320px); long button labels wrap instead. */
+.frp [class*="frp-"] { min-width:0; }
+.frp .frp-btn { white-space:normal; text-align:center; max-width:100%; }
 .frp button:focus-visible, .frp-dialog button:focus-visible { outline:2px solid var(--g500); outline-offset:2px; }
 .frp .frp-display { font-family:var(--serif); }
 .frp .frp-script { font-family:var(--script); font-weight:400; }
@@ -249,4 +253,8 @@ export const FRP_CSS = `
   .frp .frp-foot-inner { padding:24px 32px; }
 }
 @media (prefers-reduced-motion: reduce) { .frp *, .frp-dialog * { transition:none !important; } }
+/* Phones: inside the dashboard's padded column a 4:3 photo is short enough that the message card covers the faces and the
+   badge; the reference's own taller 4:5 crop (used from 1024px) keeps them clear. */
+@media (max-width:639px) { .frp .frp-hero-img img { aspect-ratio:4/5; } }
+@media (max-width:359px) { .frp .frp-hero-card { padding:12px; bottom:12px; left:12px; width:calc(100% - 24px); } .frp .frp-hero-card .frp-script { font-size:21px; } }
 `;
