@@ -48,7 +48,7 @@ export default function ForBusiness() {
           boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)'
         }}>
           <h1 style={{
-            fontSize: '2.25rem',
+            fontSize: 'clamp(1.5rem, 7.5vw, 2.25rem)',
             fontWeight: 700,
             marginBottom: '1rem',
             lineHeight: 1.2,

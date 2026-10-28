@@ -832,7 +832,7 @@ export default function DashboardLayout({ children }) {
                   width: '100%',
                   textAlign: 'left',
                   justifyContent: 'flex-start',
-                  padding: '0.75rem 1rem',
+                  padding: '0.75rem 0.5rem',
                   fontSize: '0.875rem',
                   color: 'var(--error)',
                   display: 'flex',

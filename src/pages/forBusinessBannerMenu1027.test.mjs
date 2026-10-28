@@ -49,3 +49,10 @@ test("account menus: every item starts at the left edge (global button rule cent
   assert.equal((phone.match(/size=\{18\} style=\{\{ flexShrink: 0 \}\}/g) || []).length, 2);
   assert.equal((phone.match(/gap: '0\.75rem'/g) || []).length, 2);
 });
+
+test("phones: the top headline scales down (fits a 320px banner) and Logout shares the account list's left inset", () => {
+  assert.match(FB, /<h1 style=\{\{\n\s*fontSize: 'clamp\(1\.5rem, 7\.5vw, 2\.25rem\)',/);
+  const footer = LAYOUT.slice(LAYOUT.indexOf("{/* Menu Footer */}"), LAYOUT.indexOf("<span>Logout</span>", LAYOUT.indexOf("{/* Menu Footer */}")));
+  assert.match(footer, /padding: '1rem',/, "footer inset unchanged");
+  assert.match(footer, /padding: '0\.75rem 0\.5rem',/, "Logout: 1rem footer + 0.5rem = the list's 0.5rem + 1rem");
+});
