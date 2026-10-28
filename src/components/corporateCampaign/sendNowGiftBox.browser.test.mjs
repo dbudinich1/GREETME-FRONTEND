@@ -344,7 +344,7 @@ test("payment UNKNOWN or the check fails: Send stays disabled; a press that come
 
 test("NOT CHARGED (proven): Send (same key) or Start over; Start over begins a fresh send with a NEW key", async () => {
   const store = memStore();
-  const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, error: "funding_incomplete" }) }), [{ ok: true, result: { notFound: true } }]);
+  const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, error: "funding_incomplete" }) }), [payment("not_charged")]);
   const s = await mount(flow(c, { catalogClient: catalog(), storage: store }));
   await toPending(s);
   await click(s.tid("sendnow-check-status"));
@@ -377,8 +377,9 @@ test("replacement card: specific wording with a link to the Support page; the ca
   await toPending(s);
   await click(s.tid("sendnow-check-status"));
   await click(s.tid("sendnow-confirm"));
-  assert.match(s.tid("sendnow-error").textContent, /already tried for this send and won.t be charged again.*shows a charge for it, don.t add a different card: contact support\..*shows no charge, add a different card/);
-  assert.equal(s.tid("sendnow-support-link").getAttribute("href"), "#/support");
+  // The status check PROVED no payment was taken, so the message needs no statement caveat.
+  assert.equal(s.tid("sendnow-error").textContent, "No payment was taken, and this card can’t be tried again for this send. Add a different card below, then press Send now.");
+  assert.ok(s.tid("saved-card-panel"), "the card panel is offered");
   assert.equal(c.calls.send[1][1].idempotencyKey, c.calls.send[0][1].idempotencyKey);
   assert.equal(store.m.size, 1, "still kept");
 });
@@ -391,7 +392,9 @@ test("the price or recipients changed after an uncertain payment: nothing more i
   await click(s.tid("sendnow-check-status"));
   await click(s.tid("sendnow-confirm"));
   assert.match(s.tid("sendnow-error").textContent, /changed since it was confirmed.*Nothing more was charged/);
-  assert.equal(s.tid("sendnow-support-link").getAttribute("href"), "#/support");
+  const link = s.tid("sendnow-support-link");
+  assert.equal(link.getAttribute("href"), "#/support");
+  assert.equal(link.style.textDecoration, "underline", "a link is not told apart by colour alone");
   assert.equal(JSON.parse([...store.m.values()][0]).idempotencyKey, c.calls.send[0][1].idempotencyKey);
 });
 
@@ -403,4 +406,23 @@ test("the two other retry refusals keep the send pending with the warning (never
     assert.equal(s.tid("sendnow-payment-uncertain").textContent, UNCERTAIN, code);
     assert.equal(s.tid("sendnow-error"), null, code);
   }
+});
+
+test("'no such send' is proof of no charge only once the original request must have finished (Team 5 M4)", async () => {
+  const store = memStore();
+  const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, indeterminate: true }) }), [{ ok: true, result: { notFound: true } }]);
+  const s = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await toPending(s);
+  await click(s.tid("sendnow-check-status"));
+  assert.match(s.tid("sendnow-payment-status").textContent, /still processing/);
+  assert.equal(s.tid("sendnow-start-over"), null, "no fresh send while the original may still charge");
+  assert.equal(s.tid("sendnow-confirm").disabled, true);
+  // Eleven minutes later (a refresh reading the same browser storage): now it is proof.
+  const [k, v] = [...store.m.entries()][0];
+  store.m.set(k, JSON.stringify({ ...JSON.parse(v), at: new Date(Date.now() - 11 * 60 * 1000).toISOString() }));
+  const s2 = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await click(s2.tid("sendnow-open"));
+  await click(s2.tid("sendnow-check-status"));
+  assert.match(s2.tid("sendnow-payment-status").textContent, /No payment was taken/);
+  assert.ok(s2.tid("sendnow-start-over"));
 });

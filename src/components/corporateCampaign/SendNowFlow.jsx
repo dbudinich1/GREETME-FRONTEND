@@ -35,11 +35,13 @@ function withSupportLink(text) {
   const t = String(text || "");
   const i = t.indexOf("contact support");
   if (i < 0) return t;
-  return <>{t.slice(0, i)}<a href="#/support" data-testid="sendnow-support-link">contact support</a>{t.slice(i + "contact support".length)}</>;
+  return <>{t.slice(0, i)}<a href="#/support" data-testid="sendnow-support-link" style={{ textDecoration: "underline", fontWeight: 600 }}>contact support</a>{t.slice(i + "contact support".length)}</>;
 }
 function defaultStorage() {
   try { return typeof window !== "undefined" && window.localStorage ? window.localStorage : null; } catch { return null; }
 }
+// After the status check PROVED no payment was taken, the replacement-card refusal needs no statement caveat.
+const PENDING_REPLACE_PROVEN_TEXT = "No payment was taken, and this card can’t be tried again for this send. Add a different card below, then press Send now.";
 const PENDING_CHANGED_TEXT = "This send changed since it was confirmed (its price or its recipients), so it can\u2019t be finished as it stands. Nothing more was charged. If a payment was taken for it, contact support; if not, start over.";
 
 // `catalogClient`: the campaigns client, whose listGiftCatalog is the campaign editor's own organization catalog read.
@@ -197,7 +199,8 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
       const sendId = await oneTimeSendIdFor(orgId, pending.idempotencyKey);
       if (sendId && client && typeof client.status === "function") res = await client.status(orgId, sendId);
     } catch { res = null; }
-    const state = paymentStateFromStatus(res);
+    const sinceMs = Date.now() - Date.parse(pending.at || "");
+    const state = paymentStateFromStatus(res, { sinceMs: Number.isFinite(sinceMs) ? sinceMs : null });
     if (state === "sent") {
       const r = (res && res.result) || {};
       clearPending(store, orgId); setPending(null); setPayState(null); setOpen(true);
@@ -221,7 +224,7 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
       } else if (res && (res.indeterminate || UNRESOLVED_PAYMENT_CODES.includes(res.error))) {
         setPayState(null);                                // unresolved again: Send is disabled until the next check
       } else if (res && res.error === "replacement_card_required") {
-        setOutcome({ kind: "error", text: blockerText(res.error), card: true });
+        setOutcome({ kind: "error", text: payState === "not_charged" ? PENDING_REPLACE_PROVEN_TEXT : blockerText(res.error), card: true });
       } else if (res && (res.error === "quote_changed" || res.error === "review_out_of_date")) {
         setOutcome({ kind: "error", text: PENDING_CHANGED_TEXT });
       } else {

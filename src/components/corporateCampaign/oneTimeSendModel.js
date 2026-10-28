@@ -223,11 +223,18 @@ export async function oneTimeSendIdFor(orgId, idempotencyKey, subtle = (typeof g
   return `campaign_ot_${hex.slice(0, 32)}`;
 }
 
-/** The read-only status answer, as one of: sent | confirmed | not_charged | processing | unknown | check_failed. */
-export function paymentStateFromStatus(res) {
+/**
+ * How long the ORIGINAL request may still be running at the server after the screen lost its answer (Team 5 M4). Until
+ * then "no such send yet" is not proof of no charge: the request may not have written its record yet.
+ */
+export const SEND_IN_FLIGHT_MS = 10 * 60 * 1000;
+
+/** The read-only status answer, as one of: sent | confirmed | not_charged | processing | unknown | check_failed.
+ *  `sinceMs`: how long ago the kept send was made (unknown -> treated as recent). */
+export function paymentStateFromStatus(res, { sinceMs = null } = {}) {
   if (!res || res.ok !== true) return "check_failed";
   const r = res.result || {};
-  if (r.notFound === true) return "not_charged";
+  if (r.notFound === true) return Number.isFinite(sinceMs) && sinceMs >= SEND_IN_FLIGHT_MS ? "not_charged" : "processing";
   if (r.stage === "scheduled") return "sent";
   const state = r.payment && typeof r.payment.state === "string" ? r.payment.state : null;
   if (state === "confirmed" || state === "not_charged" || state === "processing" || state === "unknown") return state;
