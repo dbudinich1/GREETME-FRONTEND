@@ -277,6 +277,7 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
   if (pending) {
     const d = pending.display || {};
     const resolved = RESOLVED_FOR_SEND.includes(payState);
+    const canStartOver = payState === "not_charged" && Date.now() - Date.parse(pending.at || "") >= SEND_IN_FLIGHT_MS;
     return (
       <section className="gcd-panel" data-testid="sendnow-panel" aria-labelledby="gcd-sendnow-head">
         <div className="gcd-panel-head">
@@ -298,7 +299,10 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
             <p role="alert" data-testid="sendnow-payment-uncertain" style={{ color: "#92400e", fontSize: ".88rem", margin: "10px 0" }}>{PAYMENT_UNCERTAIN_TEXT}</p>
           ) : null}
           {payState ? (
-            <p role="status" data-testid="sendnow-payment-status" style={{ fontSize: ".88rem", margin: "10px 0" }}>{PAYMENT_STATUS_TEXT[payState]}</p>
+            <p role="status" data-testid="sendnow-payment-status" style={{ fontSize: ".88rem", margin: "10px 0" }}>
+              {PAYMENT_STATUS_TEXT[payState]}
+              {payState === "not_charged" ? (canStartOver ? " Or start over with a new send." : " Starting over becomes available 10 minutes after your last attempt.") : null}
+            </p>
           ) : null}
           {outcome && outcome.kind === "error" ? <p role="alert" data-testid="sendnow-error" style={{ color: "#b3261e", fontSize: ".88rem" }}>{withSupportLink(outcome.text)}</p> : null}
           {outcome && outcome.card ? <SavedCardPanel orgId={orgId} client={cardClient} stripeOverride={stripeOverride} /> : null}
@@ -306,7 +310,7 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
             <button type="button" className="gcd-btn" data-testid="sendnow-check-status" onClick={checkStatus} disabled={checking || busy}>
               {checking ? "Checking…" : "Check payment status"}
             </button>
-            {payState === "not_charged" && Date.now() - Date.parse(pending.at || "") >= SEND_IN_FLIGHT_MS ? (
+            {canStartOver ? (
               <button type="button" className="gcd-btn" data-testid="sendnow-start-over" onClick={startOver} disabled={busy}>Start over</button>
             ) : null}
             <button type="button" className="gcd-btn gcd-btn--primary" data-testid="sendnow-confirm" disabled={!resolved || busy} onClick={sendPending}>

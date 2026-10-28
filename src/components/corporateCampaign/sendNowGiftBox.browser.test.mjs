@@ -351,12 +351,15 @@ test("NOT CHARGED (proven): Send (same key) or Start over; Start over begins a f
   assert.match(s.tid("sendnow-payment-status").textContent, /No payment was taken/);
   assert.equal(s.tid("sendnow-confirm").disabled, false, "the SAME send may be retried at once");
   assert.equal(s.tid("sendnow-start-over"), null, "a NEW send waits until the last attempt must have finished");
+  assert.match(s.tid("sendnow-payment-status").textContent, /Starting over becomes available 10 minutes after your last attempt\.$/);
   // Eleven minutes after the last attempt (a refresh reading the same storage), Start over appears.
   const [k, v] = [...store.m.entries()][0];
   store.m.set(k, JSON.stringify({ ...JSON.parse(v), at: new Date(Date.now() - 11 * 60 * 1000).toISOString() }));
   const s1 = await mount(flow(c, { catalogClient: catalog(), storage: store }));
   await click(s1.tid("sendnow-open"));
   await click(s1.tid("sendnow-check-status"));
+  assert.match(s1.tid("sendnow-payment-status").textContent, /Or start over with a new send\.$/);
+  assert.doesNotMatch(s1.tid("sendnow-payment-status").textContent, /becomes available/);
   await click(s1.tid("sendnow-start-over"));
   assert.equal(store.m.size, 0);
   assert.ok(s1.tid("sendnow-who"), "back to a fresh send");
