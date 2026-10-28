@@ -48,17 +48,16 @@ export default function ForBusiness() {
           boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)'
         }}>
           <h1 style={{
-            fontSize: 'clamp(1.5rem, 7.5vw, 2.25rem)',
+            fontSize: '2.25rem',
             fontWeight: 700,
             marginBottom: '1rem',
-            lineHeight: 1.2,
-            color: 'white'
+            lineHeight: 1.2
           }}>
-            Celebrate your clients and employees with branded gifts.
+            Create branded gifts to acknowledge your clients and employees.
           </h1>
           <p style={{
             fontSize: '1.125rem',
-            color: 'white',
+            opacity: 0.95,
             lineHeight: 1.6,
             maxWidth: '800px',
             margin: '0 auto 1.5rem'
@@ -68,7 +67,7 @@ export default function ForBusiness() {
           <button
             onClick={() => setShowContactForm(true)}
             style={{
-              padding: '0.875rem clamp(1rem, 5vw, 2rem)',
+              padding: '0.875rem 2rem',
               background: 'white',
               color: '#667eea',
               border: 'none',
@@ -273,7 +272,7 @@ export default function ForBusiness() {
             padding: '2rem',
             borderRadius: 'var(--radius-xl)',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-            border: '1px solid var(--border)',
+            border: '2px solid var(--border)',
             transition: 'all 0.2s',
             cursor: 'pointer'
           }}
@@ -366,7 +365,7 @@ export default function ForBusiness() {
             lineHeight: 1.7,
             margin: 0
           }}>
-            All corporate patronage is automatically Greet-Me™ Hero™ eligible. Turn moments of appreciation into opportunities to give back. Together, we can celebrate your people while supporting the heroes who serve us all.
+            All corporate patronage is automatically Greet-Me™ Hero™ eligible. Hero participation is live; Hero Status and recognition are not live yet.
           </p>
         </div>
       </section>
@@ -443,14 +442,13 @@ export default function ForBusiness() {
             fontSize: '2rem',
             fontWeight: 700,
             marginBottom: '1rem',
-            lineHeight: 1.2,
-            color: 'white'
+            lineHeight: 1.2
           }}>
             Ready to get started?
           </h2>
           <p style={{
             fontSize: '1.125rem',
-            color: 'white',
+            opacity: 0.95,
             marginBottom: '1.5rem',
             lineHeight: 1.6,
             maxWidth: '600px',
@@ -461,7 +459,7 @@ export default function ForBusiness() {
           <button
             onClick={() => setShowContactForm(true)}
             style={{
-              padding: '0.875rem clamp(1rem, 5vw, 2rem)',
+              padding: '0.875rem 2rem',
               background: 'white',
               color: '#667eea',
               border: 'none',
