@@ -33,16 +33,22 @@ const CHECK_BOX = { width: "auto", margin: 0, flexShrink: 0 };
 // Founder 2026-10-28: "contact support" in a message links to the existing Support page.
 function withSupportLink(text) {
   const t = String(text || "");
-  const i = t.indexOf("contact support");
+  const i = t.toLowerCase().indexOf("contact support");
   if (i < 0) return t;
-  return <>{t.slice(0, i)}<a href="#/support" data-testid="sendnow-support-link" style={{ textDecoration: "underline", fontWeight: 600 }}>contact support</a>{t.slice(i + "contact support".length)}</>;
+  const label = t.slice(i, i + "contact support".length);           // keeps the sentence's own capital letter
+  return <>{t.slice(0, i)}<a href="#/support" data-testid="sendnow-support-link" style={{ textDecoration: "underline", fontWeight: 600 }}>{label}</a>{t.slice(i + label.length)}</>;
 }
 function defaultStorage() {
   try { return typeof window !== "undefined" && window.localStorage ? window.localStorage : null; } catch { return null; }
 }
 // After the status check PROVED no payment was taken, the replacement-card refusal needs no statement caveat.
 const PENDING_REPLACE_PROVEN_TEXT = "No payment was taken, and this card can’t be tried again for this send. Add a different card below, then press Send now.";
-const PENDING_CHANGED_TEXT = "This send changed since it was confirmed (its price or its recipients), so it can\u2019t be finished as it stands. Nothing more was charged. If a payment was taken for it, contact support; if not, start over.";
+// Founder 2026-10-28: once the kept send's details changed (price or recipients), ONE message per payment state, Send off.
+const CHANGED_TEXT = Object.freeze({
+  confirmed: "Your payment is confirmed, but this send cannot be completed because its details changed. You won\u2019t be charged again. Contact support.",
+  not_charged: "No payment was taken, but this send cannot be completed because its details changed. Start over to send it again.",
+  other: "This send cannot be completed because its details changed. Nothing more was charged. Contact support.",
+});
 
 // `catalogClient`: the campaigns client, whose listGiftCatalog is the campaign editor's own organization catalog read.
 // `storage`: where an unresolved paid send is kept (defaults to this browser's localStorage); injectable for tests.
@@ -223,7 +229,7 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
 
   // The SAME request and key, only once the payment is resolved: it can reach no other send and no other payment.
   async function sendPending() {
-    if (sendingRef.current || !pending || !RESOLVED_FOR_SEND.includes(payState)) return;
+    if (sendingRef.current || !pending || pending.detailsChanged === true || !RESOLVED_FOR_SEND.includes(payState)) return;
     sendingRef.current = true; setBusy(true); setOutcome(null);
     // Stamp the attempt BEFORE it starts (Team 5 T3): every tab then holds Start over back for the full window.
     const started = { ...pending, at: new Date().toISOString() };
@@ -242,7 +248,10 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
       } else if (res && res.error === "replacement_card_required") {
         setOutcome({ kind: "error", text: payState === "not_charged" ? PENDING_REPLACE_PROVEN_TEXT : blockerText(res.error), card: true });
       } else if (res && (res.error === "quote_changed" || res.error === "review_out_of_date")) {
-        setOutcome({ kind: "error", text: PENDING_CHANGED_TEXT });
+        // The kept send can no longer be finished as it stands: remembered on the kept send, so Send stays off after a
+        // status check, a reopen or a refresh. The key is NOT replaced.
+        const changed = { ...(loadPending(store, orgId) || pending), detailsChanged: true };
+        savePending(store, changed); setPending(changed);
       } else {
         setOutcome({ kind: "error", text: blockerText(res && res.error) });
       }
@@ -278,6 +287,8 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
     const d = pending.display || {};
     const resolved = RESOLVED_FOR_SEND.includes(payState);
     const canStartOver = payState === "not_charged" && Date.now() - Date.parse(pending.at || "") >= SEND_IN_FLIGHT_MS;
+    const changed = pending.detailsChanged === true;
+    const changedText = changed ? (CHANGED_TEXT[payState] || CHANGED_TEXT.other) : null;
     return (
       <section className="gcd-panel" data-testid="sendnow-panel" aria-labelledby="gcd-sendnow-head">
         <div className="gcd-panel-head">
@@ -298,7 +309,12 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
           {!resolved ? (
             <p role="alert" data-testid="sendnow-payment-uncertain" style={{ color: "#92400e", fontSize: ".88rem", margin: "10px 0" }}>{PAYMENT_UNCERTAIN_TEXT}</p>
           ) : null}
-          {payState ? (
+          {changed ? (
+            <p role="alert" data-testid="sendnow-changed" style={{ color: "#b3261e", fontSize: ".88rem", margin: "10px 0" }}>
+              {withSupportLink(changedText)}
+            </p>
+          ) : null}
+          {payState && !changed ? (
             <p role="status" data-testid="sendnow-payment-status" style={{ fontSize: ".88rem", margin: "10px 0" }}>
               {PAYMENT_STATUS_TEXT[payState]}
               {payState === "not_charged" ? (canStartOver ? " Or start over with a new send." : " Starting over becomes available 10 minutes after your last attempt.") : null}
@@ -313,7 +329,7 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
             {canStartOver ? (
               <button type="button" className="gcd-btn" data-testid="sendnow-start-over" onClick={startOver} disabled={busy}>Start over</button>
             ) : null}
-            <button type="button" className="gcd-btn gcd-btn--primary" data-testid="sendnow-confirm" disabled={!resolved || busy} onClick={sendPending}>
+            <button type="button" className="gcd-btn gcd-btn--primary" data-testid="sendnow-confirm" disabled={!resolved || busy || changed} onClick={sendPending}>
               {busy ? "Sending…" : FINAL_BUTTON_LABEL}
             </button>
           </div>

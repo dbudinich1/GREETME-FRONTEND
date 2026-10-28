@@ -394,20 +394,43 @@ test("replacement card: specific wording with a link to the Support page; the ca
   assert.equal(store.m.size, 1, "still kept");
 });
 
-test("the price or recipients changed after an uncertain payment: nothing more is charged, the key is NOT replaced, support is linked", async () => {
+test("payment confirmed but the details changed: ONE message, Send disabled (also after a status check and a refresh), key kept", async () => {
   const store = memStore();
   const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: (b, n) => (n === 1 ? { ok: false, error: "funding_incomplete" } : { ok: false, error: "quote_changed" }) }), [payment("confirmed")]);
   const s = await mount(flow(c, { catalogClient: catalog(), storage: store }));
   await toPending(s);
   await click(s.tid("sendnow-check-status"));
   await click(s.tid("sendnow-confirm"));
-  assert.match(s.tid("sendnow-error").textContent, /changed since it was confirmed.*Nothing more was charged/);
+  const MSG = "Your payment is confirmed, but this send cannot be completed because its details changed. You won’t be charged again. Contact support.";
+  assert.equal(s.tid("sendnow-changed").textContent, MSG);
+  assert.equal(s.tid("sendnow-payment-status"), null, "no conflicting 'press Send now' line");
+  assert.equal(s.tid("sendnow-error"), null);
+  assert.equal(s.tid("sendnow-confirm").disabled, true);
   const link = s.tid("sendnow-support-link");
   assert.equal(link.getAttribute("href"), "#/support");
-  assert.equal(link.style.textDecoration, "underline", "a link is not told apart by colour alone");
+  assert.equal(link.textContent, "Contact support");
+  assert.equal(link.style.textDecoration, "underline");
+  await click(s.tid("sendnow-check-status"));
+  assert.equal(s.tid("sendnow-confirm").disabled, true, "still disabled after a status check");
+  assert.equal(s.tid("sendnow-changed").textContent, MSG);
+  const s2 = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await click(s2.tid("sendnow-open")); await click(s2.tid("sendnow-check-status"));
+  assert.equal(s2.tid("sendnow-confirm").disabled, true, "still disabled after a refresh");
+  assert.equal(c.calls.send.length, 2);
   assert.equal(JSON.parse([...store.m.values()][0]).idempotencyKey, c.calls.send[0][1].idempotencyKey);
 });
 
+test("no payment taken but the details changed: one message pointing to Start over, Send disabled", async () => {
+  const store = memStore();
+  const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: (b, n) => (n === 1 ? { ok: false, error: "funding_incomplete" } : { ok: false, error: "review_out_of_date" }) }), [payment("not_charged")]);
+  const s = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await toPending(s);
+  await click(s.tid("sendnow-check-status"));
+  await click(s.tid("sendnow-confirm"));
+  assert.equal(s.tid("sendnow-changed").textContent, "No payment was taken, but this send cannot be completed because its details changed. Start over to send it again.");
+  assert.equal(s.tid("sendnow-payment-status"), null);
+  assert.equal(s.tid("sendnow-confirm").disabled, true);
+});
 test("the two other retry refusals keep the send pending with the warning (never a generic error)", async () => {
   for (const code of ["prior_attempt_may_still_complete", "prior_attempt_state_unknown"]) {
     const c = fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, error: code }) });
