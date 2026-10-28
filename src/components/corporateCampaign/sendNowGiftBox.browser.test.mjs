@@ -349,13 +349,20 @@ test("NOT CHARGED (proven): Send (same key) or Start over; Start over begins a f
   await toPending(s);
   await click(s.tid("sendnow-check-status"));
   assert.match(s.tid("sendnow-payment-status").textContent, /No payment was taken/);
-  assert.equal(s.tid("sendnow-confirm").disabled, false);
-  await click(s.tid("sendnow-start-over"));
+  assert.equal(s.tid("sendnow-confirm").disabled, false, "the SAME send may be retried at once");
+  assert.equal(s.tid("sendnow-start-over"), null, "a NEW send waits until the last attempt must have finished");
+  // Eleven minutes after the last attempt (a refresh reading the same storage), Start over appears.
+  const [k, v] = [...store.m.entries()][0];
+  store.m.set(k, JSON.stringify({ ...JSON.parse(v), at: new Date(Date.now() - 11 * 60 * 1000).toISOString() }));
+  const s1 = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await click(s1.tid("sendnow-open"));
+  await click(s1.tid("sendnow-check-status"));
+  await click(s1.tid("sendnow-start-over"));
   assert.equal(store.m.size, 0);
-  assert.ok(s.tid("sendnow-who"), "back to a fresh send");
-  await click(s.tid("sendnow-next-1")); await pickBox(s, "gb-1"); await review(s);
+  assert.ok(s1.tid("sendnow-who"), "back to a fresh send");
+  await click(s1.tid("sendnow-next-1")); await pickBox(s1, "gb-1"); await review(s1);
   c.send = async (org, body) => { c.calls.send.push([org, body]); return { ok: true, result: { sendId: "s9", recipientCount: 2, chargedTotalCents: 12346 } }; };
-  await click(s.tid("sendnow-confirm"));
+  await click(s1.tid("sendnow-confirm"));
   assert.notEqual(c.calls.send.at(-1)[1].idempotencyKey, c.calls.send[0][1].idempotencyKey);
 });
 
@@ -425,4 +432,44 @@ test("'no such send' is proof of no charge only once the original request must h
   await click(s2.tid("sendnow-check-status"));
   assert.match(s2.tid("sendnow-payment-status").textContent, /No payment was taken/);
   assert.ok(s2.tid("sendnow-start-over"));
+});
+
+test("M5: a pending Send that comes back unresolved restarts the in-flight window from THIS attempt", async () => {
+  const store = memStore();
+  const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: (b, n) => (n === 1 ? { ok: false, error: "funding_incomplete" } : { ok: false, indeterminate: true }) }), [payment("not_charged")]);
+  const s = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await toPending(s);
+  const [k, v] = [...store.m.entries()][0];
+  store.m.set(k, JSON.stringify({ ...JSON.parse(v), at: new Date(Date.now() - 60 * 60 * 1000).toISOString() }));
+  const s2 = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await click(s2.tid("sendnow-open"));
+  await click(s2.tid("sendnow-check-status"));
+  assert.ok(s2.tid("sendnow-start-over"), "an hour after the first attempt");
+  await click(s2.tid("sendnow-confirm"));                  // attempt 2: its answer is lost
+  assert.ok(Date.now() - Date.parse(JSON.parse(store.m.get(k)).at) < 60 * 1000, "the kept time restarts");
+  await click(s2.tid("sendnow-check-status"));
+  assert.equal(s2.tid("sendnow-start-over"), null, "no fresh send while attempt 2 may still be running");
+});
+
+test("second tab: a tab opened BEFORE the uncertain payment cannot start a new send, and follows the kept send via the storage event", async () => {
+  const store = memStore();
+  const cA = fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, indeterminate: true }) });
+  const cB = fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })] });
+  const tabB = await mount(flow(cB, { catalogClient: catalog(), storage: store }));
+  await toWhat(tabB); await pickBox(tabB, "gb-1"); await review(tabB);      // tab B sits on its own review
+  const tabA = await mount(flow(cA, { catalogClient: catalog(), storage: store }));
+  await toPending(tabA);                                                    // tab A: uncertain payment, kept
+  await click(tabB.tid("sendnow-confirm"));
+  assert.equal(cB.calls.send.length, 0, "tab B sends nothing");
+  assert.ok(tabB.tid("sendnow-pending"), "tab B now shows the kept send");
+  // A third tab already open on the closed panel follows the storage event.
+  const tabC = await mount(flow(fakeClient(), { storage: memStore() }));
+  const shared = memStore();
+  const tabD = await mount(flow(fakeClient(), { storage: shared }));
+  assert.equal(tabD.tid("sendnow-pending-note"), null);
+  shared.setItem(...[...store.m.entries()][0]);
+  await act(async () => { dom.window.dispatchEvent(new dom.window.StorageEvent("storage", { key: [...store.m.keys()][0] })); });
+  await flush();
+  assert.ok(tabD.tid("sendnow-pending-note"), "tab D follows the kept send");
+  assert.equal(tabC.tid("sendnow-pending-note"), null, "a different storage is unaffected");
 });

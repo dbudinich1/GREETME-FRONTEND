@@ -20,7 +20,7 @@ import {
   buildPreviewRequest, buildSendRequest, newIdempotencyKey, planLine, blockerText, notReadyText, giftPayload, totalLine, canConfirm,
   FINAL_BUTTON_LABEL, FINAL_NOTE, TOP_UP_HREF, UPGRADE_HREF, money, OCCASIONS, isOccasion, linkHref, perRecipientCosts,
   PAYMENT_UNCERTAIN_TEXT, UNRESOLVED_PAYMENT_CODES, buildPendingRecord, loadPending, savePending, clearPending,
-  oneTimeSendIdFor, paymentStateFromStatus, RESOLVED_FOR_SEND, PAYMENT_STATUS_TEXT,
+  oneTimeSendIdFor, paymentStateFromStatus, RESOLVED_FOR_SEND, PAYMENT_STATUS_TEXT, pendingKeyFor, SEND_IN_FLIGHT_MS,
 } from "./oneTimeSendModel.js";
 import "./premiumDashboard.css";
 
@@ -55,6 +55,13 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
   const [payState, setPayState] = useState(null);
   const [checking, setChecking] = useState(false);
   useEffect(() => { setPending(loadPending(store, orgId)); setPayState(null); }, [store, orgId]);
+  // Another tab of this browser kept (or cleared) a send for this organisation: follow it at once (Team 5, 2026-10-28).
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.addEventListener !== "function") return undefined;
+    const onStorage = (e) => { if (!e || e.key === null || e.key === pendingKeyFor(orgId)) { setPending(loadPending(store, orgId)); setPayState(null); } };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [store, orgId]);
   const [step, setStep] = useState(1);
   const [who, setWho] = useState("category");
   const [category, setCategory] = useState("client");
@@ -135,6 +142,9 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
 
   async function confirm() {
     if (sendingRef.current) return;                    // same-tick double press
+    // A send kept unresolved (in this tab or another) blocks every NEW send for this organisation until it is resolved.
+    const kept = loadPending(store, orgId);
+    if (kept) { setPending(kept); setPayState(null); setOutcome(null); return; }
     const preview = review.preview;
     if (!canConfirm(preview, { busy })) return;
     sendingRef.current = true; setBusy(true); setOutcome(null);
@@ -222,7 +232,10 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
         setOutcome({ kind: "sent", result: res.result, replay: res.replay });
         if (onSent) onSent(res.result);
       } else if (res && (res.indeterminate || UNRESOLVED_PAYMENT_CODES.includes(res.error))) {
-        setPayState(null);                                // unresolved again: Send is disabled until the next check
+        // Unresolved again: Send is disabled until the next check, and the in-flight window restarts from THIS attempt.
+        const again = { ...pending, at: new Date().toISOString() };
+        savePending(store, again); setPending(again);
+        setPayState(null);
       } else if (res && res.error === "replacement_card_required") {
         setOutcome({ kind: "error", text: payState === "not_charged" ? PENDING_REPLACE_PROVEN_TEXT : blockerText(res.error), card: true });
       } else if (res && (res.error === "quote_changed" || res.error === "review_out_of_date")) {
@@ -235,7 +248,7 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
 
   // Only once the payment is PROVEN not taken: the kept send is dropped and a fresh one (a new key) may start.
   function startOver() {
-    if (payState !== "not_charged") return;
+    if (payState !== "not_charged" || !(Date.now() - Date.parse(pending.at || "") >= SEND_IN_FLIGHT_MS)) return;
     clearPending(store, orgId); setPending(null); setPayState(null); setOutcome(null);
     setStep(1); setReview({ state: "idle", preview: null, error: null }); keyRef.current = null;
   }
@@ -288,7 +301,7 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
             <button type="button" className="gcd-btn" data-testid="sendnow-check-status" onClick={checkStatus} disabled={checking || busy}>
               {checking ? "Checking…" : "Check payment status"}
             </button>
-            {payState === "not_charged" ? (
+            {payState === "not_charged" && Date.now() - Date.parse(pending.at || "") >= SEND_IN_FLIGHT_MS ? (
               <button type="button" className="gcd-btn" data-testid="sendnow-start-over" onClick={startOver} disabled={busy}>Start over</button>
             ) : null}
             <button type="button" className="gcd-btn gcd-btn--primary" data-testid="sendnow-confirm" disabled={!resolved || busy} onClick={sendPending}>

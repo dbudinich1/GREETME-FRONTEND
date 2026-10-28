@@ -247,7 +247,7 @@ export const RESOLVED_FOR_SEND = Object.freeze(["confirmed", "not_charged"]);
 export const PAYMENT_STATUS_TEXT = Object.freeze({
   sent: "This send went through.",
   confirmed: "Your payment is confirmed. Press Send now to finish sending this Greet-Me; you won\u2019t be charged again.",
-  not_charged: "No payment was taken for this send. You can send it again (you may be asked for a different card), or start over.",
+  not_charged: "No payment was taken for this send. You can send it again (you may be asked for a different card). Starting over becomes available 10 minutes after your last attempt.",
   processing: "Your bank is still processing this payment. Don\u2019t submit another payment yet.",
   unknown: "We can\u2019t confirm this payment yet. Don\u2019t submit another payment yet.",
   check_failed: "We couldn\u2019t check the payment right now. Try again in a moment.",
