@@ -173,12 +173,13 @@ test("price changed at send: nothing charged, plain message, a fresh review and 
   assert.equal(c.calls.send[1][1].expectedTotalCents, 12500);
 });
 
-test("a lost response is 'unsure'; pressing again reuses the SAME key, so the box cannot be ordered or charged twice", async () => {
+test("a lost response on a paid gift: 'we're confirming your payment', no invitation to pay again; any later press reuses the SAME key", async () => {
   const c = fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: (b, n) => (n === 1 ? { ok: false, indeterminate: true } : { ok: true, replay: true, result: { sendId: "s1", recipientCount: 2, chargedTotalCents: 12346 } }) });
   const s = await mount(flow(c, { catalogClient: catalog() }));
   await toWhat(s); await pickBox(s, "gb-1"); await review(s);
   await click(s.tid("sendnow-confirm"));
-  assert.ok(s.tid("sendnow-unsure"));
+  assert.equal(s.tid("sendnow-payment-uncertain").textContent, "We’re confirming your payment. Don’t submit another payment yet.");
+  assert.equal(s.tid("sendnow-unsure"), null, "the 'press the button again' line is not shown for a paid send");
   await click(s.tid("sendnow-confirm"));
   assert.equal(c.calls.send[0][1].idempotencyKey, c.calls.send[1][1].idempotencyKey);
   assert.match(s.tid("sendnow-sent").textContent, /nothing was sent twice/);
@@ -219,4 +220,56 @@ test("the dashboard hands Send now the campaigns client for the catalog", async 
   const { readFileSync } = await import("node:fs");
   const src = readFileSync(join(__dirname, "GreetingAutomationCampaigns.jsx"), "utf8");
   assert.match(src, /<SendNowFlow\s+orgId=\{effectiveOrgId\} contacts=\{managedContacts \|\| contacts\} client=\{oneTimeClient\} catalogClient=\{client\}/);
+});
+
+test("an incomplete or unrecorded charge says the payment is being confirmed, never 'nothing was sent' or 'try again', and keeps the key", async () => {
+  for (const code of ["funding_incomplete", "funding_storage_failed"]) {
+    const c = fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, error: code }) });
+    const s = await mount(flow(c, { catalogClient: catalog() }));
+    await toWhat(s); await pickBox(s, "gb-1"); await review(s);
+    await click(s.tid("sendnow-confirm"));
+    const text = s.tid("sendnow-payment-uncertain").textContent;
+    assert.equal(text, "We’re confirming your payment. Don’t submit another payment yet.", code);
+    assert.doesNotMatch(s.tid("sendnow-review").textContent, /Nothing was sent|try again|press the button again/i, code);
+    await click(s.tid("sendnow-confirm"));
+    assert.equal(c.calls.send[0][1].idempotencyKey, c.calls.send[1][1].idempotencyKey, `${code}: the same review keeps its key`);
+  }
+});
+
+test("the three refusals of a second payment attempt each say what is true", async () => {
+  const cases = [
+    ["replacement_card_required", /already tried for this send and won.t be charged again.*shows a charge.*don.t add a different card.*contact support.*shows no charge, add a different card/],
+    ["prior_attempt_may_still_complete", /bank is still processing the earlier payment.*Don.t submit another payment yet\./],
+    ["prior_attempt_state_unknown", /can.t yet confirm whether the earlier payment.*went through\. Don.t submit another payment yet\./],
+  ];
+  for (const [code, re] of cases) {
+    const c = fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, error: code }) });
+    const s = await mount(flow(c, { catalogClient: catalog() }));
+    await toWhat(s); await pickBox(s, "gb-1"); await review(s);
+    await click(s.tid("sendnow-confirm"));
+    assert.match(s.tid("sendnow-error").textContent, re, code);
+  }
+});
+
+test("checkboxes sit beside their labels in a 44px row (the global input width rule is overridden)", async () => {
+  const blocked = [{ contactId: "c2", name: "Marcus Hall", reason: "missing_recipient_address", field: "address", message: "no mailing address" }];
+  const c = fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT({ totalCents: 6173, perRecipient: { c1: { totalCents: 6173 } } }), recipients: { selector: { category: "client" }, count: 1, selected: 2, list: [{ contactId: "c1", name: "Dana Lee" }], blocked } })] });
+  const s = await mount(flow(c, { catalogClient: catalog() }));
+  const check = (el) => {
+    assert.equal(el.style.width, "auto");
+    assert.equal(el.parentElement.style.display, "flex");
+    assert.equal(el.parentElement.style.minHeight, "44px");
+  };
+  await toWhat(s); await pickBox(s, "gb-2", ["Small"]);
+  s.qa('[data-testid="sendnow-giftbox-variants"] input').forEach(check);
+  check(s.tid("sendnow-exclude-spread"));
+  await review(s);
+  check(s.tid("sendnow-skip-notready"));
+});
+
+test("source: every Send now checkbox uses the shared row and box styles", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(join(__dirname, "SendNowFlow.jsx"), "utf8");
+  assert.equal((src.match(/<input type="checkbox"/g) || []).length, 3);
+  assert.equal((src.match(/<input type="checkbox" style=\{CHECK_BOX\}/g) || []).length, 3);
 });

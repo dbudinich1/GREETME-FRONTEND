@@ -94,7 +94,14 @@ const BLOCKER_TEXT = Object.freeze({
   send_in_progress: "Your earlier press is still being processed. Press again in a moment: it will not send twice.",
   funding_declined: "Your card was declined. Nothing was sent.",
   funding_authentication_required: "Your bank needs to confirm this card. Nothing was sent.",
-  funding_incomplete: "The payment didn\u2019t complete. Nothing was sent.",
+  // Founder 2026-10-28: an incomplete or unrecorded charge may still have gone through, so the reader is told it is being
+  // confirmed and is NOT invited to pay again (PAYMENT_UNCERTAIN_TEXT).
+  funding_incomplete: "We\u2019re confirming your payment. Don\u2019t submit another payment yet.",
+  funding_storage_failed: "We\u2019re confirming your payment. Don\u2019t submit another payment yet.",
+  // The three refusals of a second payment attempt (corporateFundingEntry RETRY_REFUSAL), each saying what is true.
+  replacement_card_required: "This card was already tried for this send and won\u2019t be charged again. If your card statement shows a charge for it, don\u2019t add a different card: contact support. If it shows no charge, add a different card, then review again.",
+  prior_attempt_may_still_complete: "Your bank is still processing the earlier payment for this send. Don\u2019t submit another payment yet.",
+  prior_attempt_state_unknown: "We can\u2019t yet confirm whether the earlier payment for this send went through. Don\u2019t submit another payment yet.",
   occasion_required: "Choose the occasion first.",
   invalid_occasion_type: "Choose one of the listed occasions.",
   contact_not_found: "That person is no longer in your contacts.",
@@ -113,6 +120,11 @@ const BLOCKER_TEXT = Object.freeze({
   recipient_address_invalid: "Someone’s mailing address is incomplete. Update it, then review again.",
   no_eligible_recipients: "Nobody selected has a mailing address for a gift box.",
 });
+/** Founder 2026-10-28 wording for a paid send whose payment outcome is not yet known. */
+export const PAYMENT_UNCERTAIN_TEXT = "We\u2019re confirming your payment. Don\u2019t submit another payment yet.";
+/** Server codes after which a charge may have happened: shown as PAYMENT_UNCERTAIN_TEXT, with the review's key kept. */
+export const PAYMENT_UNCERTAIN_CODES = Object.freeze(["funding_incomplete", "funding_storage_failed"]);
+
 export function blockerText(code) {
   return BLOCKER_TEXT[code] || "This can’t be sent yet. Please check the details and try again.";
 }

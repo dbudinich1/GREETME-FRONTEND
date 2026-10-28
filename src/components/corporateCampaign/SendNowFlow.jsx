@@ -19,10 +19,15 @@ import SavedCardPanel from "./SavedCardPanel.jsx";
 import {
   buildPreviewRequest, buildSendRequest, newIdempotencyKey, planLine, blockerText, notReadyText, giftPayload, totalLine, canConfirm,
   FINAL_BUTTON_LABEL, FINAL_NOTE, TOP_UP_HREF, UPGRADE_HREF, money, OCCASIONS, isOccasion, linkHref, perRecipientCosts,
+  PAYMENT_UNCERTAIN_TEXT, PAYMENT_UNCERTAIN_CODES,
 } from "./oneTimeSendModel.js";
 import "./premiumDashboard.css";
 
 const SHOWN_NAMES = 8;
+// The global `input { width: 100% }` rule (index.css) stretches a checkbox across the row; these keep the box beside its
+// label with a 44px tap row.
+const CHECK_ROW = { display: "flex", alignItems: "center", gap: 8, minHeight: 44 };
+const CHECK_BOX = { width: "auto", margin: 0, flexShrink: 0 };
 
 // `catalogClient`: the campaigns client, whose listGiftCatalog is the campaign editor's own organization catalog read.
 export default function SendNowFlow({ orgId, contacts, client, catalogClient, cardClient, stripeOverride, onSent }) {
@@ -117,7 +122,11 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
         setOutcome({ kind: "sent", result: res.result, replay: res.replay });
         if (onSent) onSent(res.result);
       } else if (res && res.indeterminate) {
-        setOutcome({ kind: "unsure" });
+        // A paid send whose answer was lost may have charged the card: say it is being confirmed, never "press again".
+        setOutcome(preview.gift && preview.gift.requiresPayment ? { kind: "payment-uncertain" } : { kind: "unsure" });
+      } else if (res && PAYMENT_UNCERTAIN_CODES.includes(res.error)) {
+        // The key is kept, so any later press with this review can only converge on the same payment.
+        setOutcome({ kind: "payment-uncertain" });
       } else if (res && res.dormant) {
         setOutcome({ kind: "error", text: blockerText("corporate_campaign_execution_disabled") });
       } else if (res && res.error === "recipients_not_ready") {
@@ -260,10 +269,10 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
                   <fieldset data-testid="sendnow-giftbox-variants" style={{ border: 0, padding: 0, margin: "8px 0 0" }}>
                     <legend style={{ color: "#605c78", padding: 0 }}>Options published for this gift box</legend>
                     {variantChoices.map((name) => (
-                      <label key={name} style={{ display: "block", margin: "4px 0" }}>
-                        <input type="checkbox" value={name} checked={variants.includes(name)}
+                      <label key={name} style={CHECK_ROW}>
+                        <input type="checkbox" style={CHECK_BOX} value={name} checked={variants.includes(name)}
                           onChange={() => setVariants(toggleVariantSelection(variants, name, variantChoices))} />
-                        {" "}{name}
+                        {name}
                       </label>
                     ))}
                   </fieldset>
@@ -285,8 +294,8 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
                 </span>
               </label>
             ) : null}
-            <label style={{ display: "block", fontSize: ".88rem", marginTop: 12 }}>
-              <input type="checkbox" data-testid="sendnow-exclude-spread" checked={excludeSpread} onChange={(e) => setExcludeSpread(e.target.checked)} /> Exclude Featured Spread
+            <label style={{ ...CHECK_ROW, fontSize: ".88rem", marginTop: 12 }}>
+              <input type="checkbox" style={CHECK_BOX} data-testid="sendnow-exclude-spread" checked={excludeSpread} onChange={(e) => setExcludeSpread(e.target.checked)} /> Exclude Featured Spread
             </label>
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button type="button" className="gcd-btn" data-testid="sendnow-back-2" onClick={() => setStep(1)}>Back</button>
@@ -339,8 +348,8 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
                       {pv.recipients.blocked.length} {pv.recipients.blocked.length === 1 ? "person can’t" : "people can’t"} be included:{" "}
                       {pv.recipients.blocked.slice(0, SHOWN_NAMES).map((b) => `${b.name || "Unnamed"} (${notReadyText(b)})`).join(", ")}
                     </p>
-                    <label>
-                      <input type="checkbox" data-testid="sendnow-skip-notready" checked={skipNotReady} onChange={(e) => setSkipNotReady(e.target.checked)} /> Send to the ready ones only
+                    <label style={CHECK_ROW}>
+                      <input type="checkbox" style={CHECK_BOX} data-testid="sendnow-skip-notready" checked={skipNotReady} onChange={(e) => setSkipNotReady(e.target.checked)} /> Send to the ready ones only
                     </label>
                   </div>
                 ) : null}
@@ -399,6 +408,9 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
                   ? ` (${outcome.details.blocked.slice(0, SHOWN_NAMES).map((b) => `${b.name || "Unnamed"}: ${notReadyText(b)}`).join(", ")})` : ""}.
                 Tick “Send to the ready ones only” to send to everyone else.
               </p>
+            ) : null}
+            {outcome && outcome.kind === "payment-uncertain" ? (
+              <p role="alert" data-testid="sendnow-payment-uncertain" style={{ color: "#92400e", fontSize: ".88rem" }}>{PAYMENT_UNCERTAIN_TEXT}</p>
             ) : null}
             {outcome && outcome.kind === "unsure" ? (
               <p role="alert" data-testid="sendnow-unsure" style={{ color: "#92400e", fontSize: ".88rem" }}>
