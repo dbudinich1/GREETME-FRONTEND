@@ -895,7 +895,7 @@ export default function GreetingAutomationCampaigns({
         {/* SURFACE 8 - "Send a Greet-Me now": one time, unscheduled, OWNER ONLY, on this dashboard only. */}
         {isOwner && oneTimeClient ? (
           <SendNowFlow
-            orgId={effectiveOrgId} contacts={managedContacts || contacts} client={oneTimeClient} catalogClient={client}
+            orgId={effectiveOrgId} contacts={managedContacts || contacts} client={oneTimeClient}
             cardClient={cardClient} stripeOverride={stripeOverride}
           />
         ) : null}

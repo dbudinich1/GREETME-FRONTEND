@@ -95,9 +95,6 @@ export function createOneTimeSendClient({
     if (!orgId || !sendId) return { ok: false, status: 400, error: "missing_id" };
     const r = await request("GET", url(orgId, `/${encodeURIComponent(sendId)}`));
     if (r.transport) return { ok: false, networkError: true, status: 0 };
-    // Founder 2026-10-28: the send's record is the pipeline's FIRST write, before any charge, so "no such send" for this
-    // key means nothing was charged. Kept distinct from a missing route (also a 404).
-    if (r.res.status === 404 && r.data && r.data.error === "send_not_found") return { ok: true, status: 404, result: { notFound: true } };
     if (!r.res.ok) return refusal(r.res, r.data);
     return { ok: true, status: r.res.status, result: r.data || {} };
   }
