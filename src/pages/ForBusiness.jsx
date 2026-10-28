@@ -68,7 +68,7 @@ export default function ForBusiness() {
           <button
             onClick={() => setShowContactForm(true)}
             style={{
-              padding: '0.875rem 2rem',
+              padding: '0.875rem clamp(1rem, 5vw, 2rem)',
               background: 'white',
               color: '#667eea',
               border: 'none',
@@ -461,7 +461,7 @@ export default function ForBusiness() {
           <button
             onClick={() => setShowContactForm(true)}
             style={{
-              padding: '0.875rem 2rem',
+              padding: '0.875rem clamp(1rem, 5vw, 2rem)',
               background: 'white',
               color: '#667eea',
               border: 'none',

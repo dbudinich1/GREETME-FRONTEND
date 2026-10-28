@@ -56,3 +56,9 @@ test("phones: the top headline scales down (fits a 320px banner) and Logout shar
   assert.match(footer, /padding: '1rem',/, "footer inset unchanged");
   assert.match(footer, /padding: '0\.75rem 0\.5rem',/, "Logout: 1rem footer + 0.5rem = the list's 0.5rem + 1rem");
 });
+
+test("phones: both Contact Sales buttons narrow their side padding so they stay centred in a 320px banner; destination unchanged", () => {
+  const buttons = FB.split("onClick={() => setShowContactForm(true)}").slice(1);
+  assert.equal(buttons.length, 2);
+  for (const b of buttons) assert.match(b, /^\n\s*style=\{\{\n\s*padding: '0\.875rem clamp\(1rem, 5vw, 2rem\)',/);
+});
