@@ -225,6 +225,9 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
   async function sendPending() {
     if (sendingRef.current || !pending || !RESOLVED_FOR_SEND.includes(payState)) return;
     sendingRef.current = true; setBusy(true); setOutcome(null);
+    // Stamp the attempt BEFORE it starts (Team 5 T3): every tab then holds Start over back for the full window.
+    const started = { ...pending, at: new Date().toISOString() };
+    savePending(store, started); setPending(started);
     try {
       const res = await client.send(orgId, pending.sendBody);
       if (res && res.ok) {
@@ -248,7 +251,9 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
 
   // Only once the payment is PROVEN not taken: the kept send is dropped and a fresh one (a new key) may start.
   function startOver() {
-    if (payState !== "not_charged" || !(Date.now() - Date.parse(pending.at || "") >= SEND_IN_FLIGHT_MS)) return;
+    // Re-read at the moment of the press: another tab may have started an attempt since this one last looked.
+    const kept = loadPending(store, orgId) || pending;
+    if (payState !== "not_charged" || !(Date.now() - Date.parse(kept.at || "") >= SEND_IN_FLIGHT_MS)) { setPending(kept); return; }
     clearPending(store, orgId); setPending(null); setPayState(null); setOutcome(null);
     setStep(1); setReview({ state: "idle", preview: null, error: null }); keyRef.current = null;
   }

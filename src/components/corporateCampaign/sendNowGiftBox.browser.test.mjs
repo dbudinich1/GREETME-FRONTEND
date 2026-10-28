@@ -473,3 +473,25 @@ test("second tab: a tab opened BEFORE the uncertain payment cannot start a new s
   assert.ok(tabD.tid("sendnow-pending-note"), "tab D follows the kept send");
   assert.equal(tabC.tid("sendnow-pending-note"), null, "a different storage is unaffected");
 });
+
+test("T3: the kept send's time is stamped BEFORE a pending Send starts, and Start over re-reads it when pressed", async () => {
+  const store = memStore();
+  let release; const held = new Promise((r) => { release = r; });
+  const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: async (b, n) => { if (n === 1) return { ok: false, error: "funding_incomplete" }; await held; return { ok: false, error: "replacement_card_required" }; } }), [payment("not_charged")]);
+  const tabA = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await toPending(tabA);
+  const k = [...store.m.keys()][0];
+  store.m.set(k, JSON.stringify({ ...JSON.parse(store.m.get(k)), at: new Date(Date.now() - 60 * 60 * 1000).toISOString() }));
+  const tabB = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await click(tabB.tid("sendnow-open")); await click(tabB.tid("sendnow-check-status"));
+  assert.ok(tabB.tid("sendnow-start-over"), "tab B: old enough, Start over offered");
+  const tabA2 = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await click(tabA2.tid("sendnow-open")); await click(tabA2.tid("sendnow-check-status"));
+  act(() => { tabA2.tid("sendnow-confirm").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+  await flush();                                                        // tab A's attempt is in flight
+  assert.ok(Date.now() - Date.parse(JSON.parse(store.m.get(k)).at) < 60 * 1000, "stamped before the request finished");
+  await click(tabB.tid("sendnow-start-over"));                          // tab B pressed with a stale view
+  assert.equal(store.m.size, 1, "the kept send was NOT dropped");
+  assert.ok(tabB.tid("sendnow-pending"), "tab B stays on the kept send");
+  release(); await flush();
+});
