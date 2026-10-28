@@ -65,7 +65,9 @@ test("W20/W23: Hero lower recognition & ranking area is dormant; upper participa
 test("W23: For Business no longer promises Hero Status/recognition, uses Branded Goods", () => {
   const src = read("pages/ForBusiness.jsx");
   assert.doesNotMatch(src, /Greet-Me™ Hero™ recognition\./);
-  assert.match(src, /Hero participation is live; Hero Status and recognition are not live yet/);
+  // Founder 2026-10-27: approved Hero card copy replaces the live / not-live wording; it still promises no Status/recognition.
+  assert.match(src, /All corporate patronage is automatically Greet-Me™ Hero™ eligible\. Turn moments of appreciation into opportunities to give back\. Together, we can celebrate your people while supporting the heroes who serve us all\./);
+  assert.doesNotMatch(src, /not live yet|Hero Status and recognition/);
   assert.doesNotMatch(src, />\s*Merch/);
 });
 

@@ -557,7 +557,7 @@ export default function DashboardLayout({ children }) {
                       <button
                         data-testid="usermenu-founder-command"
                         onClick={() => { setUserMenuOpen(false); navigate(FOUNDER_MENU_ITEM.path); }}
-                        style={{ width: '100%', textAlign: 'left', padding: '0.625rem 0.75rem', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
+                        style={{ width: '100%', textAlign: 'left', justifyContent: 'flex-start', padding: '0.625rem 0.75rem', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
                         onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                       >
@@ -567,34 +567,35 @@ export default function DashboardLayout({ children }) {
                     {/* NAV-02 — Media Library relocated here from the primary nav (same dropdown styling). */}
                     <button
                       onClick={() => { setUserMenuOpen(false); navigate('/dashboard/media'); }}
-                      style={{ width: '100%', textAlign: 'left', padding: '0.625rem 0.75rem', fontSize: '0.875rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
+                      style={{ width: '100%', textAlign: 'left', justifyContent: 'flex-start', padding: '0.625rem 0.75rem', fontSize: '0.875rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
                       onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                     >
-                      <ImageIcon size={16} /><span>Media Library</span>
+                      <ImageIcon size={16} style={{ flexShrink: 0 }} /><span>Media Library</span>
                     </button>
                     {/* NAV-01 — account items moved from top nav into the user menu */}
                     <button
                       onClick={() => { setUserMenuOpen(false); navigate('/dashboard/merch/orders'); }}
-                      style={{ width: '100%', textAlign: 'left', padding: '0.625rem 0.75rem', fontSize: '0.875rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
+                      style={{ width: '100%', textAlign: 'left', justifyContent: 'flex-start', padding: '0.625rem 0.75rem', fontSize: '0.875rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
                       onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                     >
-                      <ShoppingBag size={16} /><span>My Orders</span>
+                      <ShoppingBag size={16} style={{ flexShrink: 0 }} /><span>My Orders</span>
                     </button>
                     <button
                       onClick={() => { setUserMenuOpen(false); navigate('/dashboard/settings'); }}
-                      style={{ width: '100%', textAlign: 'left', padding: '0.625rem 0.75rem', fontSize: '0.875rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
+                      style={{ width: '100%', textAlign: 'left', justifyContent: 'flex-start', padding: '0.625rem 0.75rem', fontSize: '0.875rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
                       onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                     >
-                      <SettingsIcon size={16} /><span>Settings</span>
+                      <SettingsIcon size={16} style={{ flexShrink: 0 }} /><span>Settings</span>
                     </button>
                     <button
                       onClick={handleLogout}
                       style={{
                         width: '100%',
                         textAlign: 'left',
+                        justifyContent: 'flex-start',
                         padding: '0.625rem 0.75rem',
                         fontSize: '0.875rem',
                         color: 'var(--error)',
@@ -614,7 +615,7 @@ export default function DashboardLayout({ children }) {
                         e.currentTarget.style.background = 'transparent';
                       }}
                     >
-                      <LogOut size={16} />
+                      <LogOut size={16} style={{ flexShrink: 0 }} />
                       <span>Logout</span>
                     </button>
                   </div>
@@ -810,7 +811,7 @@ export default function DashboardLayout({ children }) {
                     onClick={() => { setMobileMenuOpen(false); navigate(item.path); }}
                     style={{ width: '100%', textAlign: 'left', justifyContent: 'flex-start', padding: '0.875rem 1rem', marginBottom: '0.25rem', fontSize: '0.9375rem', fontWeight: 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
                   >
-                    <item.icon size={18} />
+                    <item.icon size={18} style={{ flexShrink: 0 }} />
                     <span>{item.label}</span>
                   </button>
                 ))}
@@ -830,6 +831,7 @@ export default function DashboardLayout({ children }) {
                 style={{
                   width: '100%',
                   textAlign: 'left',
+                  justifyContent: 'flex-start',
                   padding: '0.75rem 1rem',
                   fontSize: '0.875rem',
                   color: 'var(--error)',
@@ -843,7 +845,7 @@ export default function DashboardLayout({ children }) {
                   fontFamily: 'inherit'
                 }}
               >
-                <LogOut size={18} />
+                <LogOut size={18} style={{ flexShrink: 0 }} />
                 <span>Logout</span>
               </button>
               <a

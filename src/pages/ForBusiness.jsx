@@ -51,13 +51,14 @@ export default function ForBusiness() {
             fontSize: '2.25rem',
             fontWeight: 700,
             marginBottom: '1rem',
-            lineHeight: 1.2
+            lineHeight: 1.2,
+            color: 'white'
           }}>
-            Create branded gifts to acknowledge your clients and employees.
+            Celebrate your clients and employees with branded gifts.
           </h1>
           <p style={{
             fontSize: '1.125rem',
-            opacity: 0.95,
+            color: 'white',
             lineHeight: 1.6,
             maxWidth: '800px',
             margin: '0 auto 1.5rem'
@@ -272,7 +273,7 @@ export default function ForBusiness() {
             padding: '2rem',
             borderRadius: 'var(--radius-xl)',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-            border: '2px solid var(--border)',
+            border: '1px solid var(--border)',
             transition: 'all 0.2s',
             cursor: 'pointer'
           }}
@@ -365,7 +366,7 @@ export default function ForBusiness() {
             lineHeight: 1.7,
             margin: 0
           }}>
-            All corporate patronage is automatically Greet-Me™ Hero™ eligible. Hero participation is live; Hero Status and recognition are not live yet.
+            All corporate patronage is automatically Greet-Me™ Hero™ eligible. Turn moments of appreciation into opportunities to give back. Together, we can celebrate your people while supporting the heroes who serve us all.
           </p>
         </div>
       </section>
@@ -442,13 +443,14 @@ export default function ForBusiness() {
             fontSize: '2rem',
             fontWeight: 700,
             marginBottom: '1rem',
-            lineHeight: 1.2
+            lineHeight: 1.2,
+            color: 'white'
           }}>
             Ready to get started?
           </h2>
           <p style={{
             fontSize: '1.125rem',
-            opacity: 0.95,
+            color: 'white',
             marginBottom: '1.5rem',
             lineHeight: 1.6,
             maxWidth: '600px',
