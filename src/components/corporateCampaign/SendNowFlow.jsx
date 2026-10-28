@@ -247,7 +247,9 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
         setPayState(null);
       } else if (res && res.error === "replacement_card_required") {
         setOutcome({ kind: "error", text: payState === "not_charged" ? PENDING_REPLACE_PROVEN_TEXT : blockerText(res.error), card: true });
-      } else if (res && (res.error === "quote_changed" || res.error === "review_out_of_date")) {
+      } else if (res && res.error === "saved_card_required") {
+        setOutcome({ kind: "error", text: blockerText(res.error), card: true });     // "Add one below": the panel IS below
+      } else if (res && (res.error === "quote_changed" || res.error === "review_out_of_date" || res.error === "catalog_product_not_published")) {
         // The kept send can no longer be finished as it stands: remembered on the kept send, so Send stays off after a
         // status check, a reopen or a refresh. The key is NOT replaced.
         const changed = { ...(loadPending(store, orgId) || pending), detailsChanged: true };
@@ -288,7 +290,9 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
     const resolved = RESOLVED_FOR_SEND.includes(payState);
     const canStartOver = payState === "not_charged" && Date.now() - Date.parse(pending.at || "") >= SEND_IN_FLIGHT_MS;
     const changed = pending.detailsChanged === true;
-    const changedText = changed ? (CHANGED_TEXT[payState] || CHANGED_TEXT.other) : null;
+    const changedText = changed
+      ? (CHANGED_TEXT[payState] || CHANGED_TEXT.other) + (payState === "not_charged" && !canStartOver ? " Starting over becomes available 10 minutes after your last attempt." : "")
+      : null;
     return (
       <section className="gcd-panel" data-testid="sendnow-panel" aria-labelledby="gcd-sendnow-head">
         <div className="gcd-panel-head">

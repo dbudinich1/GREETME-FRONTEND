@@ -427,9 +427,18 @@ test("no payment taken but the details changed: one message pointing to Start ov
   await toPending(s);
   await click(s.tid("sendnow-check-status"));
   await click(s.tid("sendnow-confirm"));
-  assert.equal(s.tid("sendnow-changed").textContent, "No payment was taken, but this send cannot be completed because its details changed. Start over to send it again.");
+  assert.equal(s.tid("sendnow-changed").textContent, "No payment was taken, but this send cannot be completed because its details changed. Start over to send it again. Starting over becomes available 10 minutes after your last attempt.");
+  assert.equal(s.tid("sendnow-start-over"), null, "the sentence explains the missing button");
   assert.equal(s.tid("sendnow-payment-status"), null);
   assert.equal(s.tid("sendnow-confirm").disabled, true);
+  // Eleven minutes later the button is there and the sentence is gone.
+  const [k, v] = [...store.m.entries()][0];
+  store.m.set(k, JSON.stringify({ ...JSON.parse(v), at: new Date(Date.now() - 11 * 60 * 1000).toISOString() }));
+  const s2 = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await click(s2.tid("sendnow-open")); await click(s2.tid("sendnow-check-status"));
+  assert.equal(s2.tid("sendnow-changed").textContent, "No payment was taken, but this send cannot be completed because its details changed. Start over to send it again.");
+  assert.ok(s2.tid("sendnow-start-over"));
+  assert.equal(s2.tid("sendnow-confirm").disabled, true);
 });
 test("the two other retry refusals keep the send pending with the warning (never a generic error)", async () => {
   for (const code of ["prior_attempt_may_still_complete", "prior_attempt_state_unknown"]) {
@@ -520,4 +529,22 @@ test("T3: the kept send's time is stamped BEFORE a pending Send starts, and Star
   assert.equal(store.m.size, 1, "the kept send was NOT dropped");
   assert.ok(tabB.tid("sendnow-pending"), "tab B stays on the kept send");
   release(); await flush();
+});
+
+test("a confirmed payment whose gift box was retired gets the single 'details changed' message (no 'choose another', Send off)", async () => {
+  const store = memStore();
+  const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: (b, n) => (n === 1 ? { ok: false, error: "funding_incomplete" } : { ok: false, error: "catalog_product_not_published" }) }), [payment("confirmed")]);
+  const s = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await toPending(s); await click(s.tid("sendnow-check-status")); await click(s.tid("sendnow-confirm"));
+  assert.match(s.tid("sendnow-changed").textContent, /^Your payment is confirmed, but this send cannot be completed because its details changed\./);
+  assert.doesNotMatch(s.tid("sendnow-pending").textContent, /Choose another one/);
+  assert.equal(s.tid("sendnow-confirm").disabled, true);
+});
+
+test("saved card removed: 'Add one below' really has the card panel below", async () => {
+  const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: (b, n) => (n === 1 ? { ok: false, error: "funding_incomplete" } : { ok: false, error: "saved_card_required" }) }), [payment("confirmed")]);
+  const s = await mount(flow(c, { catalogClient: catalog(), storage: memStore(), cardClient: { getPaymentMethod: async () => ({ ok: true, data: null }) } }));
+  await toPending(s); await click(s.tid("sendnow-check-status")); await click(s.tid("sendnow-confirm"));
+  assert.match(s.tid("sendnow-error").textContent, /Add one below/);
+  assert.ok(s.tid("saved-card-panel"));
 });
