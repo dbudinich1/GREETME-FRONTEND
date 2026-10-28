@@ -51,3 +51,12 @@ test("send: unsafe error codes are dropped, not shown", async () => {
   const r = await make(reply(400, { error: "<script>alert(1)</script>" })).c.send("o", {});
   assert.equal(r.error, "HTTP_400");
 });
+
+test("status (founder 2026-10-28): 'send_not_found' proves no send was recorded for this key; a missing route stays notAvailable; the payment field passes through", async () => {
+  const c404 = createOneTimeSendClient({ fetchImpl: reply(404, { error: "send_not_found" }), getToken: () => "t", apiBase: "" });
+  assert.deepEqual(await c404.status("org1", "campaign_ot_x"), { ok: true, status: 404, result: { notFound: true } });
+  const cRoute = createOneTimeSendClient({ fetchImpl: reply(404, { error: "Not Found" }), getToken: () => "t", apiBase: "" });
+  assert.equal((await cRoute.status("org1", "campaign_ot_x")).notAvailable, true);
+  const cOk = createOneTimeSendClient({ fetchImpl: reply(200, { stage: "created", payment: { state: "confirmed", resolved: true } }), getToken: () => "t", apiBase: "" });
+  assert.deepEqual((await cOk.status("org1", "campaign_ot_x")).result.payment, { state: "confirmed", resolved: true });
+});

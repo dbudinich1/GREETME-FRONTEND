@@ -19,7 +19,8 @@ import SavedCardPanel from "./SavedCardPanel.jsx";
 import {
   buildPreviewRequest, buildSendRequest, newIdempotencyKey, planLine, blockerText, notReadyText, giftPayload, totalLine, canConfirm,
   FINAL_BUTTON_LABEL, FINAL_NOTE, TOP_UP_HREF, UPGRADE_HREF, money, OCCASIONS, isOccasion, linkHref, perRecipientCosts,
-  PAYMENT_UNCERTAIN_TEXT, PAYMENT_UNCERTAIN_CODES,
+  PAYMENT_UNCERTAIN_TEXT, UNRESOLVED_PAYMENT_CODES, buildPendingRecord, loadPending, savePending, clearPending,
+  oneTimeSendIdFor, paymentStateFromStatus, RESOLVED_FOR_SEND, PAYMENT_STATUS_TEXT,
 } from "./oneTimeSendModel.js";
 import "./premiumDashboard.css";
 
@@ -29,9 +30,29 @@ const SHOWN_NAMES = 8;
 const CHECK_ROW = { display: "flex", alignItems: "center", gap: 8, minHeight: 44 };
 const CHECK_BOX = { width: "auto", margin: 0, flexShrink: 0 };
 
+// Founder 2026-10-28: "contact support" in a message links to the existing Support page.
+function withSupportLink(text) {
+  const t = String(text || "");
+  const i = t.indexOf("contact support");
+  if (i < 0) return t;
+  return <>{t.slice(0, i)}<a href="#/support" data-testid="sendnow-support-link">contact support</a>{t.slice(i + "contact support".length)}</>;
+}
+function defaultStorage() {
+  try { return typeof window !== "undefined" && window.localStorage ? window.localStorage : null; } catch { return null; }
+}
+const PENDING_CHANGED_TEXT = "This send changed since it was confirmed (its price or its recipients), so it can\u2019t be finished as it stands. Nothing more was charged. If a payment was taken for it, contact support; if not, start over.";
+
 // `catalogClient`: the campaigns client, whose listGiftCatalog is the campaign editor's own organization catalog read.
-export default function SendNowFlow({ orgId, contacts, client, catalogClient, cardClient, stripeOverride, onSent }) {
+// `storage`: where an unresolved paid send is kept (defaults to this browser's localStorage); injectable for tests.
+export default function SendNowFlow({ orgId, contacts, client, catalogClient, cardClient, stripeOverride, onSent, storage }) {
   const [open, setOpen] = useState(false);
+  // Founder 2026-10-28 - an unresolved paid send, kept across closing, reopening and refresh. While it exists the flow
+  // reopens on it, locked; Send is disabled until a read-only status check shows the payment resolved.
+  const store = useMemo(() => (storage !== undefined ? storage : defaultStorage()), [storage]);
+  const [pending, setPending] = useState(() => loadPending(store, orgId));
+  const [payState, setPayState] = useState(null);
+  const [checking, setChecking] = useState(false);
+  useEffect(() => { setPending(loadPending(store, orgId)); setPayState(null); }, [store, orgId]);
   const [step, setStep] = useState(1);
   const [who, setWho] = useState("category");
   const [category, setCategory] = useState("client");
@@ -116,17 +137,26 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
     if (!canConfirm(preview, { busy })) return;
     sendingRef.current = true; setBusy(true); setOutcome(null);
     if (!keyRef.current) keyRef.current = newIdempotencyKey();
+    const body = buildSendRequest(previewBody, preview, keyRef.current);
+    // The payment outcome is unknown: keep THIS request (and its key) for the organisation, locked, until resolved.
+    const keepPending = () => {
+      const rec = buildPendingRecord({
+        orgId, sendBody: body, at: new Date().toISOString(),
+        display: { giftLabel: giftLabelOf(preview.gift), count: preview.recipients.count, totalCents: preview.gift.totalCents ?? null, costs: perRecipientCosts(preview) },
+      });
+      savePending(store, rec);
+      setPending(rec); setPayState(null); setOutcome(null);
+    };
     try {
-      const res = await client.send(orgId, buildSendRequest(previewBody, preview, keyRef.current));
+      const res = await client.send(orgId, body);
       if (res && res.ok) {
         setOutcome({ kind: "sent", result: res.result, replay: res.replay });
         if (onSent) onSent(res.result);
       } else if (res && res.indeterminate) {
-        // A paid send whose answer was lost may have charged the card: say it is being confirmed, never "press again".
-        setOutcome(preview.gift && preview.gift.requiresPayment ? { kind: "payment-uncertain" } : { kind: "unsure" });
-      } else if (res && PAYMENT_UNCERTAIN_CODES.includes(res.error)) {
-        // The key is kept, so any later press with this review can only converge on the same payment.
-        setOutcome({ kind: "payment-uncertain" });
+        // A paid send whose answer was lost may have charged the card: keep it pending, never "press again".
+        if (preview.gift && preview.gift.requiresPayment) keepPending(); else setOutcome({ kind: "unsure" });
+      } else if (res && UNRESOLVED_PAYMENT_CODES.includes(res.error)) {
+        keepPending();
       } else if (res && res.dormant) {
         setOutcome({ kind: "error", text: blockerText("corporate_campaign_execution_disabled") });
       } else if (res && res.error === "recipients_not_ready") {
@@ -148,6 +178,123 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
 
   function reset() {
     setOpen(false); setStep(1); setOutcome(null); setReview({ state: "idle", preview: null, error: null }); setSkipNotReady(false); keyRef.current = null;
+  }
+
+  function giftLabelOf(gift) {
+    if (!gift || gift.type === "none") return "No gift";
+    if (gift.type === "curated") return `Let Greet-Me™ Select (up to ${money(gift.maxSpendCents || 0)})`;
+    if (gift.type === "qrcash") return `QR Cash™ (${money(gift.qrCashAmountCents || 0)} each)`;
+    if (isProviderFundableGiftType(gift.type)) return `Gift box: ${(product && (product.title || product.providerProductId)) || "Gift box"}${variants.length ? ` (${variants.join(", ")})` : ""}`;
+    return gift.type;
+  }
+
+  // READ-ONLY: asks the server what happened to this send's payment. Creates, charges and changes nothing.
+  async function checkStatus() {
+    if (!pending || checking) return;
+    setChecking(true); setOutcome(null);
+    let res = null;
+    try {
+      const sendId = await oneTimeSendIdFor(orgId, pending.idempotencyKey);
+      if (sendId && client && typeof client.status === "function") res = await client.status(orgId, sendId);
+    } catch { res = null; }
+    const state = paymentStateFromStatus(res);
+    if (state === "sent") {
+      const r = (res && res.result) || {};
+      clearPending(store, orgId); setPending(null); setPayState(null); setOpen(true);
+      setOutcome({ kind: "sent", replay: true, result: { recipientCount: Number.isFinite(r.recipientCount) ? r.recipientCount : pending.display.count, chargedTotalCents: Number.isFinite(r.chargedTotalCents) ? r.chargedTotalCents : 0 } });
+    } else {
+      setPayState(state);
+    }
+    setChecking(false);
+  }
+
+  // The SAME request and key, only once the payment is resolved: it can reach no other send and no other payment.
+  async function sendPending() {
+    if (sendingRef.current || !pending || !RESOLVED_FOR_SEND.includes(payState)) return;
+    sendingRef.current = true; setBusy(true); setOutcome(null);
+    try {
+      const res = await client.send(orgId, pending.sendBody);
+      if (res && res.ok) {
+        clearPending(store, orgId); setPending(null); setPayState(null);
+        setOutcome({ kind: "sent", result: res.result, replay: res.replay });
+        if (onSent) onSent(res.result);
+      } else if (res && (res.indeterminate || UNRESOLVED_PAYMENT_CODES.includes(res.error))) {
+        setPayState(null);                                // unresolved again: Send is disabled until the next check
+      } else if (res && res.error === "replacement_card_required") {
+        setOutcome({ kind: "error", text: blockerText(res.error), card: true });
+      } else if (res && (res.error === "quote_changed" || res.error === "review_out_of_date")) {
+        setOutcome({ kind: "error", text: PENDING_CHANGED_TEXT });
+      } else {
+        setOutcome({ kind: "error", text: blockerText(res && res.error) });
+      }
+    } finally { sendingRef.current = false; setBusy(false); }
+  }
+
+  // Only once the payment is PROVEN not taken: the kept send is dropped and a fresh one (a new key) may start.
+  function startOver() {
+    if (payState !== "not_charged") return;
+    clearPending(store, orgId); setPending(null); setPayState(null); setOutcome(null);
+    setStep(1); setReview({ state: "idle", preview: null, error: null }); keyRef.current = null;
+  }
+
+  if (pending && !open) {
+    return (
+      <section className="gcd-panel" data-testid="sendnow-panel" aria-labelledby="gcd-sendnow-head">
+        <div className="gcd-panel-head">
+          <div>
+            <h2 className="gcd-panel-title" id="gcd-sendnow-head">Send a Greet-Me now</h2>
+            <p className="gcd-panel-note" data-testid="sendnow-pending-note">A payment for an earlier send is being confirmed.</p>
+          </div>
+          <div className="gcd-panel-actions">
+            <button type="button" className="gcd-btn gcd-btn--primary" data-testid="sendnow-open" onClick={() => setOpen(true)}>View that send</button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (pending) {
+    const d = pending.display || {};
+    const resolved = RESOLVED_FOR_SEND.includes(payState);
+    return (
+      <section className="gcd-panel" data-testid="sendnow-panel" aria-labelledby="gcd-sendnow-head">
+        <div className="gcd-panel-head">
+          <div>
+            <h2 className="gcd-panel-title" id="gcd-sendnow-head">Send a Greet-Me now</h2>
+            <p className="gcd-panel-note">This send is kept exactly as you confirmed it until its payment is resolved.</p>
+          </div>
+          <button type="button" className="gcd-btn" data-testid="sendnow-close" onClick={reset} disabled={busy || checking}>Close</button>
+        </div>
+        <div style={{ padding: "14px 20px 20px" }} data-testid="sendnow-pending">
+          <dl className="gcd-info" style={{ margin: 0 }}>
+            <div className="gcd-info-row"><dt className="gcd-info-label">Gift</dt><dd className="gcd-info-value" data-testid="sendnow-pending-gift">{d.giftLabel || "Gift"}</dd></div>
+            <div className="gcd-info-row"><dt className="gcd-info-label">Sending to</dt><dd className="gcd-info-value">{d.count} {d.count === 1 ? "person" : "people"}</dd></div>
+            {Number.isSafeInteger(d.totalCents) ? (
+              <div className="gcd-info-row"><dt className="gcd-info-label">Total</dt><dd className="gcd-info-value" data-testid="sendnow-pending-total">{money(d.totalCents)}</dd></div>
+            ) : null}
+          </dl>
+          {!resolved ? (
+            <p role="alert" data-testid="sendnow-payment-uncertain" style={{ color: "#92400e", fontSize: ".88rem", margin: "10px 0" }}>{PAYMENT_UNCERTAIN_TEXT}</p>
+          ) : null}
+          {payState ? (
+            <p role="status" data-testid="sendnow-payment-status" style={{ fontSize: ".88rem", margin: "10px 0" }}>{PAYMENT_STATUS_TEXT[payState]}</p>
+          ) : null}
+          {outcome && outcome.kind === "error" ? <p role="alert" data-testid="sendnow-error" style={{ color: "#b3261e", fontSize: ".88rem" }}>{withSupportLink(outcome.text)}</p> : null}
+          {outcome && outcome.card ? <SavedCardPanel orgId={orgId} client={cardClient} stripeOverride={stripeOverride} /> : null}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+            <button type="button" className="gcd-btn" data-testid="sendnow-check-status" onClick={checkStatus} disabled={checking || busy}>
+              {checking ? "Checking…" : "Check payment status"}
+            </button>
+            {payState === "not_charged" ? (
+              <button type="button" className="gcd-btn" data-testid="sendnow-start-over" onClick={startOver} disabled={busy}>Start over</button>
+            ) : null}
+            <button type="button" className="gcd-btn gcd-btn--primary" data-testid="sendnow-confirm" disabled={!resolved || busy} onClick={sendPending}>
+              {busy ? "Sending…" : FINAL_BUTTON_LABEL}
+            </button>
+          </div>
+        </div>
+      </section>
+    );
   }
 
   if (!open) {
@@ -395,7 +542,7 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
               </>
             ) : null}
 
-            {outcome && outcome.kind === "error" ? <p role="alert" data-testid="sendnow-error" style={{ color: "#b3261e", fontSize: ".88rem" }}>{outcome.text}</p> : null}
+            {outcome && outcome.kind === "error" ? <p role="alert" data-testid="sendnow-error" style={{ color: "#b3261e", fontSize: ".88rem" }}>{withSupportLink(outcome.text)}</p> : null}
             {outcome && outcome.kind === "short" ? (
               <p role="alert" data-testid="sendnow-short" style={{ color: "#b3261e", fontSize: ".88rem" }}>
                 {`You are ${outcome.details.shortfall ?? "some"} short, so nothing was sent.`}
@@ -408,9 +555,6 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
                   ? ` (${outcome.details.blocked.slice(0, SHOWN_NAMES).map((b) => `${b.name || "Unnamed"}: ${notReadyText(b)}`).join(", ")})` : ""}.
                 Tick “Send to the ready ones only” to send to everyone else.
               </p>
-            ) : null}
-            {outcome && outcome.kind === "payment-uncertain" ? (
-              <p role="alert" data-testid="sendnow-payment-uncertain" style={{ color: "#92400e", fontSize: ".88rem" }}>{PAYMENT_UNCERTAIN_TEXT}</p>
             ) : null}
             {outcome && outcome.kind === "unsure" ? (
               <p role="alert" data-testid="sendnow-unsure" style={{ color: "#92400e", fontSize: ".88rem" }}>

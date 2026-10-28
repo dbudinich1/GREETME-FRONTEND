@@ -46,6 +46,7 @@ const flush = async () => { await act(async () => { await new Promise((r) => set
 const click = async (el) => { await act(async () => { el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); }); await flush(); };
 const choose = async (el, v) => { await act(async () => { Object.getOwnPropertyDescriptor(dom.window.HTMLSelectElement.prototype, "value").set.call(el, v); el.dispatchEvent(new dom.window.Event("change", { bubbles: true })); }); await flush(); };
 const mounted = [];
+afterEach(() => { try { dom.window.localStorage.clear(); } catch { /* none */ } });
 afterEach(async () => { while (mounted.length) { const { root, host } = mounted.pop(); await act(async () => { root.unmount(); }); host.remove(); } });
 async function mount(el) {
   const host = document.createElement("div"); document.body.appendChild(host);
@@ -173,18 +174,6 @@ test("price changed at send: nothing charged, plain message, a fresh review and 
   assert.equal(c.calls.send[1][1].expectedTotalCents, 12500);
 });
 
-test("a lost response on a paid gift: 'we're confirming your payment', no invitation to pay again; any later press reuses the SAME key", async () => {
-  const c = fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: (b, n) => (n === 1 ? { ok: false, indeterminate: true } : { ok: true, replay: true, result: { sendId: "s1", recipientCount: 2, chargedTotalCents: 12346 } }) });
-  const s = await mount(flow(c, { catalogClient: catalog() }));
-  await toWhat(s); await pickBox(s, "gb-1"); await review(s);
-  await click(s.tid("sendnow-confirm"));
-  assert.equal(s.tid("sendnow-payment-uncertain").textContent, "We’re confirming your payment. Don’t submit another payment yet.");
-  assert.equal(s.tid("sendnow-unsure"), null, "the 'press the button again' line is not shown for a paid send");
-  await click(s.tid("sendnow-confirm"));
-  assert.equal(c.calls.send[0][1].idempotencyKey, c.calls.send[1][1].idempotencyKey);
-  assert.match(s.tid("sendnow-sent").textContent, /nothing was sent twice/);
-});
-
 test("quote refusals block the send in plain words: missing options, a failed quote, an incomplete address, a retired box", async () => {
   const cases = [
     ["variants_invalid", /Choose the options this gift box needs.*Nothing was charged/],
@@ -222,35 +211,6 @@ test("the dashboard hands Send now the campaigns client for the catalog", async 
   assert.match(src, /<SendNowFlow\s+orgId=\{effectiveOrgId\} contacts=\{managedContacts \|\| contacts\} client=\{oneTimeClient\} catalogClient=\{client\}/);
 });
 
-test("an incomplete or unrecorded charge says the payment is being confirmed, never 'nothing was sent' or 'try again', and keeps the key", async () => {
-  for (const code of ["funding_incomplete", "funding_storage_failed"]) {
-    const c = fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, error: code }) });
-    const s = await mount(flow(c, { catalogClient: catalog() }));
-    await toWhat(s); await pickBox(s, "gb-1"); await review(s);
-    await click(s.tid("sendnow-confirm"));
-    const text = s.tid("sendnow-payment-uncertain").textContent;
-    assert.equal(text, "We’re confirming your payment. Don’t submit another payment yet.", code);
-    assert.doesNotMatch(s.tid("sendnow-review").textContent, /Nothing was sent|try again|press the button again/i, code);
-    await click(s.tid("sendnow-confirm"));
-    assert.equal(c.calls.send[0][1].idempotencyKey, c.calls.send[1][1].idempotencyKey, `${code}: the same review keeps its key`);
-  }
-});
-
-test("the three refusals of a second payment attempt each say what is true", async () => {
-  const cases = [
-    ["replacement_card_required", /already tried for this send and won.t be charged again.*shows a charge.*don.t add a different card.*contact support.*shows no charge, add a different card/],
-    ["prior_attempt_may_still_complete", /bank is still processing the earlier payment.*Don.t submit another payment yet\./],
-    ["prior_attempt_state_unknown", /can.t yet confirm whether the earlier payment.*went through\. Don.t submit another payment yet\./],
-  ];
-  for (const [code, re] of cases) {
-    const c = fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, error: code }) });
-    const s = await mount(flow(c, { catalogClient: catalog() }));
-    await toWhat(s); await pickBox(s, "gb-1"); await review(s);
-    await click(s.tid("sendnow-confirm"));
-    assert.match(s.tid("sendnow-error").textContent, re, code);
-  }
-});
-
 test("checkboxes sit beside their labels in a 44px row (the global input width rule is overridden)", async () => {
   const blocked = [{ contactId: "c2", name: "Marcus Hall", reason: "missing_recipient_address", field: "address", message: "no mailing address" }];
   const c = fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT({ totalCents: 6173, perRecipient: { c1: { totalCents: 6173 } } }), recipients: { selector: { category: "client" }, count: 1, selected: 2, list: [{ contactId: "c1", name: "Dana Lee" }], blocked } })] });
@@ -272,4 +232,175 @@ test("source: every Send now checkbox uses the shared row and box styles", async
   const src = readFileSync(join(__dirname, "SendNowFlow.jsx"), "utf8");
   assert.equal((src.match(/<input type="checkbox"/g) || []).length, 3);
   assert.equal((src.match(/<input type="checkbox" style=\{CHECK_BOX\}/g) || []).length, 3);
+});
+
+// ── Founder 2026-10-28: an unresolved paid send is kept (key and all) across close, reopen and refresh; Send is disabled
+// until a READ-ONLY status check shows the payment resolved; Start over only once no payment is proven. ──────────────
+const UNCERTAIN = "We’re confirming your payment. Don’t submit another payment yet.";
+function memStore() { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), m }; }
+function statusClient(c, answers) {
+  let i = 0; c.calls.status = [];
+  c.status = async (org, id) => { c.calls.status.push([org, id]); const a = answers[Math.min(i++, answers.length - 1)]; return typeof a === "function" ? a() : a; };
+  return c;
+}
+async function toPending(s, code = "funding_incomplete") {
+  await toWhat(s); await pickBox(s, "gb-1"); await review(s);
+  await click(s.tid("sendnow-confirm"));
+}
+const payment = (state) => ({ ok: true, result: { stage: "created", payment: { state, resolved: ["confirmed", "not_charged"].includes(state) } } });
+
+test("uncertain payment: the send is kept LOCKED with the warning visible, Send disabled, and no way to start a new send", async () => {
+  for (const code of ["funding_incomplete", "funding_storage_failed", "prior_attempt_may_still_complete", "prior_attempt_state_unknown", "INDETERMINATE"]) {
+    const store = memStore();
+    const c = fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => (code === "INDETERMINATE" ? { ok: false, indeterminate: true } : { ok: false, error: code }) });
+    const s = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+    await toPending(s);
+    assert.equal(s.tid("sendnow-payment-uncertain").textContent, UNCERTAIN, code);
+    assert.equal(s.tid("sendnow-confirm").disabled, true, `${code}: Send is disabled`);
+    assert.equal(s.tid("sendnow-what"), null, `${code}: the details cannot be edited`);
+    assert.equal(s.tid("sendnow-pending-gift").textContent, "Gift box: Gourmet Snack Box", code);
+    assert.equal(s.tid("sendnow-pending-total").textContent, "$123.46", code);
+    assert.equal(s.tid("sendnow-start-over"), null, `${code}: no fresh send while unresolved`);
+    assert.doesNotMatch(s.tid("sendnow-pending").textContent, /try again|press the button again|Nothing was sent/i, code);
+    assert.equal(c.calls.send.length, 1, code);
+    assert.equal(store.m.size, 1, `${code}: kept for this organisation`);
+  }
+});
+
+test("close, reopen and REFRESH all come back to the same locked send with the SAME key; a no-gift lost response is not kept", async () => {
+  const store = memStore();
+  const c = fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, error: "funding_incomplete" }) });
+  const s = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await toPending(s);
+  const key = c.calls.send[0][1].idempotencyKey;
+  await click(s.tid("sendnow-close"));
+  assert.match(s.tid("sendnow-pending-note").textContent, /payment for an earlier send is being confirmed/);
+  await click(s.tid("sendnow-open"));
+  assert.ok(s.tid("sendnow-pending"), "reopen lands on the kept send, not a new one");
+  // Refresh: a brand-new mount reading the same browser storage.
+  const s2 = await mount(flow(fakeClient(), { catalogClient: catalog(), storage: store }));
+  await click(s2.tid("sendnow-open"));
+  assert.ok(s2.tid("sendnow-pending"));
+  assert.equal(s2.tid("sendnow-confirm").disabled, true);
+  assert.equal(JSON.parse([...store.m.values()][0]).idempotencyKey, key);
+  // An unpaid send whose answer was lost is not a payment question: it keeps the old 'unsure' line and is not stored.
+  const store2 = memStore();
+  const c3 = fakeClient({ send: () => ({ ok: false, indeterminate: true }) });
+  const s3 = await mount(flow(c3, { storage: store2 }));
+  await toWhat(s3); await review(s3);
+  await click(s3.tid("sendnow-confirm"));
+  assert.ok(s3.tid("sendnow-unsure"));
+  assert.equal(store2.m.size, 0);
+});
+
+test("Check payment status is READ-ONLY: it asks the server for THIS send (id derived from the key, as the server does) and sends nothing", async () => {
+  const { createHash } = await import("node:crypto");
+  const store = memStore();
+  const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, error: "funding_incomplete" }) }), [payment("processing")]);
+  const s = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await toPending(s);
+  const key = c.calls.send[0][1].idempotencyKey;
+  await click(s.tid("sendnow-check-status"));
+  const expected = `campaign_ot_${createHash("sha256").update(`one-time-send:org1:${key}`).digest("hex").slice(0, 32)}`;
+  assert.deepEqual(c.calls.status[0], ["org1", expected]);
+  assert.equal(c.calls.send.length, 1, "nothing sent by the check");
+  assert.match(s.tid("sendnow-payment-status").textContent, /still processing.*Don.t submit another payment yet/);
+  assert.equal(s.tid("sendnow-confirm").disabled, true);
+  assert.equal(s.tid("sendnow-payment-uncertain").textContent, UNCERTAIN, "the warning stays while unresolved");
+});
+
+test("payment CONFIRMED: Send is enabled and finishes with the SAME request and key; the kept send is then cleared", async () => {
+  const store = memStore();
+  const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: (b, n) => (n === 1 ? { ok: false, error: "funding_incomplete" } : { ok: true, replay: false, result: { sendId: "s1", recipientCount: 2, chargedTotalCents: 12346 } }) }), [payment("confirmed")]);
+  const s = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await toPending(s);
+  await click(s.tid("sendnow-check-status"));
+  assert.match(s.tid("sendnow-payment-status").textContent, /payment is confirmed.*won.t be charged again/);
+  assert.equal(s.tid("sendnow-payment-uncertain"), null);
+  assert.equal(s.tid("sendnow-confirm").disabled, false);
+  await click(s.tid("sendnow-confirm"));
+  assert.deepEqual(c.calls.send[1][1], c.calls.send[0][1], "byte-for-byte the same request, same key");
+  assert.ok(s.tid("sendnow-sent"));
+  assert.equal(store.m.size, 0);
+});
+
+test("payment UNKNOWN or the check fails: Send stays disabled; a press that comes back unresolved locks it again", async () => {
+  for (const [ans, re] of [[payment("unknown"), /can.t confirm this payment yet/], [{ ok: false, networkError: true }, /couldn.t check the payment right now/]]) {
+    const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, error: "funding_incomplete" }) }), [ans]);
+    const s = await mount(flow(c, { catalogClient: catalog(), storage: memStore() }));
+    await toPending(s);
+    await click(s.tid("sendnow-check-status"));
+    assert.match(s.tid("sendnow-payment-status").textContent, re);
+    assert.equal(s.tid("sendnow-confirm").disabled, true);
+  }
+  const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, error: "funding_incomplete" }) }), [payment("confirmed")]);
+  const s = await mount(flow(c, { catalogClient: catalog(), storage: memStore() }));
+  await toPending(s);
+  await click(s.tid("sendnow-check-status"));
+  await click(s.tid("sendnow-confirm"));
+  assert.equal(s.tid("sendnow-confirm").disabled, true, "unresolved again: disabled until the next check");
+  assert.equal(c.calls.send[1][1].idempotencyKey, c.calls.send[0][1].idempotencyKey);
+});
+
+test("NOT CHARGED (proven): Send (same key) or Start over; Start over begins a fresh send with a NEW key", async () => {
+  const store = memStore();
+  const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, error: "funding_incomplete" }) }), [{ ok: true, result: { notFound: true } }]);
+  const s = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await toPending(s);
+  await click(s.tid("sendnow-check-status"));
+  assert.match(s.tid("sendnow-payment-status").textContent, /No payment was taken/);
+  assert.equal(s.tid("sendnow-confirm").disabled, false);
+  await click(s.tid("sendnow-start-over"));
+  assert.equal(store.m.size, 0);
+  assert.ok(s.tid("sendnow-who"), "back to a fresh send");
+  await click(s.tid("sendnow-next-1")); await pickBox(s, "gb-1"); await review(s);
+  c.send = async (org, body) => { c.calls.send.push([org, body]); return { ok: true, result: { sendId: "s9", recipientCount: 2, chargedTotalCents: 12346 } }; };
+  await click(s.tid("sendnow-confirm"));
+  assert.notEqual(c.calls.send.at(-1)[1].idempotencyKey, c.calls.send[0][1].idempotencyKey);
+});
+
+test("the send went through after all: the check says so and clears the kept send", async () => {
+  const store = memStore();
+  const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, indeterminate: true }) }), [{ ok: true, result: { stage: "scheduled", recipientCount: 2, chargedTotalCents: 12346, payment: { state: "confirmed", resolved: true } } }]);
+  const s = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await toPending(s);
+  await click(s.tid("sendnow-check-status"));
+  assert.match(s.tid("sendnow-sent").textContent, /\$123\.46 was charged/);
+  assert.equal(store.m.size, 0);
+  assert.equal(c.calls.send.length, 1);
+});
+
+test("replacement card: specific wording with a link to the Support page; the card panel is offered; the key is unchanged", async () => {
+  const store = memStore();
+  const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: (b, n) => (n === 1 ? { ok: false, error: "funding_incomplete" } : { ok: false, error: "replacement_card_required" }) }), [payment("not_charged")]);
+  const s = await mount(flow(c, { catalogClient: catalog(), storage: store, cardClient: { getPaymentMethod: async () => ({ ok: true, data: null }) } }));
+  await toPending(s);
+  await click(s.tid("sendnow-check-status"));
+  await click(s.tid("sendnow-confirm"));
+  assert.match(s.tid("sendnow-error").textContent, /already tried for this send and won.t be charged again.*shows a charge for it, don.t add a different card: contact support\..*shows no charge, add a different card/);
+  assert.equal(s.tid("sendnow-support-link").getAttribute("href"), "#/support");
+  assert.equal(c.calls.send[1][1].idempotencyKey, c.calls.send[0][1].idempotencyKey);
+  assert.equal(store.m.size, 1, "still kept");
+});
+
+test("the price or recipients changed after an uncertain payment: nothing more is charged, the key is NOT replaced, support is linked", async () => {
+  const store = memStore();
+  const c = statusClient(fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: (b, n) => (n === 1 ? { ok: false, error: "funding_incomplete" } : { ok: false, error: "quote_changed" }) }), [payment("confirmed")]);
+  const s = await mount(flow(c, { catalogClient: catalog(), storage: store }));
+  await toPending(s);
+  await click(s.tid("sendnow-check-status"));
+  await click(s.tid("sendnow-confirm"));
+  assert.match(s.tid("sendnow-error").textContent, /changed since it was confirmed.*Nothing more was charged/);
+  assert.equal(s.tid("sendnow-support-link").getAttribute("href"), "#/support");
+  assert.equal(JSON.parse([...store.m.values()][0]).idempotencyKey, c.calls.send[0][1].idempotencyKey);
+});
+
+test("the two other retry refusals keep the send pending with the warning (never a generic error)", async () => {
+  for (const code of ["prior_attempt_may_still_complete", "prior_attempt_state_unknown"]) {
+    const c = fakeClient({ previews: [PREVIEW({ gift: BOX_GIFT() })], send: () => ({ ok: false, error: code }) });
+    const s = await mount(flow(c, { catalogClient: catalog(), storage: memStore() }));
+    await toPending(s);
+    assert.equal(s.tid("sendnow-payment-uncertain").textContent, UNCERTAIN, code);
+    assert.equal(s.tid("sendnow-error"), null, code);
+  }
 });

@@ -181,3 +181,67 @@ export function canConfirm(preview, { busy }) {
   if (preview.canSend === true) return true;
   return false;
 }
+
+// ── Founder 2026-10-28: an UNRESOLVED paid send survives closing, reopening and refresh ──────────────────────────────
+// After a paid send whose payment outcome is unknown, the exact request (and so its idempotency key) is kept for the
+// organisation in this browser, and the flow reopens on it, locked, until the payment is resolved. Pressing Send again
+// can then only reach the SAME send and the SAME payment. A new send (a new key) is possible only once the payment is
+// proven not taken, or the send went through.
+export const PENDING_STORAGE_PREFIX = "gm_sendnow_pending_v1:";
+/** Server codes after which the payment is not yet known: the send is kept as pending, Send stays disabled. */
+export const UNRESOLVED_PAYMENT_CODES = Object.freeze([
+  "funding_incomplete", "funding_storage_failed", "prior_attempt_may_still_complete", "prior_attempt_state_unknown",
+]);
+export const pendingKeyFor = (orgId) => `${PENDING_STORAGE_PREFIX}${orgId}`;
+
+const isPendingRecord = (v, orgId) => Boolean(v) && v.v === 1 && v.orgId === orgId
+  && typeof v.idempotencyKey === "string" && v.idempotencyKey !== ""
+  && v.sendBody && typeof v.sendBody === "object" && v.sendBody.idempotencyKey === v.idempotencyKey;
+
+export function buildPendingRecord({ orgId, sendBody, display, at }) {
+  return { v: 1, orgId, idempotencyKey: sendBody.idempotencyKey, sendBody, display: display || {}, at: at || null };
+}
+export function loadPending(storage, orgId) {
+  try {
+    const raw = storage && storage.getItem(pendingKeyFor(orgId));
+    const v = raw ? JSON.parse(raw) : null;
+    return isPendingRecord(v, orgId) ? v : null;
+  } catch { return null; }
+}
+export function savePending(storage, record) {
+  try { if (storage) storage.setItem(pendingKeyFor(record.orgId), JSON.stringify(record)); return true; } catch { return false; }
+}
+export function clearPending(storage, orgId) {
+  try { if (storage) storage.removeItem(pendingKeyFor(orgId)); } catch { /* nothing stored */ }
+}
+
+/** The send's id, exactly as the server derives it (oneTimeSend.js campaignIdFor). Null when hashing is unavailable. */
+export async function oneTimeSendIdFor(orgId, idempotencyKey, subtle = (typeof globalThis !== "undefined" && globalThis.crypto && globalThis.crypto.subtle) || null) {
+  if (!subtle || typeof subtle.digest !== "function") return null;
+  const digest = await subtle.digest("SHA-256", new TextEncoder().encode(`one-time-send:${orgId}:${idempotencyKey}`));
+  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `campaign_ot_${hex.slice(0, 32)}`;
+}
+
+/** The read-only status answer, as one of: sent | confirmed | not_charged | processing | unknown | check_failed. */
+export function paymentStateFromStatus(res) {
+  if (!res || res.ok !== true) return "check_failed";
+  const r = res.result || {};
+  if (r.notFound === true) return "not_charged";
+  if (r.stage === "scheduled") return "sent";
+  const state = r.payment && typeof r.payment.state === "string" ? r.payment.state : null;
+  if (state === "confirmed" || state === "not_charged" || state === "processing" || state === "unknown") return state;
+  if (state === "not_required") return "not_charged";
+  return "unknown";
+}
+/** Only these let the owner press Send again (with the same key). */
+export const RESOLVED_FOR_SEND = Object.freeze(["confirmed", "not_charged"]);
+
+export const PAYMENT_STATUS_TEXT = Object.freeze({
+  sent: "This send went through.",
+  confirmed: "Your payment is confirmed. Press Send now to finish sending this Greet-Me; you won\u2019t be charged again.",
+  not_charged: "No payment was taken for this send. You can send it again (you may be asked for a different card), or start over.",
+  processing: "Your bank is still processing this payment. Don\u2019t submit another payment yet.",
+  unknown: "We can\u2019t confirm this payment yet. Don\u2019t submit another payment yet.",
+  check_failed: "We couldn\u2019t check the payment right now. Try again in a moment.",
+});
