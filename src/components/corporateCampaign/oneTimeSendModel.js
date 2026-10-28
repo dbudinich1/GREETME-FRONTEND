@@ -99,6 +99,19 @@ const BLOCKER_TEXT = Object.freeze({
   invalid_occasion_type: "Choose one of the listed occasions.",
   contact_not_found: "That person is no longer in your contacts.",
   review_out_of_date: "Things changed since you reviewed. Please review again.",
+  // Gift box (founder 2026-10-28): the existing campaign quote and catalog refusals, in plain words. Nothing is charged
+  // while any of these stands.
+  catalog_product_not_published: "That gift box is no longer available. Choose another one.",
+  product_selection_missing: "Choose a gift box first.",
+  variants_invalid: "Choose the options this gift box needs, then review again. Nothing was charged.",
+  quote_request_failed: "We couldn’t get a price for that gift box. Check the chosen options and addresses, then try again. Nothing was charged.",
+  quote_missing: "We couldn’t get a price for that gift box. Nothing was charged.",
+  recipient_quote_missing: "We couldn’t get a price for everyone. Nothing was charged.",
+  quote_recipient_mismatch: "We couldn’t confirm the price for that gift box. Nothing was charged.",
+  quote_total_unsafe: "We couldn’t confirm the price for that gift box. Nothing was charged.",
+  currency_unsupported: "That gift box can’t be paid for in US dollars. Nothing was charged.",
+  recipient_address_invalid: "Someone’s mailing address is incomplete. Update it, then review again.",
+  no_eligible_recipients: "Nobody selected has a mailing address for a gift box.",
 });
 export function blockerText(code) {
   return BLOCKER_TEXT[code] || "This can’t be sent yet. Please check the details and try again.";
@@ -112,8 +125,16 @@ export function notReadyText(b) {
   return b.field ? `missing ${b.field}` : "missing details";
 }
 
-export function giftPayload(giftType, tierCents, qrCashAmountCents = null) {
+export function giftPayload(giftType, tierCents, qrCashAmountCents = null, product = null, variants = []) {
   if (giftType === "curated") return { type: "curated", maxSpendCents: tierCents };
+  // Gift box (founder 2026-10-28): the campaign editor's own selection, in the backend's campaign shape - the spend
+  // limit, the ONE catalog item exactly as the catalog returned it, and the chosen option labels. With no box chosen
+  // it serializes NO gift rather than a half-made one.
+  if (giftType === "gift_boxes") {
+    const id = product && typeof product.providerProductId === "string" ? product.providerProductId.trim() : "";
+    if (!id) return null;
+    return { type: "gift_boxes", maxSpendCents: tierCents, product, variants: (Array.isArray(variants) ? variants : []).filter((v) => typeof v === "string" && v.trim() !== "") };
+  }
   // RELEASE 2 - QR Cash (dormant: only reachable while the option is selectable). Whole dollars in CENTS under an
   // explicit-unit name; an invalid or missing amount serializes NO gift rather than a half-made one.
   if (giftType === "qrcash") {
@@ -127,6 +148,19 @@ export function totalLine(gift) {
   if (!gift || !gift.requiresPayment) return null;
   if (!Number.isSafeInteger(gift.totalCents)) return null;
   return `${money(gift.totalCents)} will be charged to your saved card at the moment of sending.`;
+}
+
+/**
+ * Each person's cost from the server's review, in the order the review lists them. Only amounts the server returned
+ * are shown; a person with no returned amount is left out rather than shown at $0.
+ */
+export function perRecipientCosts(preview) {
+  const per = preview && preview.gift && preview.gift.perRecipient;
+  const list = preview && preview.recipients && Array.isArray(preview.recipients.list) ? preview.recipients.list : [];
+  if (!per || typeof per !== "object") return [];
+  return list
+    .filter((r) => per[r.contactId] && Number.isSafeInteger(per[r.contactId].totalCents))
+    .map((r) => ({ contactId: r.contactId, name: r.name || "Unnamed", totalCents: per[r.contactId].totalCents }));
 }
 
 /** Can the owner press the final button right now? */

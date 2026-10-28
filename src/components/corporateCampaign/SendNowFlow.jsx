@@ -9,18 +9,23 @@
 // what was reviewed (expected recipient count and gift total) under one idempotency key per review, so a retry
 // after a lost response can never send twice.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CONTACT_CATEGORIES, CURATED_TIERS_CENTS, centsToDisplay, corporateGiftOptions, giftOptionState, qrCashDollarsToCents } from "./corporateDashboardModel.js";
+import {
+  CONTACT_CATEGORIES, CURATED_TIERS_CENTS, centsToDisplay, corporateGiftOptions, giftOptionState, qrCashDollarsToCents,
+  PROVIDER_GIFT_OPTION, isProviderFundableGiftType, publishedCatalogItems, publishedVariantNames, selectedProductId,
+  toggleVariantSelection, isStaleProductSelection,
+} from "./corporateDashboardModel.js";
 import { BubbleGroup, ChoiceBubble } from "./Bubbles.jsx";
 import SavedCardPanel from "./SavedCardPanel.jsx";
 import {
   buildPreviewRequest, buildSendRequest, newIdempotencyKey, planLine, blockerText, notReadyText, giftPayload, totalLine, canConfirm,
-  FINAL_BUTTON_LABEL, FINAL_NOTE, TOP_UP_HREF, UPGRADE_HREF, money, OCCASIONS, isOccasion, linkHref,
+  FINAL_BUTTON_LABEL, FINAL_NOTE, TOP_UP_HREF, UPGRADE_HREF, money, OCCASIONS, isOccasion, linkHref, perRecipientCosts,
 } from "./oneTimeSendModel.js";
 import "./premiumDashboard.css";
 
 const SHOWN_NAMES = 8;
 
-export default function SendNowFlow({ orgId, contacts, client, cardClient, stripeOverride, onSent }) {
+// `catalogClient`: the campaigns client, whose listGiftCatalog is the campaign editor's own organization catalog read.
+export default function SendNowFlow({ orgId, contacts, client, catalogClient, cardClient, stripeOverride, onSent }) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [who, setWho] = useState("category");
@@ -32,6 +37,10 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
   // RELEASE 2 - QR Cash: the typed whole-dollar amount. Empty until the person chooses one; no default is invented.
   const [qrDollars, setQrDollars] = useState("");
   const qrCents = qrCashDollarsToCents(qrDollars);
+  // Gift box (founder 2026-10-28): the campaign editor's catalog, product and option selection, reused unchanged.
+  const [giftCatalog, setGiftCatalog] = useState({ items: [], read: false });
+  const [product, setProduct] = useState(null);
+  const [variants, setVariants] = useState([]);
   const [excludeSpread, setExcludeSpread] = useState(false);
   const [skipNotReady, setSkipNotReady] = useState(false);
   const [review, setReview] = useState({ state: "idle", preview: null, error: null });
@@ -43,11 +52,39 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
   const list = Array.isArray(contacts) ? contacts : [];
   const inCategory = list.filter((c) => c.corporateContactType === category);
   const chosenCount = who === "single" ? (contactId ? 1 : 0) : inCategory.length;
-  const giftOptions = corporateGiftOptions({ catalogItemCount: 0, currentGiftType: giftType });
+  const giftOptions = corporateGiftOptions({ catalogItemCount: giftCatalog.items.length, currentGiftType: giftType });
+  const isGiftBox = isProviderFundableGiftType(giftType);
+  const productChosen = isGiftBox ? selectedProductId(product) : "";
+  const variantChoices = publishedVariantNames(product);
+  const staleProduct = isStaleProductSelection({ giftType, product, items: giftCatalog.items, catalogRead: giftCatalog.read });
+  // A box that publishes options needs one chosen before the review; the server's quote stays the authority.
+  const optionsMissing = Boolean(productChosen) && variantChoices.length > 0 && variants.length === 0;
+  const giftBoxBlocked = isGiftBox && (!productChosen || staleProduct || optionsMissing);
+  const giftBoxNote = !isGiftBox ? null
+    : staleProduct ? "That gift box is no longer published. Choose another one."
+      : !productChosen ? "Choose a gift box."
+        : optionsMissing ? "Choose an option for this gift box." : null;
+
+  // The same organization-scoped read the campaign editor makes, once the flow is opened. Fail-closed and silent: a
+  // refusal, a dormant provider and an empty catalog all mean there is no gift box to offer.
+  useEffect(() => {
+    if (!open || !catalogClient || typeof catalogClient.listGiftCatalog !== "function") return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await catalogClient.listGiftCatalog(orgId, PROVIDER_GIFT_OPTION.value);
+        if (alive) setGiftCatalog({ items: publishedCatalogItems(res), read: Boolean(res && res.ok === true) });
+      } catch {
+        if (alive) setGiftCatalog({ items: [], read: false });
+      }
+    })();
+    return () => { alive = false; };
+  }, [open, catalogClient, orgId]);
 
   const previewBody = useMemo(() => buildPreviewRequest({
-    who, category, contactId, occasionType, gift: giftPayload(giftType, tier, qrCents), excludeFeaturedSpread: excludeSpread, skipNotReady,
-  }), [who, category, contactId, occasionType, giftType, tier, qrCents, excludeSpread, skipNotReady]);
+    who, category, contactId, occasionType, gift: giftPayload(giftType, tier, qrCents, isGiftBox ? product : null, variants),
+    excludeFeaturedSpread: excludeSpread, skipNotReady,
+  }), [who, category, contactId, occasionType, giftType, tier, qrCents, isGiftBox, product, variants, excludeSpread, skipNotReady]);
   const previewKey = JSON.stringify(previewBody);
 
   // A new review (new inputs) is a new send: a fresh idempotency key, so two different sends can never collide.
@@ -179,7 +216,7 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
         {!sent && step === 2 ? (
           <div data-testid="sendnow-what">
             <BubbleGroup label="What goes with the greeting" role="radiogroup" testId="sendnow-gift-group">
-              {giftOptions.filter((o) => o.value === "none" || o.value === "curated" || o.value === "qrcash").map((opt) => {
+              {giftOptions.filter((o) => o.value === "none" || o.value === "curated" || o.value === PROVIDER_GIFT_OPTION.value || o.value === "qrcash").map((opt) => {
                 const st = giftOptionState(opt.value);
                 return (
                   <ChoiceBubble key={opt.value} id={`sendnow-gift-${opt.value}`} name="sendnow-gift" value={opt.value} label={opt.label}
@@ -195,6 +232,47 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
                   {CURATED_TIERS_CENTS.map((c) => <option key={c} value={c}>{centsToDisplay(c)}</option>)}
                 </select>
               </label>
+            ) : null}
+            {isGiftBox ? (
+              <div data-testid="sendnow-giftbox" style={{ marginTop: 8, fontSize: ".85rem" }}>
+                <label style={{ display: "block" }}>
+                  Spend limit <span style={{ color: "#605c78" }}>(a ceiling, never a price)</span>{" "}
+                  <select data-testid="sendnow-giftbox-tier" value={tier} onChange={(e) => setTier(Number(e.target.value))} style={{ padding: 6, borderRadius: 6 }}>
+                    {CURATED_TIERS_CENTS.map((c) => <option key={c} value={c}>{centsToDisplay(c)}</option>)}
+                  </select>
+                </label>
+                {giftCatalog.items.length > 0 ? (
+                  <BubbleGroup label="Which gift box" role="radiogroup" testId="sendnow-giftbox-products">
+                    {giftCatalog.items.map((item) => {
+                      const id = selectedProductId(item);
+                      return (
+                        <ChoiceBubble key={id} id={`sendnow-gb-${id}`} name="sendnow-gb" value={id} label={item.title || id}
+                          checked={productChosen === id}
+                          // One box replaces the other outright, and its options go with it.
+                          onChange={() => { setProduct(item); setVariants([]); }} />
+                      );
+                    })}
+                  </BubbleGroup>
+                ) : (
+                  <span style={{ display: "block", color: "#605c78" }} data-testid="sendnow-giftbox-empty">No gift boxes are published yet.</span>
+                )}
+                {productChosen && variantChoices.length > 0 ? (
+                  <fieldset data-testid="sendnow-giftbox-variants" style={{ border: 0, padding: 0, margin: "8px 0 0" }}>
+                    <legend style={{ color: "#605c78", padding: 0 }}>Options published for this gift box</legend>
+                    {variantChoices.map((name) => (
+                      <label key={name} style={{ display: "block", margin: "4px 0" }}>
+                        <input type="checkbox" value={name} checked={variants.includes(name)}
+                          onChange={() => setVariants(toggleVariantSelection(variants, name, variantChoices))} />
+                        {" "}{name}
+                      </label>
+                    ))}
+                  </fieldset>
+                ) : null}
+                <span style={{ display: "block", color: "#605c78", fontSize: ".8rem", marginTop: 6 }}>
+                  One gift box for each person, mailed to their address. The review shows each person&rsquo;s cost, including shipping and tax, and the full total.
+                </span>
+                {giftBoxNote ? <span role="status" data-testid="sendnow-giftbox-note" style={{ display: "block", color: "#92400e", marginTop: 4 }}>{giftBoxNote}</span> : null}
+              </div>
             ) : null}
             {giftType === "qrcash" ? (
               <label style={{ display: "block", fontSize: ".85rem", marginTop: 8 }}>
@@ -212,7 +290,7 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
             </label>
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button type="button" className="gcd-btn" data-testid="sendnow-back-2" onClick={() => setStep(1)}>Back</button>
-              <button type="button" className="gcd-btn gcd-btn--primary" data-testid="sendnow-next-2" disabled={giftType === "qrcash" && qrCents === null} onClick={() => setStep(3)}>Review</button>
+              <button type="button" className="gcd-btn gcd-btn--primary" data-testid="sendnow-next-2" disabled={(giftType === "qrcash" && qrCents === null) || giftBoxBlocked} onClick={() => setStep(3)}>Review</button>
             </div>
           </div>
         ) : null}
@@ -248,7 +326,7 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
                   <div className="gcd-info-row"><dt className="gcd-info-label">When</dt>
                     <dd className="gcd-info-value" data-testid="sendnow-review-when">Once, right after you confirm. No schedule and no repeat.</dd></div>
                   <div className="gcd-info-row"><dt className="gcd-info-label">Gift</dt>
-                    <dd className="gcd-info-value">{pv.gift.type === "none" ? "No gift" : pv.gift.type === "curated" ? `Let Greet-Me™ Select (up to ${money(pv.gift.maxSpendCents || 0)})` : pv.gift.type === "qrcash" ? `QR Cash™ (${money(pv.gift.qrCashAmountCents || 0)} each)` : pv.gift.type}</dd></div>
+                    <dd className="gcd-info-value" data-testid="sendnow-review-gift">{pv.gift.type === "none" ? "No gift" : pv.gift.type === "curated" ? `Let Greet-Me™ Select (up to ${money(pv.gift.maxSpendCents || 0)})` : pv.gift.type === "qrcash" ? `QR Cash™ (${money(pv.gift.qrCashAmountCents || 0)} each)` : isProviderFundableGiftType(pv.gift.type) ? `Gift box: ${(product && (product.title || product.providerProductId)) || "Gift box"}${variants.length ? ` (${variants.join(", ")})` : ""}` : pv.gift.type}</dd></div>
                   <div className="gcd-info-row"><dt className="gcd-info-label">Featured Spread</dt>
                     <dd className="gcd-info-value" data-testid="sendnow-review-spread">{pv.featuredSpread && pv.featuredSpread.included ? "Included" : "Excluded"}</dd></div>
                   <div className="gcd-info-row"><dt className="gcd-info-label">From</dt>
@@ -281,6 +359,20 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
 
                 {pv.gift.requiresPayment ? (
                   <div data-testid="sendnow-payment" style={{ margin: "10px 0" }}>
+                    {/* Gift box (founder 2026-10-28): each person's cost exactly as the server quoted it (shipping and tax
+                        included), then the full total, which is what the card is charged. */}
+                    {isProviderFundableGiftType(pv.gift.type) && perRecipientCosts(pv).length ? (
+                      <div data-testid="sendnow-costs" style={{ margin: "0 0 8px" }}>
+                        <p style={{ margin: "0 0 4px", fontSize: ".85rem" }}>Each person&rsquo;s gift box, including shipping and tax:</p>
+                        <ul style={{ listStyle: "none", margin: 0, padding: 0, maxHeight: "12rem", overflowY: "auto", fontSize: ".85rem" }}>
+                          {perRecipientCosts(pv).map((r) => (
+                            <li key={r.contactId} data-testid="sendnow-cost-row" style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "2px 0", borderBottom: "1px solid #eee" }}>
+                              <span style={{ overflowWrap: "anywhere" }}>{r.name}</span><span style={{ whiteSpace: "nowrap" }}>{money(r.totalCents)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                     {totalLine(pv.gift) ? <p data-testid="sendnow-total" style={{ margin: "0 0 6px", fontSize: ".9rem" }}><strong>{totalLine(pv.gift)}</strong></p> : null}
                     {pv.gift.cardOnFile === false ? <SavedCardPanel orgId={orgId} client={cardClient} stripeOverride={stripeOverride} /> : null}
                   </div>
