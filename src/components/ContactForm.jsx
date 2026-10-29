@@ -628,11 +628,11 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
     if (isBusinessEdit) result = await onSubmit(businessContactPatch(businessEdit.record, toSave, { nameTyped: nameTypedRef.current }));
     else result = await onSubmit({
       ...toSave,
+      occasionGiftSettings: normalizeGiftSettingsForSave(toSave.occasionGiftSettings),
       // Founder 2026-10-29: saved delivery details are preserved even when their fields aren't visible. An address the
       // sender did not edit is sent back EXACTLY as stored, so the form's defaults (country 'United States', empty line2)
-      // are never written into a stored record that lacks them. An edited address is sent as before.
+      // are never written into a stored record that lacks them. An edited address is sent as before. (The key keeps its place.)
       ...(storedAddressUntouched(contact, toSave.shippingAddress) ? { shippingAddress: contact.shippingAddress } : {}),
-      occasionGiftSettings: normalizeGiftSettingsForSave(toSave.occasionGiftSettings),
       ...(consents.length > 0 ? { occasionGiftConsents: consents } : {}),
       ...(sgTypes.length > 0 ? { scheduledGiftConsents: scheduledGiftConsentsFor(sgTypes, toSave.occasionGiftSettings) } : {}),
     });

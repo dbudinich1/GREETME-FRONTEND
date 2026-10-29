@@ -100,12 +100,13 @@ test("editing a recipient with a saved address submits that address unchanged", 
   assert.deepEqual(globalThis.__submitted.shippingAddress, STORED);
 });
 
-test("editing a recipient with a partial saved address keeps it and fills only the defaults", async () => {
+// Founder 2026-10-29 ("saved delivery names/address must be preserved even when their fields aren't visible"): an untouched
+// partial address is now sent back EXACTLY as stored; the form's defaults are no longer written into it (they were, before).
+test("editing a recipient with a partial saved address sends it back exactly as stored (no form defaults added)", async () => {
   await mountEdit(baseContact({ shippingAddress: { line1: "9 Oak Ave", city: "Newark", state: "NJ", zip: "07102" } }));
   await click(document.querySelector('button[type="submit"]'));
   await flush();
-  assert.deepEqual(globalThis.__submitted.shippingAddress,
-    { line1: "9 Oak Ave", line2: "", city: "Newark", state: "NJ", zip: "07102", country: "United States" });
+  assert.equal(JSON.stringify(globalThis.__submitted.shippingAddress), JSON.stringify({ line1: "9 Oak Ave", city: "Newark", state: "NJ", zip: "07102" }));
 });
 
 test("editing a record that carries no address submits no address field (T5 M1: Business contacts keep their stored address)", async () => {
