@@ -178,7 +178,7 @@ export default function GreetMeExperience({ onExit }) {
     const onStep = (to, from, how) => {
       clearSub();
       setVideoMissing(false);
-      if (how === 'card' || how === 'media') return;
+      if (how === 'card' || how === 'media' || how === 'resume') return;
       if (how === 'replay') { setCardKey((k) => k + 1); setSoundBlocked(false); return; }
       if (to.id === 'envelope' && from && (from.id === 'reverse' || from.id === 'cover')) { setCardKey((k) => k + 1); return; }
       if (to.id === 'claim') { if (from?.id === 'finale') clickSampleQr(hostRef.current); return; }

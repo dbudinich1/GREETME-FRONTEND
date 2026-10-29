@@ -191,6 +191,7 @@ test("step order: the guide drives the unchanged card through its own controls; 
   await act(async () => { window.__endMedia(v); }); await wait(50);
   order.push(step());                                                   // photos: the video ended
   assert.ok(document.querySelector(".gc-photo-album:not(.gc-album-disabled)"), "the album unlocked by the player itself");
+  await wait(700);                                                      // past the Next guard that follows the video's end
   await click($("experience-next"), 500); order.push(step());          // finale
   assert.ok(document.querySelector(".gc-finale-spread"));
   await wait(50);
@@ -505,6 +506,30 @@ test("N1: the visitor's own album mute is respected when the card changes", asyn
   await act(async () => { $("experience-card").appendChild(document.createElement("span")); }); await wait(30);
   assert.equal(albumBtn().getAttribute("aria-label"), "Unmute", "still muted: the guide did not undo it");
   assert.equal($("experience-sound").getAttribute("aria-pressed"), "true", "the guide's own sound state is unchanged");
+});
+
+test("D2: a Next 0 ms after the video's end does not skip the photos and music", async () => {
+  await openExperience();
+  await nextTo("video");
+  await wait(1700);
+  await act(async () => { window.__endMedia(cardVideo()); });
+  await click($("experience-next"), 0);
+  await wait(600);
+  assert.equal(step(), "photos", "absorbed: the photos and music stay");
+  assert.ok(document.querySelector(".gc-album-mute-btn"), "the album is playing");
+});
+
+test("D1: when the intro video has failed, exit focus returns to the entry button once the landing is live", async () => {
+  await mount();
+  await act(async () => { introVideo().dispatchEvent(new window.Event("error")); }); await wait(20);
+  assert.ok($("landing-video-failed"), "the intro video has failed");
+  await click($("landing-experience"), 60);
+  assert.ok($("experience-overlay"));
+  await key("Escape", document.body, 60);
+  assert.equal($("experience-overlay"), null);
+  assert.equal(document.querySelectorAll("[inert]").length, 0, "the landing is live again");
+  assert.equal(document.activeElement, $("landing-experience"), "focus is on The Greet-Me Experience, not lost to the page");
+  assert.equal(plays.filter((x) => x.isIntro).length, 0, "no play attempted for a failed video");
 });
 
 test("no network: no fetch, XHR or beacon (so nothing to claim, payment or send endpoints); no greetme_ storage", async () => {

@@ -128,7 +128,7 @@ export function createExperienceGuide({ steps, onChange = () => {}, onStep = () 
     start() { done = false; enter(0, 'start'); },
     // The orchestrator calls this once an automatically entered step is on screen, so the guard runs from what the
     // visitor saw (a heavy screen can take a moment to render after the timer fired).
-    shown() { if (lastHow === 'auto') lastAutoAt = Math.max(lastAutoAt, now()); },
+    shown() { if (lastHow === 'auto' || lastHow === 'media') lastAutoAt = Math.max(lastAutoAt, now()); },
     // Returns false when the press was absorbed by the auto-advance guard.
     next() {
       if (now() - lastAutoAt < EXPERIENCE_TIMING.autoNextGuardMs) return false;
@@ -150,7 +150,8 @@ export function createExperienceGuide({ steps, onChange = () => {}, onStep = () 
     mediaEnd() {
       mediaEnded = true;
       if (steps[index].id === 'video') {
-        if (paused) { mediaPending = true; emit(); } else enter(byId('photos'), 'media');
+        // The video's end is an automatic advance too: the same Next guard applies to it.
+        if (paused) { mediaPending = true; emit(); } else { lastAutoAt = now(); enter(byId('photos'), 'media'); }
       } else emit();
     },
     // Replace the current step's timer (e.g. the real video length once known, or a dwell when there is no video).
@@ -163,7 +164,8 @@ export function createExperienceGuide({ steps, onChange = () => {}, onStep = () 
     resume() {
       if (!paused) return;
       paused = false;
-      if (mediaPending && steps[index].id === 'video') { enter(byId('photos'), 'media'); return; }
+      // Moving on here follows the visitor's own Resume press, so it is not guarded.
+      if (mediaPending && steps[index].id === 'video') { enter(byId('photos'), 'resume'); return; }
       run(); emit();
     },
     interact() { this.pause(); },
