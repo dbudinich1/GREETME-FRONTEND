@@ -93,7 +93,6 @@ export const DASHBOARD_HOME_CSS = `
 .gx .tag.muted { background:var(--ivory2); color:var(--muted); }
 .gx .tag.plum { background:var(--p50); color:var(--p700); border:1px solid var(--p100); }
 .gx .warn { margin-top:10px; display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:16px; background:var(--g50); border:1px solid #F1E2B3; color:#5c430a; font-size:14px; line-height:1.5; }
-.gx .warn.ask { border-color:#D4A017; box-shadow:0 0 0 3px rgba(212,160,23,.25); }
 .gx .giftband { margin:4px -30px 0; padding:24px 30px 30px; background-image:linear-gradient(135deg,#E0BE55 0%,#EBD07A 50%,#D4AF37 100%); }
 .gx .giftband .step-label { color:#4a3606; }
 .gx .giftband .num { background:rgba(255,255,255,.7); color:var(--p900); border-color:rgba(44,29,70,.15); }

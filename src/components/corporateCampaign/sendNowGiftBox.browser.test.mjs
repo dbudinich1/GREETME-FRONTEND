@@ -26,7 +26,7 @@ before(async () => {
   `);
   await esbuild.build({
     entryPoints: [ENTRY], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
-    jsx: "automatic", loader: { ".js": "jsx", ".jsx": "jsx", ".css": "empty", ".png": "dataurl", ".jpg": "dataurl", ".jpeg": "dataurl", ".svg": "dataurl" },
+    jsx: "automatic", loader: { ".js": "jsx", ".jsx": "jsx", ".css": "empty" },
     external: ["react", "react-dom", "react-dom/client", "react-router-dom"],
     define: { "import.meta.env": "{}" },
   });

@@ -39,8 +39,7 @@ import {
   SCHEDULER_OCCASION_TYPES, isSchedulerOccasion, prefillRow, chooseGift, withQrCashAmount, QRCASH_PRESET_DOLLARS, rowComplete, buildResolverContact, finalizeResolverSave,
   RESOLVER_GIFT_OPTIONS, resolverGiftStatus, resolverGiftAmount,
 } from '../utils/occasionResolver';
-import { writeDashboardHandoff, HANDOFF_MAX_WORDS, HANDOFF_MAX_PHOTOS, writeGiftPlaceTab, writeHomeSendIntent } from '../utils/dashboardSendHandoff';
-import { senderPhotoUsable } from '../utils/senderPhoto';
+import { writeDashboardHandoff, HANDOFF_MAX_WORDS, HANDOFF_MAX_PHOTOS, writeGiftPlaceTab } from '../utils/dashboardSendHandoff';
 import { buildGreetingPayload } from '../utils/sendGreetingPayload';
 import { GROUP_MAX, loadRun, clearRun, runSummary } from '../utils/groupSend';
 import { saveGroupSchedules } from '../utils/occasionResolver';
@@ -58,7 +57,6 @@ import { SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from '../config/scheduledPhysicalGi
 import { scheduledGiftConsentsFor, authorizationStepEnabled, scheduledGiftSavedConfirmations } from '../utils/scheduledPhysicalGift';
 import { SCHEDULED_QRCASH_AVAILABLE } from '../config/scheduledQrCash';
 import { saveLauncherState, readLauncherState, clearLauncherState } from '../utils/dashboardLauncherState';
-import { addRecipientEntry, picksWithAddedRecipient } from '../utils/addRecipientEntry';
 import { displayFirstName } from '../utils/displayName';
 import giftLuxuryBox from '../assets/gifts/gift-luxury-box.png';
 import giftBouquet from '../assets/gifts/gift-bouquet.png';
@@ -330,9 +328,7 @@ export default function DashboardHome() {
   const [occasions, setOccasions] = useState((Array.isArray(K('occasions', [])) ? K('occasions', []) : []).filter((o) => OFFERED_OCCASIONS.has(o)));
   const [menuOpen, setMenuOpen] = useState(null);
   const [audience, setAudience] = useState(AUDIENCES.some((a) => a.key === K('audience', 'one')) ? K('audience', 'one') : 'one');
-  // Lane 1 (2026-10-28): a recipient just added from here (Add Recipient keeps these choices) comes back selected when
-  // Home's own rules allow it (utils/addRecipientEntry.js); otherwise they are in the list, nothing else changes.
-  const [picks, setPicks] = useState(() => picksWithAddedRecipient({ picks: K('picks', []), audience, occasions, addedId: K('addedRecipientId', null), max: GROUP_MAX }));
+  const [picks, setPicks] = useState(K('picks', []));
   const [excluded, setExcluded] = useState(K('excluded', []));
   const [pickerOpen, setPickerOpen] = useState(false);
   const [find, setFind] = useState('');
@@ -347,7 +343,6 @@ export default function DashboardHome() {
   const [confirmed, setConfirmed] = useState(() => { const c = K('confirmed', null); return c && typeof c === 'object' && !Array.isArray(c) ? { occ: typeof c.occ === 'string' ? c.occ : null, who: typeof c.who === 'string' ? c.who : null, pers: typeof c.pers === 'string' ? c.pers : null } : {}; });
   const [ruleNote, setRuleNote] = useState('');
   const [giftNote, setGiftNote] = useState('');
-  const [photoAsk, setPhotoAsk] = useState(false); // Send pressed without a usable photo: point at the photo step
   const [rows, setRows] = useState(K('rows', {}));
   const [datesOpen, setDatesOpen] = useState(K('datesOpen', false));
   // Scheduled physical gift (Report 117 U1): the row whose product picker is open. Its card and consent are collected
@@ -381,21 +376,16 @@ export default function DashboardHome() {
   useEffect(() => () => { if (audioRef.current) audioRef.current.pause(); }, []);
 
   const voiceDone = Boolean(user?.voiceId || user?.voiceUrl);
-  // Report 145 correction (founder 2026-10-28): the send page's own W03 rule, so "Your photo is ready" is never shown for a
-  // photo the send would refuse (a data: URL or a placeholder).
-  const photoDone = senderPhotoUsable(user?.photoUrl);
+  const photoDone = Boolean(user?.photoUrl);
   const firstName = displayFirstName(user?.name); // Walkthrough 2026-10-24: first letter capitalised, the rest kept as typed
+  const goAddRecipient = () => navigate('/dashboard/contacts', { state: { openAddRecipient: true } });
   // Editing a recipient (or opening their Occasion Scheduler) from here keeps the in-progress choices and brings the
   // sender back to them after saving or closing the edit (Contacts.jsx returnTo).
   const keepChoices = () => {
     const kept2 = saveLauncherState(window.sessionStorage, user?.id, { mode, occasions, audience, picks, excluded, words, memoryPhotos, gift, whoDone, confirmed, rows, groupDefaultGift, datesOpen });
     if (kept2 === 'without_photos') showManualToast('Photos not kept', 'Your memory photos were too large to keep on this device while you edit. Your other choices are kept.', COMMS_CATEGORIES.SYSTEM);
   };
-  // Lane 1 (2026-10-28): every Add Recipient on Home (hero, Celebration Manager, empty list, the picker's "Add a new
-  // recipient") opens the same full Add New Recipient dialog, keeps these choices and comes back here after Save
-  // (the new person selected) or Cancel (nothing changed). It used to drop the choices and stay on Recipients.
-  const goAddRecipient = () => { keepChoices(); const e = addRecipientEntry('dashboard'); navigate(e.to, e.opts); };
-  const goAddFromFlow = goAddRecipient;
+  const goAddFromFlow = () => { keepChoices(); navigate('/dashboard/contacts', { state: { openAddRecipient: true, returnTo: 'dashboard' } }); };
   const goEdit = (id) => { keepChoices(); navigate('/dashboard/contacts', { state: { openEditRecipientId: id, returnTo: 'dashboard' } }); };
   const goScheduler = (contactId, occasionType) => { keepChoices(); navigate(`/dashboard/contacts?contactId=${encodeURIComponent(contactId)}&occasion=${encodeURIComponent(occasionType)}`, { state: { returnTo: 'dashboard' } }); };
   const filtered = useMemo(() => contacts.filter((c) => (c.name || '').toLowerCase().includes(term.toLowerCase()) || (c.relationship || '').toLowerCase().includes(term.toLowerCase())), [contacts, term]);
@@ -683,31 +673,20 @@ export default function DashboardHome() {
     if (!canContinue) return;
     if (resolverOn || groupSchedOn) { if (datesComplete) saveDates(); else setDatesOpen(true); return; }
     if (sendNowGroup) { setResumeRun(null); setGroupReviewOpen(true); return; }
-    // Report 145 correction (founder 2026-10-28): this click is the confirmation. Without a usable photo nothing is sent:
-    // the existing photo step here is pointed out instead of opening the send page. Otherwise the send page sends at once
-    // through its existing no-gift send (or asks only for what is still missing there; a gift keeps its review and
-    // payment). It never reopens gift shopping (Report 135).
-    if (!photoDone) {
-      setPhotoAsk(true);
-      const el = document.querySelector('[data-testid=gx-photo-tile]');
-      if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      const btn = document.querySelector('[data-testid=gx-photo-add]'); if (btn) btn.focus({ preventScroll: true });
-      return;
-    }
-    goSendFlow(null, null, true);
+    // Send goes to the send flow's own review, pricing and consent. It never reopens gift shopping (Report 135): a
+    // gift is chosen when Add a gift is pressed, so nothing here asks for one again.
+    goSendFlow(null);
   };
   // One person + one occasion (Send Now) to the existing send flow, with words and memory photos carried once.
   // giftEntry: null (Send), 'gift' (Add a gift: the send flow keeps this greeting and opens the Gift Place) or
   // 'qrcash' (Add QR Cash: the send flow's canonical QR Cash entry, where the amount is set).
-  // sendNow: the Home Send click (a complete greeting is sent on arrival; see SendGreeting's Home Send step).
-  const goSendFlow = (giftEntry, giftPlaceTab = null, sendNow = false) => {
+  const goSendFlow = (giftEntry, giftPlaceTab = null) => {
     const person = chosen[0];
     const occasion = occasions[0];
     const carried = writeDashboardHandoff(window.sessionStorage, { contactId: person.id, occasion, words, memoryPhotos });
     if (carried === 'words') showManualToast('Photos not carried over', 'Your memory photos were too large to carry to the next step on this device. You can add them there.', COMMS_CATEGORIES.SYSTEM);
     else if (carried === 'none' && (words.trim() || memoryPhotos.length)) showManualToast('Not carried over', 'Your words and photos couldn’t be carried to the next step on this device. You can add them there.', COMMS_CATEGORIES.SYSTEM);
     const p = new URLSearchParams({ contactId: person.id, occasion, from: 'dashboard' });
-    if (sendNow && !giftEntry) { const nonce = writeHomeSendIntent(window.sessionStorage, { contactId: person.id, occasion }); if (nonce) p.set('intent', nonce); }
     if (giftEntry === 'qrcash') p.set('giftType', 'qrcash');
     else if (giftEntry === 'gift') {
       const entry = Date.now().toString(36);
@@ -757,9 +736,7 @@ export default function DashboardHome() {
         : sendNowGroup ? 'Next: review each person\u2019s gift and cost. Nothing is charged or sent until you confirm.'
       : resolverOn ? (resolverComplete ? 'Each occasion is saved as its own scheduled Greet-Me in their Occasion Scheduler.' : 'Set a date and a gift choice for every occasion to continue.')
         : mode === 'occasion' ? 'Nothing is scheduled until you save it.'
-          : sendNowSingle && !photoDone ? 'Add your photo to send — it is included in every Greet-Me.'
-            : sendNowSingle ? `Send sends this Greet-Me to ${first(chosen[0].name)} now.`
-              : 'Choose the occasion and who it’s for, then Send.';
+          : 'Next: the send flow, where you review it. Nothing is sent, and no gift is charged, until you confirm there.';
 
   const StepHead = ({ n, label, isDone, sub }) => (
     <>
@@ -1036,13 +1013,13 @@ export default function DashboardHome() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><b>{photoDone ? 'Your photo is ready' : 'Add your photo'}</b>{photoDone ? <span className="tag" style={{ background: 'var(--g100)', color: '#6b4f08' }}>Uploaded</span> : null}</div>
                   <p className="sub2">{photoDone ? 'It appears inside the Greet-Me card they receive.' : 'A face makes the moment warmer.'}</p>
                   <div className="acts2">
-                    <button type="button" className="btn btn-xs btn-line" data-testid="gx-photo-add" onClick={() => { keepChoices(); navigate('/dashboard/profile'); }}><Camera size={14} /> {photoDone ? 'Change photo' : 'Add photo'}</button>
+                    <button type="button" className="btn btn-xs btn-line" onClick={() => navigate('/dashboard/profile')}><Camera size={14} /> {photoDone ? 'Change photo' : 'Add photo'}</button>
                     <button type="button" className="link" onClick={() => navigate('/dashboard/media')}>Media Library</button>
                   </div>
                 </div>
               </div>
             </div>
-            {!photoDone ? <div className={`warn${photoAsk ? ' ask' : ''}`} data-testid="gx-photo-warn" role={photoAsk ? 'alert' : undefined}><AlertCircle size={16} style={{ flex: 'none', marginTop: 2 }} /><span>{SENDER_PHOTO_REQUIRED_MESSAGE}</span></div> : null}
+            {!photoDone ? <div className="warn"><AlertCircle size={16} style={{ flex: 'none', marginTop: 2 }} /><span>{SENDER_PHOTO_REQUIRED_MESSAGE}</span></div> : null}
             <label className="words" style={{ display: 'block' }}>
               <span className="fieldlabel">A few words from the heart</span>
               <span className="fieldsub">Tell them what makes this moment special.</span>

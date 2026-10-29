@@ -20,7 +20,7 @@ import { ShieldCheck, CreditCard, AlertTriangle } from 'lucide-react';
 import api from '../../api/api';
 import { stripePromise } from '../../stripe/stripeProvider';
 import { getErrorMessage } from '../../utils/errorMessages';
-import { buildConsentPayload, consentParagraphs, CONSENT_TICK_LABEL, SCHED_QRCASH_WORDING_VERSION, FIRST_CONSENT_NOTE } from '../../utils/scheduledQrCashConsent';
+import { buildConsentPayload, consentParagraphs, CONSENT_TICK_LABEL, SCHED_QRCASH_WORDING_VERSION } from '../../utils/scheduledQrCashConsent';
 import { scheduledGiftConsentParts, SCHEDULED_GIFT_BACKUP_WORDING_VERSION } from '../../utils/scheduledPhysicalGift';
 import { SCHEDULED_GIFT_WORDING_VERSION } from '../../config/scheduledPhysicalGift';
 
@@ -140,10 +140,7 @@ function Inner({ plan, card, formData, setFormData, onSave, onCancel, withStripe
             : need.card && need.address ? 'We need a payment method for Auto-Gift and the mailing address for this gift before we save.'
             : need.card ? 'Auto-Gift needs a valid payment method on file before we save.'
             : need.consent && need.address ? 'Please confirm your Auto-Gift authorization and give the mailing address for this gift before we save.'
-            : need.consent ? (items.length > 1 ? 'Please confirm your authorization for each Auto-Gift below before we save.'
-              // LIVE-3 (copy APPROVED by the founder 2026-10-29): an unchanged older Auto-Gift asked for its first consent was not changed.
-              : items.every((it) => it.firstConsent) ? 'Please confirm your authorization for this Auto-Gift before we save.'
-              : 'You changed this Auto-Gift, so please confirm your authorization before we save.')
+            : need.consent ? (items.length > 1 ? 'Please confirm your authorization for each Auto-Gift below before we save.' : 'You changed this Auto-Gift, so please confirm your authorization before we save.')
             : 'This gift is shipped, so we need the recipient’s mailing address before we save.'}
         </p>
 
@@ -188,8 +185,6 @@ function Inner({ plan, card, formData, setFormData, onSave, onCancel, withStripe
             {items.map((it) => (
               <div key={it.key} data-testid={`consent-block-${it.key}`} style={{ borderTop: '1px solid var(--border)', marginTop: 10, paddingTop: 8 }}>
                 {items.length > 1 && <div data-testid={`consent-heading-${it.key}`} style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 4 }}>{it.label}</div>}
-                {/* LIVE-3: an unchanged older Auto-Gift asked for its first consent says why; the consent text below is unchanged. */}
-                {it.firstConsent && <p data-testid={`first-consent-note-${it.key}`} style={{ fontSize: '0.75rem', lineHeight: 1.5, margin: '0 0 6px', fontWeight: 600 }}>{FIRST_CONSENT_NOTE}</p>}
                 <div data-testid="consent-text" style={{ fontSize: '0.75rem', lineHeight: 1.5 }}>
                   {consentParagraphs(it).map((p, i) => <p key={i} style={{ margin: '0 0 6px' }}>{p}</p>)}
                 </div>

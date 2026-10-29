@@ -61,9 +61,16 @@ export default function CampaignFeaturedSpreadEditor({
           />
           <span>Greet-Me Animated Message</span>
         </label>
-        {/* LANE 3 (2026-10-28) — "Use Organization Default" and "Restore Default" are removed
-            (founder correction: no organization default and no inheritance). The For Business
-            campaign surface now uses the shared featured-media controls instead. */}
+        {config.animatedMessageEnabled && (
+          <div className="cfs-subcontrols">
+            <button type="button" disabled={disabled} onClick={() => dispatch({ type: ACTIONS.SET_ANIMATION_SOURCE, source: "organization_default" })}>
+              Use Organization Default
+            </button>
+            <button type="button" disabled={disabled} onClick={() => dispatch({ type: ACTIONS.SET_ANIMATION_IMAGE_REF, ref: null })}>
+              Restore Default
+            </button>
+          </div>
+        )}
 
         {/* 2. Corporate Video — visibly unavailable/proposed (never functional) */}
         <label className="cfs-toggle cfs-toggle--unavailable">

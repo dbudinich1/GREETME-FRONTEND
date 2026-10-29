@@ -53,7 +53,7 @@ before(async () => {
   `);
   await esbuild.build({
     entryPoints: [ENTRY], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
-    jsx: "automatic", loader: { ".js": "jsx", ".jsx": "jsx", ".css": "empty", ".png": "dataurl", ".jpg": "dataurl", ".jpeg": "dataurl", ".svg": "dataurl" },
+    jsx: "automatic", loader: { ".js": "jsx", ".jsx": "jsx", ".css": "empty" },
     external: ["react", "react-dom", "react-dom/client", "react-router-dom"],
     // TEAM 5 (2026-09-29) — CampaignCard.jsx now embeds SavedCardPanel (payment relocation into
     // the Schedule & Payment tab), which transitively imports stripeProvider.js, which reads
@@ -420,10 +420,8 @@ test("F1C: every choice is a real checkbox or radio behind a substantial circle"
   const s = await mount(cardEl());
   for (const k of ["employee", "client", "vendor"]) assert.equal(s.q(`#c-cmp_1-aud-${k}`).type, "checkbox");
   for (const v of ["none", "curated", "qrcash"]) assert.equal(s.q(`#c-cmp_1-gift-${v}`).type, "radio");
-  // LANE 3 (2026-10-28): the Organization Default / Customize pair is replaced by the four shared
-  // featured-media choices (founder correction: no organization default).
-  for (const v of ["animate", "static", "video", "none"]) assert.equal(s.q(`#c-cmp_1-spread-fm-mode-${v}`).type, "radio");
-  for (const v of ["organization_default", "customize", "saved_spread"]) assert.equal(s.q(`#c-cmp_1-spread-${v}`), null, `${v} is gone`);
+  for (const v of ["organization_default", "customize"]) assert.equal(s.q(`#c-cmp_1-spread-${v}`).type, "radio");
+  assert.equal(s.q("#c-cmp_1-spread-saved_spread"), null, "the non-functional third option is gone");
   // Radios in a group share one name → genuine single-select.
   assert.equal(s.q("#c-cmp_1-gift-none").name, s.q("#c-cmp_1-gift-curated").name);
   // The visual is a circle, and every control keeps its label.
@@ -1168,9 +1166,10 @@ test("F1B: all three configuration cards are COMPLETE and visible at once", asyn
   for (const v of ["none", "curated", "qrcash"]) {
     assert.ok(s.q(`#c-cmp_1-gift-${v}`), `${v} bubble visible without another click`);
   }
-  // Featured Spread: the four featured-media choices, immediately (LANE 3, 2026-10-28).
-  for (const v of ["animate", "static", "video", "none"]) {
-    assert.ok(s.q(`#c-cmp_1-spread-fm-mode-${v}`), `${v} bubble visible without another click`);
+  // Featured Spread: both real options, immediately (TEAM 5, 2026-09-29 — the non-functional
+  // "saved_spread" third option was removed; see the F1C test above for why).
+  for (const v of ["organization_default", "customize"]) {
+    assert.ok(s.q(`#c-cmp_1-spread-${v}`), `${v} bubble visible without another click`);
   }
 });
 
@@ -1210,20 +1209,22 @@ test("F1B: a disabled gift choice stays VISIBLE and disabled, with its reason", 
   }
 });
 
-test("F1B: a featured-media choice reveals its controls inline WITHOUT hiding the choices", async () => {
-  // LANE 3 (2026-10-28): the old "Customize" editor is replaced by the shared featured-media
-  // controls. The same rule holds: the controls open inside the same dialog, and every choice
-  // stays on screen while they are in use.
+test("F1B: the spread editor opens inline WITHOUT hiding the spread choices", async () => {
+  // The only secondary tools that still open on demand are the ones that cannot fit in a bubble.
   const s = await mount(cardEl({}, { isOwner: true }));
-  assert.equal(s.tid("c-cmp_1-spread-fm-controls"), null, "no media controls until a media choice is made");
+  // PR#22: the CAMPAIGN is itself a dialog now, so "no modal" means: the spread editor adds no
+  // second dialog on top of it, and opens inside the same one.
+  assert.equal(s.tid("card-spread-editor-cmp_1"), null, "closed until Customize is chosen");
   const dialogsBefore = s.qa("[role='dialog']").length;
   assert.equal(dialogsBefore, 1, "just the campaign dialog");
 
-  await act(async () => { s.q("#c-cmp_1-spread-fm-mode-animate").click(); });
-  assert.ok(s.tid("c-cmp_1-spread-fm-controls"), "the photo and voice controls open inline");
-  assert.ok(s.q("[role='dialog']").contains(s.tid("c-cmp_1-spread-fm-controls")), "inside the same dialog, not a new surface");
-  for (const v of ["animate", "static", "video", "none"]) {
-    assert.ok(s.q(`#c-cmp_1-spread-fm-mode-${v}`), `${v} still visible while the controls are in use`);
+  await act(async () => { s.q("#c-cmp_1-spread-customize").click(); });
+  assert.ok(s.tid("card-spread-editor-cmp_1"), "the existing editor opens inline");
+  assert.ok(s.q("[role='dialog']").contains(s.tid("card-spread-editor-cmp_1")), "inside the same dialog, not a new surface");
+  // …and both real choices are still on screen (TEAM 5, 2026-09-29 — the non-functional
+  // "saved_spread" third option was removed; see the F1C test above for why).
+  for (const v of ["organization_default", "customize"]) {
+    assert.ok(s.q(`#c-cmp_1-spread-${v}`), `${v} still visible while the editor is in use`);
   }
   assert.equal(s.qa("[role='dialog']").length, dialogsBefore, "no additional modal");
 });

@@ -35,8 +35,6 @@ before(async () => {
     entryPoints: [join(__dirname, `.__gac.${process.pid}.jsx`)],
     outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
     jsx: "automatic", jsxImportSource: "react",
-    // LANE 3: CampaignCard now mounts Preview My Card (the real card renderer), whose spreads import card images.
-    loader: { ".png": "dataurl", ".jpg": "dataurl", ".jpeg": "dataurl", ".svg": "dataurl" },
     external: ["react", "react-dom", "react-dom/client", "react/jsx-runtime"],
     define: { "import.meta.env": "{}", "process.env.NODE_ENV": '"production"' },
     logLevel: "silent",

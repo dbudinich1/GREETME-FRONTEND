@@ -238,17 +238,11 @@ export function paymentStateFromStatus(res, { sinceMs = null } = {}) {
   if (r.stage === "scheduled") return "sent";
   const state = r.payment && typeof r.payment.state === "string" ? r.payment.state : null;
   if (state === "confirmed" || state === "not_charged" || state === "processing" || state === "unknown") return state;
-  // PAY-142 (backend 9f1458e services/corporateCampaign/oneTimeSend.js:683): no recorded answer and an empty Stripe lookup, but a
-  // SAME-key Send can only replay the original request. Only with the server's explicit flag; without it, "unknown".
-  if (state === "unconfirmed") return r.payment.sameKeySendAllowed === true ? "unconfirmed" : "unknown";
   if (state === "not_required") return "not_charged";
   return "unknown";
 }
-/**
- * Only these let the owner press Send again (with the same key). "unconfirmed" is NOT resolved at the server, but its same-key
- * Send can only replay the original request, so Send is allowed; Start over (a NEW key) stays "not_charged" only.
- */
-export const RESOLVED_FOR_SEND = Object.freeze(["confirmed", "not_charged", "unconfirmed"]);
+/** Only these let the owner press Send again (with the same key). */
+export const RESOLVED_FOR_SEND = Object.freeze(["confirmed", "not_charged"]);
 
 export const PAYMENT_STATUS_TEXT = Object.freeze({
   sent: "This send went through.",
@@ -256,7 +250,5 @@ export const PAYMENT_STATUS_TEXT = Object.freeze({
   not_charged: "No payment was taken for this send. You can send it again (you may be asked for a different card).",
   processing: "Your bank is still processing this payment. Don\u2019t submit another payment yet.",
   unknown: "We can\u2019t confirm this payment yet. Don\u2019t submit another payment yet.",
-  // PAY-142 (copy APPROVED by the founder 2026-10-29).
-  unconfirmed: "We haven\u2019t confirmed this payment yet. Press Send now to finish this send. It resends your original request, so you won\u2019t be charged twice.",
   check_failed: "We couldn\u2019t check the payment right now. Try again in a moment.",
 });

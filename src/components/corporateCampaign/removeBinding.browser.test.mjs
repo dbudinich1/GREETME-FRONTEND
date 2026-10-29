@@ -37,8 +37,6 @@ before(async () => {
   await esbuild.build({
     entryPoints: [ENTRY], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
     jsx: "automatic", jsxImportSource: "react", logLevel: "silent",
-    // LANE 3: CampaignCard now mounts Preview My Card (the real card renderer), whose spreads import card images.
-    loader: { ".png": "dataurl", ".jpg": "dataurl", ".jpeg": "dataurl", ".svg": "dataurl" },
     external: ["react", "react-dom", "react-dom/client", "react/jsx-runtime"],
     // Team 5's payment relocation (six-team merge, 2026-09-29) made CampaignCard.jsx
     // transitively import stripeProvider.js (reads import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY).

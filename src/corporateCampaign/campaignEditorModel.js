@@ -4,13 +4,13 @@
 // No React → unit-testable. The component consumes these; readiness is NEVER fabricated
 // here — it is passed in from the server-derived contract.
 
-import { FEATURED_SPREAD_READINESS as R, READY_STATES, APPROVAL_STATUS, LOCK_STATUS } from "./constants.js";
+import { FEATURED_SPREAD_READINESS as R, READY_STATES, APPROVAL_STATUS, LOCK_STATUS, ANIMATION_IMAGE_SOURCE } from "./constants.js";
 
 export const READINESS_LABELS = Object.freeze({
-  [R.READY_ORG_DEFAULT]: { label: "Ready", kind: "ready" }, // no organization default (founder 2026-10-28)
+  [R.READY_ORG_DEFAULT]: { label: "Ready — Organization Default", kind: "ready" },
   [R.READY_CUSTOMIZED]: { label: "Ready — Customized", kind: "ready" },
   [R.READY_INTRO_FINALE_ONLY]: { label: "Ready — Intro and Finale Only", kind: "ready" },
-  [R.NEEDS_DEFAULT_PHOTO]: { label: "Needs Photo", kind: "blocker" },
+  [R.NEEDS_DEFAULT_PHOTO]: { label: "Needs Default Photo", kind: "blocker" },
   [R.NEEDS_AUTHORIZED_VOICE]: { label: "Needs Authorized Voice", kind: "blocker" },
   [R.NEEDS_IMAGE]: { label: "Needs Image", kind: "blocker" },
   [R.NEEDS_IMAGES]: { label: "Needs Images", kind: "blocker" },
@@ -32,8 +32,9 @@ export function defaultStateNotice(config) {
   if (!anim && config.corporateVideoEnabled !== true && !images) {
     return "This campaign will use the Intro and Finale only. You can add a Featured Spread anytime.";
   }
-  // LANE 3 (2026-10-28) — the "Using your organization's default photo and authorized voice."
-  // notice is removed: there is no organization default (founder correction).
+  if (anim && config.animationImageSource === ANIMATION_IMAGE_SOURCE.ORGANIZATION_DEFAULT) {
+    return "Using your organization's default photo and authorized voice.";
+  }
   return "";
 }
 

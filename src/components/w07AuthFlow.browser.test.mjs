@@ -114,11 +114,7 @@ async function mount(M, contact) {
 }
 const GOOD = { id: "c-w07", name: "Avery Fixture", email: "avery@example.test", relationshipCategory: "friend", relationship: "close_friend", relationshipCloseness: "greetme_worthy", memoryPhotos: [], culturalContext: { heritage: [], faith: null, preferCulturalGifts: false } };
 const OCC = [{ type: "birthday", date: "2026-11-14", autoSend: true }, { type: "anniversary", date: "2027-06-10", autoSend: true }, { type: "christmas", date: "2026-12-25", autoSend: true }, { type: "easter", date: "2027-03-28", autoSend: true }];
-// LIVE-3 (2026-10-29): a stored Auto-Gift QR Cash setting here was saved WITH its consent (the record's scheduledQrCashConsents, as
-// GET /api/contacts returns it). An older setting with no consent is asked for again: scheduledQrCashLegacyConsent.browser.test.mjs.
-const consentsFor = (settings) => Object.fromEntries(Object.entries(settings).filter(([, g]) => g && g.type === "qrcash" && g.autoGift === true)
-  .map(([k, g]) => [k, { contactId: "c-w07", occasionType: k, amountCents: Math.round(Number(g.amount) * 100), wordingVersion: "w07-sched-qrcash-v1", acceptedAt: "2026-10-01T00:00:00.000Z" }]));
-const contactWith = (settings, occasions = OCC) => ({ ...GOOD, occasions: occasions.map((o) => ({ ...o })), occasionGiftSettings: JSON.parse(JSON.stringify(settings)), scheduledQrCashConsents: consentsFor(settings) });
+const contactWith = (settings, occasions = OCC) => ({ ...GOOD, occasions: occasions.map((o) => ({ ...o })), occasionGiftSettings: JSON.parse(JSON.stringify(settings)) });
 const THREE = { birthday: { type: "qrcash", amount: 25, autoGift: true }, christmas: { type: "qrcash", amount: 50, autoGift: true }, anniversary: { type: "qrcash", amount: 25, autoGift: false } };
 const GOOD_CARD = { ok: true, card: { present: true, brand: "Visa", last4: "4242", expMonth: 12, expYear: 2099, expired: false } };
 const submitBtn = () => document.querySelector('[data-testid="contact-form-footer"] button[type="submit"]');

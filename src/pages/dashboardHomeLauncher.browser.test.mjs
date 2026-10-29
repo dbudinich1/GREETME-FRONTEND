@@ -411,11 +411,7 @@ test("Send Now: one person + one occasion hands off to the existing send flow, w
   assert.equal(state().cont.disabled, false);
   await click(state().cont);
   const nav = globalThis.__nav.at(-1).to;
-  // Report 145 correction (founder 2026-10-28): the Send click is the confirmation; it carries a one-time intent nonce
-  // (stored with this recipient and occasion) and still no gift request (Report 135).
-  const intent = JSON.parse(window.sessionStorage.getItem("gm_home_send_intent_v1"));
-  assert.equal(nav, `/dashboard/send?contactId=c2&occasion=Just+Because&from=dashboard&intent=${intent.nonce}`, "Send carries no gift request: it never reopens gift shopping (Report 135)");
-  assert.equal(intent.contactId, "c2"); assert.equal(intent.occasion, "Just Because");
+  assert.equal(nav, "/dashboard/send?contactId=c2&occasion=Just+Because&from=dashboard", "Send carries no gift request: it never reopens gift shopping (Report 135)");
   const h = JSON.parse(window.sessionStorage.getItem("gm_dashboard_send_handoff_v1"));
   assert.equal(new URLSearchParams(nav.split("?")[1]).get("occasion"), "Just Because", "the send page reads the occasion back exactly");
   assert.equal(h.contactId, "c2"); assert.equal(h.occasion, "Just Because"); assert.equal(h.words, "Welcome, little one");
@@ -878,7 +874,7 @@ test("Add a gift (Report 135): one person + one occasion opens the Gift Place at
   assert.match(globalThis.__nav.at(-1).to, /^\/dashboard\/send\?contactId=c1&occasion=Birthday&from=dashboard&gift=choose&entry=[0-9a-z]+$/, "the send flow keeps the greeting and opens the Gift Place, marked for this one press");
   assert.equal(JSON.parse(window.sessionStorage.getItem("gm_dashboard_send_handoff_v1")).words, "Thinking of you");
   await click(state().cont);
-  assert.match(globalThis.__nav.at(-1).to, /^\/dashboard\/send\?contactId=c1&occasion=Birthday&from=dashboard&intent=[\w-]+$/, "Send carries no gift request (only the one-time Send intent, Report 145)");
+  assert.equal(globalThis.__nav.at(-1).to, "/dashboard/send?contactId=c1&occasion=Birthday&from=dashboard", "Send carries no gift request");
 });
 
 // Founder 2026-10-23 ("please unify"): the QR Cash slide's How it works button runs the slide's own Add a gift step.
@@ -1416,8 +1412,7 @@ test("walkthrough: Celebration Manager card: centred title, Import Wizard and Ad
   const add = $("[data-testid=gx-mgr-add]");
   assert.equal(add.getAttribute("aria-label"), "Add Recipient");
   await click(add);
-  // Lane 1 (2026-10-28): the same full Add New Recipient dialog, with Home's choices kept for the return.
-  assert.deepEqual(globalThis.__nav.at(-1), { to: "/dashboard/contacts", opts: { state: { openAddRecipient: true, returnTo: "dashboard" } } });
+  assert.deepEqual(globalThis.__nav.at(-1), { to: "/dashboard/contacts", opts: { state: { openAddRecipient: true } } });
 });
 
 test("§6 Home: on the QR Cash slide 'How it works' sits beside the title and opens the shared approved explanation, with its Add QR Cash action", async () => {
@@ -1434,34 +1429,4 @@ test("§6 Home: on the QR Cash slide 'How it works' sits beside the title and op
   assert.match(d.textContent, /\(Zelle, Venmo, Cash App or PayPal\)/);
   assert.doesNotMatch(d.textContent, /print|automatically|Track Your Gifts|spend anywhere/i, "the old modal's claims are gone");
   assert.equal($("[data-testid=qr-howitworks-cta]").textContent.trim(), "Add QR Cash");
-});
-
-test("Report 145 correction: Send is the confirmation — the line says it sends now, with no later confirmation promised", async () => {
-  await mount();
-  await click(byText(".mode", "Send Now"));
-  await click(occ("Just Because"));
-  await pickPerson("Margaret");
-  await click($("[data-testid=gx-who-done]"));
-  assert.equal($("[data-testid=gx-fine]").textContent, "Send sends this Greet-Me to Margaret now.");
-  assert.doesNotMatch(document.body.textContent, /until you confirm there/);
-});
-
-test("Report 145 correction: a photo the send rule refuses (data: URL) is not 'ready'; Send stays here, points at the photo step and sends nothing", async () => {
-  await mount({ user: { id: "u1", name: "Alex Rivera", voiceId: "v1", photoUrl: "data:image/png;base64,AAAA" } });
-  assert.match($("[data-testid=gx-photo-tile]").textContent, /Add your photo/, "not 'Your photo is ready'");
-  await click(byText(".mode", "Send Now"));
-  await click(occ("Just Because"));
-  await pickPerson("Margaret");
-  await click($("[data-testid=gx-who-done]"));
-  await setValue($("[data-testid=gx-words]"), "Welcome, little one");
-  assert.equal($("[data-testid=gx-fine]").textContent, "Add your photo to send — it is included in every Greet-Me.");
-  await click(state().cont);
-  assert.equal(globalThis.__nav.length, 0, "no navigation, no send page");
-  assert.equal(window.sessionStorage.getItem("gm_home_send_intent_v1"), null, "no intent recorded");
-  assert.equal($("[data-testid=gx-photo-warn]").getAttribute("role"), "alert", "the existing photo requirement is pointed out");
-  assert.equal($("[data-testid=gx-words]").value, "Welcome, little one", "choices kept");
-  await click($("[data-testid=gx-photo-add]"));
-  assert.equal(globalThis.__nav.at(-1).to, "/dashboard/profile");
-  const kept = JSON.parse(window.sessionStorage.getItem("gm_dashboard_launcher_v1") || "null");
-  assert.ok(kept && kept.words === "Welcome, little one", "Add photo keeps this greeting's choices for the return");
 });

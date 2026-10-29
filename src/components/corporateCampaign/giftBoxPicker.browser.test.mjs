@@ -72,7 +72,7 @@ before(async () => {
   writeFileSync(ENTRY, `export { default as CampaignCard } from "./CampaignCard.jsx";\n`);
   await esbuild.build({
     entryPoints: [ENTRY], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
-    jsx: "automatic", loader: { ".js": "jsx", ".jsx": "jsx", ".css": "empty", ".png": "dataurl", ".jpg": "dataurl", ".jpeg": "dataurl", ".svg": "dataurl" },
+    jsx: "automatic", loader: { ".js": "jsx", ".jsx": "jsx", ".css": "empty" },
     external: ["react", "react-dom", "react-dom/client", "react-router-dom"],
     // TEAM 5 (2026-09-29) — see the identical note in premiumDashboard.browser.test.mjs: this
     // entry point now transitively bundles CampaignCard.jsx's embedded SavedCardPanel (Stripe),

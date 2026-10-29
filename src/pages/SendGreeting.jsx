@@ -35,47 +35,11 @@
 //   displays no longer fall back to $25. The chooser's open paths are unchanged. Affected locked
 //   milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regression: an old ?giftType=qrcash link opens the
 //   chooser with no amount picked. Verification gate, payment amounts for a chosen amount, and send unchanged.
-// 2026-10-28 (Report 145 correction, founder-authorized; preview, not released): the dashboard's Home Send click is the
-//   confirmation for a complete greeting with no gift. Only an arrival that carries Home's one-time intent
-//   (?intent= matching gm_home_send_intent_v1, taken once) continues by itself: validate() passes and no gift →
-//   the existing handleReviewDirectSend → executeGreetingSend (same send key, voice/email checkpoints, server limits);
-//   something missing → validate() marks only that and focuses it; a gift (restored draft) → the existing review,
-//   quote, payment and consent. The sender-photo rule moves unchanged into utils/senderPhoto.js so Home uses the same
-//   rule. Affected locked milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regressions: a stale or
-//   replayed intent sending twice (guarded: the intent is removed when read, needs the URL nonce, expires in two
-//   minutes, and executeGreetingSend keeps its stable sendRequestId); an ordinary ?from=dashboard URL sending by itself
-//   (guarded: no intent → nothing). Verification gate, voice recovery, review, payment and send paths unchanged.
-//
-// 2026-10-28 (lane 1, Shared Add Recipient, founder-authorized, not released): "+ Add Recipient" (no recipients yet)
-//   and "+ Add New" (beside Recipient) no longer open this page's name-and-email mini form (removed, with its
-//   api.createContact call); they open the one full "Add New Recipient" dialog on the Recipients page
-//   (utils/addRecipientEntry.js). This greeting is kept first in the existing sendGreetingState record (same shape as
-//   the pricing/Animation Bank return) and restored by the existing ?returnTo=send restore; after a save the return URL
-//   carries &addedContactId=<id>, which the restore sets as formData.contactId. Affected locked milestones: 4c29ace8,
-//   01d93f5f, 1c43a750, f98ffdb5. Potential regressions: a greeting too large for sessionStorage is kept without its
-//   photos (toast says so) or, if nothing fits, the dialog is not opened; browser Back from the Recipients page lands
-//   on a fresh send page (the kept greeting returns only through Save/Cancel). Verification gate, review, payment and
-//   send unchanged.
-// 2026-10-29 (Team 5 F1 fix, Report 146; preview, not released): "+ Add New" / "+ Add Recipient" no longer leave while a
-//   charged gift awaits its greeting (confirmedGiftPayload, the recovery panel): a message asks to finish it first. The
-//   kept greeting never carries confirmedGiftPayload/giftSeparatedByEntitlement, so ?returnTo=send cannot arm the
-//   recovery auto-retry, and it is MERGED into the existing sendGreetingState so sendRequestId and pendingGiftLink
-//   survive. Affected locked milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regression: Add Recipient is
-//   unavailable during that recovery (by design). Verification gate, voice recovery, review, payment and send unchanged.
-// 2026-10-29 (Team 5 F2/F6 fixes, Report 146; preview, not released): a Home Send for a different recipient/occasion than the
-//   one that last held the send key drops that key first (claimHomeSendKey + clearSendRequestId), so it is not refused
-//   409 while the first job is still in flight; the same greeting keeps its key. An arrival whose intent cannot be taken
-//   now says why (toast): already opened from Home (used nonce, gm_home_send_used_v1), or not sent automatically.
-//   Affected locked milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regression: two different Home Sends
-//   whose first reply was lost each get their own key (correct: they are different greetings). Verification gate, voice
-//   recovery, review, payment and send unchanged.
 
 import { useState, useEffect } from 'react';
-import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff, dashboardGiftPlaceEntry, markGiftPlaceEntryUsed, giftPlaceEntryUsed, takeHomeSendIntent, markHomeSendIntentUsed, homeSendIntentUsed, claimHomeSendKey } from '../utils/dashboardSendHandoff';
-import { senderPhotoUsable } from '../utils/senderPhoto';
+import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff, dashboardGiftPlaceEntry, markGiftPlaceEntryUsed, giftPlaceEntryUsed } from '../utils/dashboardSendHandoff';
 import { buildGreetingPayload, qrCashGiftForPayload } from '../utils/sendGreetingPayload';
 import { getPhotoSrc } from '../utils/getPhotoSrc';
-import { addRecipientEntry, readAddedContactId } from '../utils/addRecipientEntry';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Send, Edit3, Gift, ArrowLeft, Camera, Plus, X, Check } from 'lucide-react';
 import { useRef } from 'react';
@@ -99,7 +63,7 @@ import { retryGiftLink } from '../api/providerCheckout';
 // one-shot remount replay that uses it. No new storage system, route or checkout attempt.
 import {
   clearPendingGiftLink, clearSendRequestId, ensureSendRequestId, persistPendingGiftLink,
-  readPendingGiftLink, SEND_STATE_KEY,
+  readPendingGiftLink,
 } from './pendingGiftLink';
 import { usePendingGiftLinkRecovery } from '../components/giftPlace/usePendingGiftLinkRecovery';
 import { CHECKOUT_STATUS } from '../components/providerCheckout/providerCheckoutModel';
@@ -193,6 +157,11 @@ export default function SendGreeting() {
   // Bank packs / Anytime) are never offered to it; see utils/sendGating.js.
   const unsubscribed = isUnsubscribedAccount(user);
   const [contacts, setContacts] = useState([]);
+  const [showInlineAdd, setShowInlineAdd] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactEmail, setNewContactEmail] = useState('');
+  const [addingContact, setAddingContact] = useState(false);
+  const [addContactError, setAddContactError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [jobId, setJobId] = useState(null);
@@ -922,14 +891,11 @@ export default function SendGreeting() {
       // Restore saved form state from sessionStorage
       const savedState = sessionStorage.getItem('sendGreetingState');
       let restoredMemoryPhotos = [];
-      // Lane 1: back from Add Recipient after a save — the new recipient becomes this greeting's recipient.
-      const addedContactId = returnTo === 'send' ? readAddedContactId(location.search) : null;
 
       if (savedState) {
         try {
           const parsed = JSON.parse(savedState);
-          if (parsed.formData) setFormData(addedContactId ? { ...parsed.formData, contactId: addedContactId } : parsed.formData);
-          else if (addedContactId) setFormData(prev => ({ ...prev, contactId: addedContactId }));
+          if (parsed.formData) setFormData(parsed.formData);
           if (giftType) {
             setGiftSettings({ ...parsed.giftSettings, type: giftType });
           } else if (parsed.giftSettings) {
@@ -971,7 +937,6 @@ export default function SendGreeting() {
         // No saved state, just set the gift type
         setGiftSettings(prev => ({ ...prev, type: giftType }));
       }
-      if (!savedState && addedContactId) setFormData(prev => ({ ...prev, contactId: addedContactId }));
 
       // If returning from media library with a selected photo (single photo, legacy)
       if (selectedPhoto) {
@@ -1225,47 +1190,31 @@ export default function SendGreeting() {
   }
 };
 
-  // Lane 1 (2026-10-28): "+ Add Recipient" and "+ Add New" open the SAME full Add New Recipient dialog every other entry
-  // uses (Recipients page; utils/addRecipientEntry.js). They used to open a name-and-email mini form here, a second
-  // recipient form. This greeting is kept in the existing sendGreetingState record (the Gift Place round trip's) and
-  // restored on /dashboard/send?returnTo=send — with the new recipient selected after Save, unchanged after Cancel.
-  // Photos too large to keep on this device are dropped from the kept copy (said so); if nothing can be kept, the
-  // sender stays here with nothing lost.
-  const openAddRecipientFromSend = () => {
-    // Team 5 F1 (Report 146): a gift already charged and waiting for its greeting (the recovery panel) stays here. Leaving
-    // would carry that recovery into ?returnTo=send, whose restore auto-retries the greeting with no click — to the OLD
-    // recipient. The recovery belongs to this recipient, so it is finished first; nothing here sends or charges.
-    // Team 5 N2: only while the recovery panel is showing (it shows on confirmedGiftPayload && errors.submit); after
-    // "Let's try once more" clears the form the guard no longer applies. Leaving is safe either way: the kept greeting
-    // never carries the payload (below).
-    // Team 5 (0907a44 note 1): also while a PAID gift box is held awaiting its order (giftBoxHeldNotice), whose own retry
-    // lives on this page.
-    if (confirmedGiftPayload && (errors.submit || giftBoxHeldNotice)) {
-      showManualToast('Finish this greeting first', 'Its gift is already paid for. Send this greeting from here, then add a new recipient.', COMMS_CATEGORIES.SYSTEM);
+  const handleInlineAddContact = async () => {
+    if (!newContactName.trim() || !newContactEmail.trim()) {
+      setAddContactError('Name and email are required.');
       return;
     }
-    // The composition only — never confirmedGiftPayload / giftSeparatedByEntitlement, so the return can't arm the
-    // recovery auto-retry. MERGED into the existing record, so its send key (sendRequestId) and any pending gift-link
-    // marker (pendingGiftLink) survive the round trip (pendingGiftLink.js keeps them in this same record).
-    let existing = null;
-    try { existing = JSON.parse(sessionStorage.getItem(SEND_STATE_KEY) || 'null'); } catch { existing = null; }
-    const keep = existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {};
-    delete keep.confirmedGiftPayload; delete keep.giftSeparatedByEntitlement;
-    const stateToSave = {
-      ...keep,
-      formData, giftSettings, defaultPhoto, memoryPhotos, useMemoryPhotos,
-      excludedMemoryPhotos: Array.from(excludedMemoryPhotos),
-    };
-    // One write site: the whole greeting first, then (storage full) the same greeting without its photos.
-    const attempts = [stateToSave, { ...stateToSave, memoryPhotos: [], defaultPhoto: null }];
-    let kept = -1;
-    for (let i = 0; i < attempts.length && kept < 0; i += 1) {
-      try { sessionStorage.setItem('sendGreetingState', JSON.stringify(attempts[i])); kept = i; } catch { /* try the smaller copy */ }
+    setAddingContact(true);
+    setAddContactError(null);
+    try {
+      const result = await api.createContact({
+        name: newContactName.trim(),
+        email: newContactEmail.trim(),
+      });
+      const newId = result?.contact?.id || result?.id;
+      await fetchContacts();
+      if (newId) {
+        setFormData(prev => ({ ...prev, contactId: newId }));
+      }
+      setNewContactName('');
+      setNewContactEmail('');
+      setShowInlineAdd(false);
+    } catch (err) {
+      setAddContactError(getErrorMessage(err));
+    } finally {
+      setAddingContact(false);
     }
-    if (kept < 0) { showManualToast('Add Recipient not opened', 'This greeting couldn’t be kept on this device, so it stays open here. Add the recipient from Recipients, then come back.', COMMS_CATEGORIES.SYSTEM); return; }
-    if (kept > 0) showManualToast('Photos not kept', 'Your photos were too large to keep on this device while you add a recipient. Your other choices are kept.', COMMS_CATEGORIES.SYSTEM);
-    const entry = addRecipientEntry('send');
-    navigate(entry.to, entry.opts);
   };
 
   const pollJobStatus = async () => {
@@ -1339,8 +1288,17 @@ export default function SendGreeting() {
   // W03: a REAL profile photo URL (https://...) is required before the final send/checkout. Not a
   // data URL or a placeholder domain. Computed every render so the notice below the form appears
   // BEFORE the sender reaches "Done & Send", not as a surprise on the final click.
-  // The rule itself lives in utils/senderPhoto.js (unchanged), shared with the dashboard's photo status.
-  const senderPhotoMissing = !senderPhotoUsable(user?.photoUrl);
+  const senderPhotoMissing = (() => {
+    const photoUrl = user?.photoUrl || '';
+    return (
+      !photoUrl ||
+      photoUrl.startsWith('data:') ||
+      photoUrl.includes('placeholder.com') ||
+      photoUrl.includes('placehold.co') ||
+      photoUrl.includes('placekitten.com') ||
+      photoUrl.includes('dummyimage.com')
+    );
+  })();
 
   const validate = () => {
     const newErrors = {};
@@ -1600,49 +1558,6 @@ export default function SendGreeting() {
     // None / curated / marketplace-empty / (dead) merch: direct dispatch.
     await executeGreetingSend(greetingData);
   };
-
-  // Home Send (Report 145 correction, founder 2026-10-28). The Home Send click is the confirmation for a complete
-  // greeting with no gift; Home leaves a one-time intent for this recipient and occasion (utils/dashboardSendHandoff.js).
-  // Step 1 takes it once, after the account, the recipient list and the URL's recipient/occasion are in place. Step 2
-  // runs on the next render, so every restore that ran alongside (draft, Home's words and photos) is already applied:
-  // complete + no gift → the existing no-gift send; something missing → validate() marks only that and focuses it; a
-  // gift (a restored draft) → the existing review with its quote, payment and consent. No intent → nothing happens.
-  const homeSendTakenRef = useRef(false);
-  const [homeSendArmed, setHomeSendArmed] = useState(false);
-  useEffect(() => {
-    if (homeSendTakenRef.current || loading || !user?.id) return;
-    const params = new URLSearchParams(location.search);
-    const nonce = params.get('intent');
-    if (params.get('from') !== 'dashboard' || !nonce) return;
-    const contactId = params.get('contactId');
-    const occasion = matchSendOccasion(params.get('occasion'));
-    if (!contactId || !occasion || !contacts.some((c) => String(c.id) === contactId)) return;
-    if (String(formData.contactId) !== contactId || formData.occasionType !== occasion) return;
-    homeSendTakenRef.current = true;
-    if (takeHomeSendIntent(window.sessionStorage, { contactId, occasion, nonce })) {
-      markHomeSendIntentUsed(window.sessionStorage, nonce);
-      setHomeSendArmed(true);
-      return;
-    }
-    // Team 5 F6: say why nothing happened. Seen again (refresh/Back) → it was already started, so a second send is not
-    // invited; never arrived or expired → nothing was sent, and Done & Send sends it.
-    if (homeSendIntentUsed(window.sessionStorage, nonce)) {
-      showManualToast('Already opened from Home', 'This Greet-Me was already opened from Home. Check Sent before sending it again.', COMMS_CATEGORIES.SYSTEM);
-    } else {
-      showManualToast('Not sent automatically', 'Nothing was sent. Review this Greet-Me and press Done & Send to send it.', COMMS_CATEGORIES.SYSTEM);
-    }
-  }, [location.search, loading, contacts, user?.id, formData.contactId, formData.occasionType]);
-  useEffect(() => {
-    if (!homeSendArmed) return;
-    setHomeSendArmed(false);
-    if (!validate()) return;
-    // Team 5 F2: a send key kept from a DIFFERENT recipient/occasion (an earlier Home Send still in flight) is dropped so
-    // this greeting gets its own; the same greeting keeps its key (retry converges on one send).
-    if (claimHomeSendKey(window.sessionStorage, { contactId: String(formData.contactId), occasion: formData.occasionType })) clearSendRequestId();
-    if (giftSettings.type && giftSettings.type !== 'none') { setIsPreSendReviewOpen(true); return; }
-    handleReviewDirectSend();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [homeSendArmed]);
 
   // Flowers path. A DELIBERATE MIRROR of handleReviewQRCashFresh below: park the completed
   // greeting, open the payment step, and let the success handler dispatch the one send. The only
@@ -2743,7 +2658,7 @@ if (typeof window !== "undefined") {
             fontStyle: 'italic'
           }} data-testid="send-banner-occasion">{/* The occasion this greeting is for (Report 135): it read "Just Because" for every greeting. */}{formData.occasionType || 'Just Because'}</p>
         </div>
-        {contacts.length === 0 && (
+        {contacts.length === 0 && !showInlineAdd && (
           <div style={{
             background: '#fffbeb',
             border: '1px solid #fde68a',
@@ -2761,8 +2676,7 @@ if (typeof window !== "undefined") {
             </span>
             <button
               type="button"
-              data-testid="send-add-recipient"
-              onClick={openAddRecipientFromSend}
+              onClick={() => setShowInlineAdd(true)}
               style={{
                 padding: '0.4rem 1rem',
                 background: '#667eea',
@@ -2779,6 +2693,82 @@ if (typeof window !== "undefined") {
             </button>
           </div>
         )}
+        {showInlineAdd && (
+          <div style={{
+            background: 'white',
+            border: '1px solid var(--border, #e5e7eb)',
+            borderRadius: 'var(--radius-md)',
+            padding: '1rem 1.25rem',
+            marginBottom: '1rem',
+          }}>
+            <p style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+              Add a recipient
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <input
+                type="text"
+                placeholder="Name"
+                value={newContactName}
+                onChange={(e) => setNewContactName(e.target.value)}
+                style={{
+                  width: '100%', padding: '0.5rem 0.75rem',
+                  border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius-md)',
+                  fontSize: '1rem', fontFamily: 'inherit', outline: 'none',
+                }}
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={newContactEmail}
+                onChange={(e) => setNewContactEmail(e.target.value)}
+                style={{
+                  width: '100%', padding: '0.5rem 0.75rem',
+                  border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius-md)',
+                  fontSize: '1rem', fontFamily: 'inherit', outline: 'none',
+                }}
+              />
+              {addContactError && (
+                <p style={{ color: 'var(--error, #ef4444)', fontSize: '0.75rem', margin: 0 }}>{addContactError}</p>
+              )}
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                <button
+                  type="button"
+                  onClick={handleInlineAddContact}
+                  disabled={addingContact}
+                  style={{
+                    padding: '0.5rem 1.25rem',
+                    background: addingContact ? '#d1d5db' : '#667eea',
+                    color: 'white', border: 'none', borderRadius: 'var(--radius-md)',
+                    fontSize: '0.8125rem', fontWeight: 600,
+                    cursor: addingContact ? 'default' : 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  {addingContact ? 'Adding...' : 'Add & Continue'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowInlineAdd(false); setAddContactError(null); }}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: 'transparent', color: 'var(--text-secondary, #6b7280)',
+                    border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius-md)',
+                    fontSize: '0.8125rem', fontWeight: 500,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+            <a
+              href="#/dashboard/contacts"
+              style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-tertiary, #9ca3af)', marginTop: '0.75rem', textDecoration: 'underline' }}
+            >
+              Or manage all contacts
+            </a>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-10">
         {/* Referral banner */}
         {referralCode && referralValue && (
@@ -3088,8 +3078,7 @@ if (typeof window !== "undefined") {
               </label>
               <button
                 type="button"
-                data-testid="send-add-new-recipient"
-                onClick={openAddRecipientFromSend}
+                onClick={() => setShowInlineAdd(true)}
                 style={{ fontSize: '0.75rem', color: '#667eea', background: 'none', border: 'none', fontWeight: 500, cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}
               >
                 + Add New

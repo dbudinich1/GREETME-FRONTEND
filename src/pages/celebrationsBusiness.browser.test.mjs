@@ -85,8 +85,6 @@ before(async () => {
     if (u.endsWith("/api/corporate-campaigns/memberships")) return json(globalThis.__memberships || { memberships: [] });
     if (u.endsWith("/api/corporate-campaigns/organizations/org_1/contacts")) return json({ contacts: BIZ, count: BIZ.length });
     if (u.endsWith("/api/corporate-campaigns/organizations/org_1/campaigns")) return json({ campaigns: [] });
-    // BIZ-EDIT-1 (Team 6, 2026-10-29): Business Edit now fills from the owner-only management read (the full stored record).
-    if (u.endsWith("/api/corporate-contacts/organizations/org_1/contacts")) return json({ ok: true, data: { contacts: BIZ.map((b) => ({ id: b.id, name: b.name, email: b.hasEmail ? b.id + "@corp.test" : "", firstName: "", lastName: "", occasions: [] })) } });
     throw new Error("no network in this test: " + u);
   };
   window.fetch = globalThis.fetch;

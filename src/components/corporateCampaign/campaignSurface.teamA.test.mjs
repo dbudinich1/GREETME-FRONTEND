@@ -128,7 +128,7 @@ test("detail capability is server-derived via interpretCapability, not hard-code
 // (12) Intro-and-Finale-Only correctness + readiness states.
 test("readiness derives correctly incl. Intro and Finale Only", () => {
   const ready = deriveCampaignSummary({}, { featuredSpreadReadiness: R.READY_ORG_DEFAULT, featuredSpreadPresent: true, approvalStatus: "approved", lockStatus: "unlocked" });
-  assert.equal(ready.featuredSpreadStatus, "Ready");
+  assert.equal(ready.featuredSpreadStatus, "Ready — Organization Default");
   assert.equal(ready.ready, true);
   const photo = deriveCampaignSummary({}, { featuredSpreadReadiness: R.NEEDS_DEFAULT_PHOTO, featuredSpreadPresent: true });
   assert.equal(photo.featuredSpreadKind, "blocker");

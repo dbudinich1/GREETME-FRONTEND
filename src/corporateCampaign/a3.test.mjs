@@ -33,11 +33,10 @@ test("FE reducer: animation/video mutually exclusive; video refuses to enable", 
 
 // Editor model: labels, notice, action availability.
 test("FE editor model: readiness labels + default notice + action availability", () => {
-  assert.equal(readinessLabel(R.READY_ORG_DEFAULT).label, "Ready", "no organization-default wording (founder 2026-10-28)");
+  assert.equal(readinessLabel(R.READY_ORG_DEFAULT).label, "Ready — Organization Default");
   assert.equal(readinessLabel(R.NEEDS_IMAGES).kind, "blocker");
   assert.match(defaultStateNotice(cfg({ animatedMessageEnabled: false, additionalImagesEnabled: false })), /Intro and Finale only/);
-  // LANE 3 (2026-10-28): no organization-default notice any more (founder correction).
-  assert.equal(defaultStateNotice(cfg({ animatedMessageEnabled: true, animationImageSource: ANIMATION_IMAGE_SOURCE.ORGANIZATION_DEFAULT })), "");
+  assert.match(defaultStateNotice(cfg({ animatedMessageEnabled: true, animationImageSource: ANIMATION_IMAGE_SOURCE.ORGANIZATION_DEFAULT })), /default photo and authorized voice/);
   // draft + ready → can approve; approved → can lock; locked → can unlock only
   const draftReady = availableActions({ approvalStatus: APPROVAL_STATUS.DRAFT, lockStatus: LOCK_STATUS.UNLOCKED, featuredSpreadReadiness: R.READY_ORG_DEFAULT });
   assert.equal(draftReady.canApprove, true);

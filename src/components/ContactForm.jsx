@@ -1,5 +1,5 @@
 // src/components/ContactForm.jsx
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { validateEmail, getOccasionsByCategory, calculateVaryingOccasionDate, occasionTypes } from '../utils/helpers';
 import { getOccasionCadenceLabel } from '../utils/occasionCadence';
@@ -26,12 +26,6 @@ import PaymentInfoTriangle from './w07Auth/PaymentInfoTriangle';
 import { planAuthorization } from '../utils/scheduledQrCashConsent';
 import { QRCASH_DEFAULT_DOLLARS, normalizeGiftSettingsForSave } from '../utils/occasionGiftSave';
 import { deterministicStructuredForContact } from '../import/completionModel.js';
-// BIZ-EDIT-1: a business contact is edited from its FULL stored record, and saved as only the fields that changed.
-import { createCorporateContactsClient } from '../api/corporateContacts.js';
-import {
-  loadBusinessContactForEdit, businessRecordForForm, businessContactPatch,
-  BUSINESS_EDIT_LOADING_TEXT, BUSINESS_EDIT_FAILED_TEXT, BUSINESS_EDIT_NOT_FOUND_TEXT, BUSINESS_EDIT_FORBIDDEN_TEXT,
-} from '../utils/businessContactEdit.js';
 
 // Session storage key for preserving form data during gift selection navigation
 const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
@@ -86,16 +80,6 @@ const getInitialFormData = () => ({
   },
 });
 
-// Is the form's address still exactly what the form filled in from the stored record (the stored address over the form's
-// defaults, as the fill effect below builds it)? Then the sender did not edit it.
-export function storedAddressUntouched(contact, formAddress) {
-  const stored = contact && contact.shippingAddress;
-  if (!stored || typeof stored !== 'object' || Array.isArray(stored) || !formAddress || typeof formAddress !== 'object') return false;
-  const filled = { ...getInitialFormData().shippingAddress, ...stored };
-  const keys = new Set([...Object.keys(filled), ...Object.keys(formAddress)]);
-  return [...keys].every((k) => (filled[k] ?? '') === (formAddress[k] ?? ''));
-}
-
 // "Cinematic" gift mark: the existing lucide Gift in a brand-gradient disc with a soft glow.
 function CinematicGiftIcon() {
   return (
@@ -105,33 +89,9 @@ function CinematicGiftIcon() {
   );
 }
 
-// `businessOrgId`: set only when `contact` is a Business roster row being edited (Recipients page, Business view).
-export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion = null, addFocusOccasion = false, businessOrgId = null }) {
+export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion = null, addFocusOccasion = false }) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  // BIZ-EDIT-1: the Business roster row has no email, delivery names or full dates, so the form is filled from the
-  // stored record instead (owner-only management read). Until it has loaded, and if it cannot be loaded, no form is
-  // shown: there is nothing to save from that could overwrite what is stored. A personal contact is unaffected.
-  const isBusinessEdit = Boolean(businessOrgId && contact && contact.id);
-  const [businessEdit, setBusinessEdit] = useState({ state: 'idle', record: null });
-  useEffect(() => {
-    if (!isBusinessEdit) { setBusinessEdit((prev) => (prev.state === 'idle' ? prev : { state: 'idle', record: null })); return undefined; }
-    let alive = true;
-    setBusinessEdit({ state: 'loading', record: null });
-    (async () => {
-      let res;
-      try { res = await loadBusinessContactForEdit(createCorporateContactsClient(), businessOrgId, contact.id); } catch { res = { ok: false }; }
-      if (!alive) return;
-      setBusinessEdit(res && res.ok ? { state: 'ready', record: res.record } : { state: res && res.notFound ? 'notFound' : res && res.unauthorized ? 'forbidden' : 'failed', record: null });
-    })();
-    return () => { alive = false; };
-  }, [isBusinessEdit, businessOrgId, contact && contact.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  // What the form is filled from: the contact as given, or (Business) the stored record once it has loaded.
-  const businessFill = useMemo(() => (businessEdit.record ? businessRecordForForm(businessEdit.record) : null), [businessEdit.record]);
-  const fillFrom = isBusinessEdit ? businessFill : contact;
-  // BIZ-EDIT-1: whether the owner typed in the Name field since the form was filled (see businessContactPatch).
-  const nameTypedRef = useRef(false);
-  useEffect(() => { nameTypedRef.current = false; }, [fillFrom]);
   const [formData, setFormData] = useState(getInitialFormData());
   const [selectedFaiths, setSelectedFaiths] = useState([]);
   const [errors, setErrors] = useState({});
@@ -315,7 +275,6 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
   }, [formData, selectedFaiths, saveFormDraft]);
 
   useEffect(() => {
-    const contact = fillFrom; // BIZ-EDIT-1: the given contact, or a Business contact's stored record (see fillFrom)
     if (contact) {
       // Compatibility for legacy imported contacts that have a raw `relationship` but no structured
       // fields: show the DETERMINISTIC Type/Relation only (e.g. "colleague" → Professional/Colleague).
@@ -370,7 +329,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
       });
       setSelectedFaiths(Array.from(faiths));
     }
-  }, [fillFrom]);
+  }, [contact]);
 
   // Report 135 (Celebrations, Occasions path): opened for a person who doesn't hold this occasion yet, the occasion is
   // added here exactly as ticking it would add it (the same date pre-fill), so the sender fills only what is
@@ -403,7 +362,6 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (name === 'name') nameTypedRef.current = true; // BIZ-EDIT-1: typed by the owner, not only tidied on blur
     setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -623,26 +581,14 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
 
   // The one place a recipient is actually handed to the parent. `consents` is the W07 occasionGiftConsents array (empty otherwise).
   const commitSave = async (toSave, consents = [], sgTypes = []) => {
-    // BIZ-EDIT-1: a Business contact is saved as only what changed against its stored record; nothing untouched is sent.
-    let result;
-    if (isBusinessEdit) result = await onSubmit(businessContactPatch(businessEdit.record, toSave, { nameTyped: nameTypedRef.current }));
-    else result = await onSubmit({
+    await onSubmit({
       ...toSave,
       occasionGiftSettings: normalizeGiftSettingsForSave(toSave.occasionGiftSettings),
-      // Founder 2026-10-29: saved delivery details are preserved even when their fields aren't visible. An address the
-      // sender did not edit is sent back EXACTLY as stored, so the form's defaults (country 'United States', empty line2)
-      // are never written into a stored record that lacks them. An edited address is sent as before. (The key keeps its place.)
-      ...(storedAddressUntouched(contact, toSave.shippingAddress) ? { shippingAddress: contact.shippingAddress } : {}),
       ...(consents.length > 0 ? { occasionGiftConsents: consents } : {}),
       ...(sgTypes.length > 0 ? { scheduledGiftConsents: scheduledGiftConsentsFor(sgTypes, toSave.occasionGiftSettings) } : {}),
     });
-    // A parent that reports a refused save by returning false (instead of throwing) gets no draft clear and no "Saved" toast.
-    if (result === false) return;
     // Clear draft on successful submission
     clearFormDraft();
-    // A Business contact's save is reported by the page itself ("Contact updated." or the error), and the page's handler does not
-    // tell this form which happened, so no "Saved ✓" toast here: it used to appear beside a refusal too (Team 5 S8).
-    if (isBusinessEdit) return;
     // Show saved toast — only now, after the save succeeded. A scheduled physical gift on Auto-Gift says what happens on its date.
     showManualToast('Saved ✓', scheduledGiftSavedConfirmations(toSave.occasionGiftSettings, sgDateLabel) || 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
   };
@@ -672,9 +618,6 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
         const plan = planAuthorization({
           settings, initialSettings: contact && contact.occasionGiftSettings, occasions: toSave.occasions, card, formData: toSave,
           storedScheduledGiftConsents: contact && contact.scheduledGiftConsents,
-          // LIVE-3: the record's stored QR Cash consents ({} when it holds none), so an older Auto-Gift QR Cash with no consent
-          // covering its amount is asked for. A Business contact is left as before: its Auto-Gift settings are not saved by its route.
-          ...(isBusinessEdit ? {} : { storedQrCashConsents: (contact && contact.scheduledQrCashConsents) || {}, contactId: contact ? contact.id : undefined }),
           labelFor: (type) => (occasionTypes.find((o) => o.value === type) || {}).label,
           requiresDelivery: requiresDeliveryAddress,
         });
@@ -689,21 +632,6 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
   };
 
   const selectedOccasions = formData.occasions?.map(o => o.type) || [];
-
-  // BIZ-EDIT-1: no editable form until the Business contact's stored record is here (fail closed when it can't be read).
-  if (isBusinessEdit && businessEdit.state !== 'ready') {
-    const waiting = businessEdit.state === 'loading' || businessEdit.state === 'idle';
-    return (
-      <div data-testid={waiting ? 'business-edit-loading' : 'business-edit-failed'} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {waiting
-          ? <p role="status" style={{ margin: 0, color: 'var(--text-secondary)' }}>{BUSINESS_EDIT_LOADING_TEXT}</p>
-          : <Alert type="error" message={businessEdit.state === 'notFound' ? BUSINESS_EDIT_NOT_FOUND_TEXT : businessEdit.state === 'forbidden' ? BUSINESS_EDIT_FORBIDDEN_TEXT : BUSINESS_EDIT_FAILED_TEXT} />}
-        {!waiting && onCancel ? (
-          <div><button type="button" className="btn btn-secondary" data-testid="business-edit-close" onClick={onCancel}>Close</button></div>
-        ) : null}
-      </div>
-    );
-  }
 
   return (
     <>

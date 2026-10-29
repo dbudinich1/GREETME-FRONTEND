@@ -14,12 +14,9 @@ import useIntroVideo from '../hooks/useIntroVideo';
 import SampleCreditReveal from '../components/sample/SampleCreditReveal.jsx';
 import useSampleMediaAvailable from '../components/sample/useSampleMediaAvailable';
 import { SAMPLE_ENTRY_ENABLED, SAMPLE_TALKING_PHOTO_URL, SAMPLE_CHROME } from '../components/sample/sampleGreeting.js';
-import { EXPERIENCE_CHROME } from '../components/experience/experienceFlow.js';
 
 // The sample viewer (with the card player and its styles) loads only when the visitor opens it.
 const SampleGreetingOverlay = lazy(() => import('../components/sample/SampleGreetingOverlay.jsx'));
-// The Greet-Me Experience (the guided sample on the same player) also loads only when opened.
-const GreetMeExperience = lazy(() => import('../components/experience/GreetMeExperience.jsx'));
 
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 const SERIF = '"Playfair Display", Georgia, serif';
@@ -149,39 +146,16 @@ export default function Landing() {
   const [sampleOpen, setSampleOpen] = useState(false);
   const [scanRevealOpen, setScanRevealOpen] = useState(sampleCreditRequested);
   const sampleBtnRef = useRef(null);
+  const openSample = () => { intro.pause(); setScanRevealOpen(false); setSampleOpen(true); };
   const clearSampleQuery = () => { try { if (sampleCreditRequested) window.history.replaceState(null, '', window.location.pathname + '#/'); } catch { /* ignore */ } };
   const returnFocusRef = useRef(false);
-  const [experienceOpen, setExperienceOpen] = useState(false); // The Greet-Me Experience (below)
   const closeSample = () => { setSampleOpen(false); setScanRevealOpen(false); clearSampleQuery(); returnFocusRef.current = true; };
   // After the sample closes, focus goes back to the button that opened it.
   useEffect(() => {
-    if (sampleOpen || scanRevealOpen || experienceOpen || !returnFocusRef.current) return;
+    if (sampleOpen || scanRevealOpen || !returnFocusRef.current) return;
     returnFocusRef.current = false;
     sampleBtnRef.current?.focus();
-  }, [sampleOpen, scanRevealOpen, experienceOpen]);
-
-  // The Greet-Me Experience (entry CTA): the guided sample. Same gate as the sample (enabled AND its video loads).
-  // On the way back the intro video starts from the beginning where the browser permits (useIntroVideo); when
-  // it refuses, the Play cover stays with a short prompt, and keyboard focus goes to Play.
-  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
-  const bigPlayRef = useRef(null);
-  const openExperience = () => { intro.pause(); setScanRevealOpen(false); setAutoplayBlocked(false); setExperienceOpen(true); };
-  const closeExperience = () => {
-    setExperienceOpen(false);
-    clearSampleQuery();
-    videoCardRef.current?.scrollIntoView?.({ block: 'center' });
-    // No intro to play: focus goes back to the entry button, after the dialog has closed and the landing is live again.
-    if (videoStatus === 'failed') { returnFocusRef.current = true; return; }
-    // Called from the visitor's Exit / Back press where there was one, so the browser can count that tap.
-    focusBarRef.current = true;
-    intro.autoplayFromStart().then((ok) => {
-      if (ok) return;
-      focusBarRef.current = false;
-      setAutoplayBlocked(true);
-    });
-  };
-  useEffect(() => { if (intro.playing) setAutoplayBlocked(false); }, [intro.playing]);
-  useEffect(() => { if (autoplayBlocked) bigPlayRef.current?.focus(); }, [autoplayBlocked]);
+  }, [sampleOpen, scanRevealOpen]);
 
   // Fit-to-screen (preview): scale = available height / natural panel height, between FIT_MIN and 1.
   const FIT_MIN = 0.75;
@@ -246,8 +220,8 @@ export default function Landing() {
           <Link to="/login" className="gm-menu-item" data-testid="landing-signin">Sign in</Link>
           <Link to="/register" className="gm-menu-item primary" data-testid="landing-register-top">{REGISTER_LABEL}</Link>
           {SHOW_SAMPLE_ENTRY ? (
-            <button type="button" className="gm-menu-item" data-testid="landing-menu-experience" onClick={() => { setMenuOpen(null); openExperience(); }}>
-              <span aria-hidden="true">✉</span> {EXPERIENCE_CHROME.ctaLabel}
+            <button type="button" className="gm-menu-item" data-testid="landing-menu-sample" onClick={() => { setMenuOpen(null); openSample(); }}>
+              <span aria-hidden="true">✉</span> {SAMPLE_CHROME.ctaLabel}
             </button>
           ) : null}
           <button type="button" className="gm-menu-item" data-testid="landing-menu-play" onClick={playDemo} disabled={videoStatus === 'failed'}>
@@ -301,8 +275,8 @@ export default function Landing() {
           <p className="gm-landing-sup" data-testid="landing-support">Personalized, automatic moments. Truly unforgettable!</p>
           {SHOW_SAMPLE_ENTRY ? (
             <>
-              <button type="button" ref={sampleBtnRef} className="gm-landing-primary" data-testid="landing-experience" onClick={openExperience}>
-                <span aria-hidden="true">✉</span> {EXPERIENCE_CHROME.ctaLabel}
+              <button type="button" ref={sampleBtnRef} className="gm-landing-primary" data-testid="landing-view-sample" onClick={openSample}>
+                <span aria-hidden="true">✉</span> {SAMPLE_CHROME.ctaLabel}
               </button>
               <p className="gm-landing-small">{SAMPLE_CHROME.ctaSubline}</p>
             </>
@@ -330,13 +304,10 @@ export default function Landing() {
 
             {showCover && (
               <div className="gm-landing-cover" data-testid="landing-video-cover">
-                <button type="button" ref={bigPlayRef} className="gm-landing-play" data-testid="landing-big-play" aria-label={coverLabel}
+                <button type="button" className="gm-landing-play" data-testid="landing-big-play" aria-label={coverLabel}
                   onClick={(e) => { e.stopPropagation(); focusBarRef.current = true; intro.tap(); }}>
                   {intro.ended ? '↺' : '▶'}
                 </button>
-                {autoplayBlocked && !intro.ended ? (
-                  <p data-testid="landing-autoplay-blocked" role="status" style={{ margin: 0, fontSize: '.9rem', fontWeight: 600, color: '#fff' }}>Press Play to start the intro video.</p>
-                ) : null}
               </div>
             )}
 
@@ -409,11 +380,6 @@ export default function Landing() {
       {SHOW_SAMPLE_ENTRY && sampleOpen ? (
         <Suspense fallback={null}>
           <SampleGreetingOverlay onClose={closeSample} />
-        </Suspense>
-      ) : null}
-      {SHOW_SAMPLE_ENTRY && experienceOpen ? (
-        <Suspense fallback={null}>
-          <GreetMeExperience onExit={closeExperience} />
         </Suspense>
       ) : null}
       {SHOW_SAMPLE_ENTRY && scanRevealOpen && !sampleOpen ? (

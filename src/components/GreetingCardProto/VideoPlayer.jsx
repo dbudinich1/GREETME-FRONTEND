@@ -15,8 +15,7 @@ import React, { useRef, useState } from 'react';
 export const VIDEO_PREPARING_TEXT = 'Your video is being prepared. Please try again shortly.';
 export const VIDEO_UNAVAILABLE_TEXT = 'The video for this greeting is no longer available. The rest of your greeting is still here.';
 
-// LANE 3: `playbackRate` is optional and defaults to the existing 0.88 tempo; a sender's own uploaded video passes 1.
-export default function VideoPlayer({ videoUrl, onEnded, hasEnded, videoStatus = null, onRetry = null, playbackRate = 0.88 }) {
+export default function VideoPlayer({ videoUrl, onEnded, hasEnded, videoStatus = null, onRetry = null }) {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -34,7 +33,7 @@ export default function VideoPlayer({ videoUrl, onEnded, hasEnded, videoStatus =
       if (hasEnded) {
         videoRef.current.currentTime = 0;
       }
-      videoRef.current.playbackRate = playbackRate; // Slow down tempo (default 0.88)
+      videoRef.current.playbackRate = 0.88; // Slow down tempo
       // Audio fade-in: start silent, ramp to full volume over ~600ms
       videoRef.current.volume = 0;
       videoRef.current.play().catch(() => setHasError(true));

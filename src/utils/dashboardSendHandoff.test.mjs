@@ -104,7 +104,7 @@ import { writeGiftPlaceTab, takeGiftPlaceTab, GIFT_PLACE_TAB_KEY } from "./dashb
 const memStore = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), _m: m }; };
 
 test("Gift Place tab marker: opens the QR Cash tab once, only for the same entry", () => {
-  const s = memStorage();
+  const s = memStore();
   writeGiftPlaceTab(s, "e1", "qrcash");
   assert.equal(takeGiftPlaceTab(s, "e2"), null, "another entry never opens it");
   writeGiftPlaceTab(s, "e1", "qrcash");
@@ -114,7 +114,7 @@ test("Gift Place tab marker: opens the QR Cash tab once, only for the same entry
 });
 
 test("Gift Place tab marker: only QR Cash, only with an entry, and not after 30 minutes", () => {
-  const s = memStorage();
+  const s = memStore();
   writeGiftPlaceTab(s, "e1", "flowers");
   assert.equal(s.getItem(GIFT_PLACE_TAB_KEY), null, "no other tab is stored");
   writeGiftPlaceTab(s, "", "qrcash");
@@ -122,31 +122,4 @@ test("Gift Place tab marker: only QR Cash, only with an entry, and not after 30 
   s.setItem(GIFT_PLACE_TAB_KEY, JSON.stringify({ entry: "e1", tab: "qrcash", at: Date.now() - 31 * 60 * 1000 }));
   assert.equal(takeGiftPlaceTab(s, "e1"), null, "stale");
   assert.equal(takeGiftPlaceTab(null, "e1"), null);
-});
-
-// Report 145 correction (founder 2026-10-28): Home's one-time Send intent.
-import { writeHomeSendIntent, takeHomeSendIntent, HOME_SEND_INTENT_KEY } from './dashboardSendHandoff.js';
-
-test('Home Send intent: taken once for the same nonce, recipient and occasion while fresh; then gone', () => {
-  const s = memStorage();
-  const nonce = writeHomeSendIntent(s, { contactId: 'c1', occasion: 'Thank You' }, 1000, () => 'n-1');
-  assert.equal(nonce, 'n-1');
-  assert.equal(takeHomeSendIntent(s, { contactId: 'c1', occasion: 'Thank You', nonce: 'n-1' }, 2000), true);
-  assert.equal(s.getItem(HOME_SEND_INTENT_KEY), null);
-  assert.equal(takeHomeSendIntent(s, { contactId: 'c1', occasion: 'Thank You', nonce: 'n-1' }, 2000), false, 'a second read (refresh/Back) finds nothing');
-});
-
-test('Home Send intent: wrong nonce, other recipient/occasion, no nonce or older than two minutes → false, and removed', () => {
-  for (const [args, now] of [[{ contactId: 'c1', occasion: 'Thank You', nonce: 'other' }, 2000], [{ contactId: 'c2', occasion: 'Thank You', nonce: 'n' }, 2000],
-    [{ contactId: 'c1', occasion: 'Birthday', nonce: 'n' }, 2000], [{ contactId: 'c1', occasion: 'Thank You', nonce: '' }, 2000], [{ contactId: 'c1', occasion: 'Thank You', nonce: 'n' }, 1000 + 2 * 60 * 1000 + 1]]) {
-    const s = memStorage();
-    writeHomeSendIntent(s, { contactId: 'c1', occasion: 'Thank You' }, 1000, () => 'n');
-    assert.equal(takeHomeSendIntent(s, args, now), false, JSON.stringify(args));
-    assert.equal(s.getItem(HOME_SEND_INTENT_KEY), null);
-  }
-});
-
-test('Home Send intent: storage unavailable → no nonce (nothing will send by itself)', () => {
-  const broken = { setItem() { throw new Error('quota'); }, getItem() { return null; }, removeItem() {} };
-  assert.equal(writeHomeSendIntent(broken, { contactId: 'c1', occasion: 'Thank You' }), '');
 });

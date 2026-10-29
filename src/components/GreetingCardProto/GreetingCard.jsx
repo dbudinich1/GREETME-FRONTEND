@@ -23,8 +23,6 @@ import InteriorSpread from './InteriorSpread';
 import FeaturedSpread from './FeaturedSpread';
 // TEAM C — Phase A5: corporate Featured Spread renderer, selected only for corporate greetings.
 import CorporateFeaturedSpread from './CorporateFeaturedSpread';
-// LANE 3: conditional Featured Spread for greetings built from the shared personalization controls.
-import PersonalizedFeaturedSpread from './PersonalizedFeaturedSpread';
 import FinaleSpread from './FinaleSpread';
 import './greetingCard.css';
 
@@ -166,15 +164,6 @@ export default function GreetingCard({ greeting, isOwner, onRetryVideo = null, s
           />
         );
       case SCREENS.FEATURED:
-        if (greeting.personalization) {
-          return (
-            <PersonalizedFeaturedSpread
-              personalization={greeting.personalization}
-              videoHasEnded={videoHasEnded}
-              onVideoEnd={() => setVideoHasEnded(true)}
-            />
-          );
-        }
         return greeting.corporate && greeting.corporateFacts ? (
           <CorporateFeaturedSpread
             facts={greeting.corporateFacts}
@@ -421,14 +410,7 @@ export default function GreetingCard({ greeting, isOwner, onRetryVideo = null, s
           )}
 
           {currentScreen === SCREENS.FEATURED && (
-            greeting.personalization ? (
-              <PersonalizedFeaturedSpread
-                personalization={greeting.personalization}
-                onClick={advanceScreen}
-                videoHasEnded={videoHasEnded}
-                onVideoEnd={() => setVideoHasEnded(true)}
-              />
-            ) : greeting.corporate && greeting.corporateFacts ? (
+            greeting.corporate && greeting.corporateFacts ? (
               <CorporateFeaturedSpread
                 facts={greeting.corporateFacts}
                 onClick={advanceScreen}

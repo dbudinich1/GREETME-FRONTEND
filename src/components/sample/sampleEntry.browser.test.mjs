@@ -1,14 +1,12 @@
 // src/components/sample/sampleEntry.browser.test.mjs
 //
-// The landing's sample entry (founder: required; Report 71 rev 2), MOUNTED with the real Landing, the real
-// sample viewer and the real, unchanged card player. Since 2026-10-29 the entry button is "The Greet-Me
-// Experience" (the guided sample, tested in experience/greetMeExperience.browser.test.mjs); it keeps the sample's
-// gate and place. The free sample viewer stays reachable from a scanned sample QR's reveal (Back).
+// "View Sample Greet-Me" on the landing (founder: required; Report 71 rev 2), MOUNTED with the real Landing,
+// the real sample viewer and the real, unchanged card player:
 //   - as committed (SAMPLE_ENTRY_ENABLED = true): the video address is checked once and the button is shown;
 //   - enabled, but the talking-photo video is missing or still being checked: no button and no placeholder;
-//   - enabled and the video loads: the button sits beneath the supporting line and opens the guided sample; a
-//     scanned sample QR (#/?sample=credit) shows the sample $5 reveal (inert claim, Back opens the sample viewer
-//     at the envelope, Close returns focus to the button), also for a signed-in visitor;
+//   - enabled and the video loads: the button sits beneath the supporting line, opens the sample at the
+//     envelope, Close returns focus to it; a scanned sample QR (#/?sample=credit) shows the sample $5 reveal
+//     (inert claim, Back opens the sample), also for a signed-in visitor;
 //   - the sample never renders a /claim-credit/ link, never calls the network and never writes greetme_ storage.
 // The finale QR -> reveal step needs the separately authorized player change; when that change is present this
 // file also checks it (see the last test), otherwise it checks that the sample shows no claim link at all.
@@ -131,42 +129,37 @@ test("as committed (sample enabled): the video is checked once, the button shows
   assert.match(readFileSync(join(__dirname, "sampleGreeting.js"), "utf8"), /export const SAMPLE_ENTRY_ENABLED = true;/);
   await mount("committed");
   assert.deepEqual(probes, [SAMPLE_URL], "the sample video address is checked once");
-  assert.ok($("landing-experience"), "the button is shown");
-  assert.equal($("landing-support").nextElementSibling, $("landing-experience"), "directly beneath the supporting line");
+  assert.ok($("landing-view-sample"), "the button is shown");
+  assert.equal($("landing-support").nextElementSibling, $("landing-view-sample"), "directly beneath the supporting line");
   await mount("committed", { hash: "#/?sample=credit" });
   assert.ok($("landing-scan-reveal"), "a scanned sample link shows the sample reveal");
   await mount("committed", { mediaMode: "missing" });
-  assert.equal($("landing-experience"), null, "video missing: still no button");
+  assert.equal($("landing-view-sample"), null, "video missing: still no button");
 });
 
 test("enabled but the talking-photo video is missing or still checking: no button and no placeholder", async () => {
   for (const mediaMode of ["missing", "silent"]) {
     await mount("on", { mediaMode });
     assert.deepEqual(probes, [SAMPLE_URL], `${mediaMode}: the video address is checked once`);
-    assert.equal($("landing-experience"), null, `${mediaMode}: no button`);
+    assert.equal($("landing-view-sample"), null, `${mediaMode}: no button`);
     assert.doesNotMatch(document.body.textContent, PLACEHOLDER, `${mediaMode}: no placeholder text`);
-    assert.doesNotMatch(document.body.textContent, /View Sample Greet-Me|The Greet-Me Experience/);
+    assert.doesNotMatch(document.body.textContent, /View Sample Greet-Me/);
     await mount("on", { mediaMode, hash: "#/?sample=credit" });
     assert.equal($("landing-scan-reveal"), null, `${mediaMode}: no reveal without the sample`);
   }
 });
 
-test("enabled and the video loads: the button sits beneath the supporting line and opens the guided sample; the sample viewer's Close returns focus", async () => {
+test("enabled and the video loads: the button sits beneath the supporting line and opens the sample; Close returns focus", async () => {
   await mount("on");
-  const btn = $("landing-experience");
+  const btn = $("landing-view-sample");
   assert.ok(btn, "the button is shown");
   assert.equal($("landing-support").nextElementSibling, btn, "directly beneath the supporting line");
   assert.ok($("landing-headcard").contains(btn));
-  assert.match(btn.textContent, /The Greet-Me Experience/);
+  assert.match(btn.textContent, /View Sample Greet-Me/);
   assert.equal(btn.nextElementSibling.textContent, "Open a real Greet-Me, start to finish.");
-  await click(btn);
-  assert.ok($("experience-overlay"), "the guided sample opens");
-  await click($("experience-exit"));
-  assert.equal($("experience-overlay"), null);
 
-  // The free sample viewer, from a scanned sample QR's reveal.
-  await mount("on", { hash: "#/?sample=credit" });
-  await click($("sample-credit-back"));
+  btn.focus();
+  await click(btn);
   assert.ok($("sample-overlay"), "the sample viewer opens");
   assert.ok(document.querySelector('[aria-label="Break seal to open"]'), "it starts at the envelope");
   assert.doesNotMatch($("sample-overlay").textContent, PLACEHOLDER);
@@ -174,7 +167,7 @@ test("enabled and the video loads: the button sits beneath the supporting line a
 
   await click($("sample-close"));
   assert.equal($("sample-overlay"), null);
-  assert.equal(document.activeElement, $("landing-experience"), "focus returns to the entry button");
+  assert.equal(document.activeElement, $("landing-view-sample"), "focus returns to the button");
 });
 
 test("a scanned sample QR shows the sample $5 reveal: inert claim, Back opens the sample (also signed in)", async () => {
@@ -214,8 +207,8 @@ test("signed in + scanned sample QR: reveal only when the sample is shown; video
 
 test("the sample makes no network call and writes no greetme_ storage", async () => {
   window.localStorage.clear(); window.sessionStorage.clear(); fetches.length = 0;
-  await mount("on", { hash: "#/?sample=credit" });
-  await click($("sample-credit-back"));
+  await mount("on");
+  await click($("landing-view-sample"));
   await click(document.querySelector('[aria-label="Break seal to open"]'));
   await flush(8);
   assert.deepEqual(fetches, [], "no fetch");
