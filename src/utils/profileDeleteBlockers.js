@@ -21,12 +21,25 @@ const OCCASION_WORDS = {
   work_anniversary: 'work anniversary',
 };
 
+// M1 (founder 2026-10-29): a LOCKED, ENABLED campaign that repeats every year still references the asset from its lock
+// snapshot (server marks the blocker `recurring: true`). Its later dates have no schedule yet, so "after it has been sent"
+// is never true. These sentences are IDENTICAL to the server's (BE services/profileAssets/profileAssetDelete.js).
+// PROPOSED copy — pending founder's exact approved text
+export const M1_RECURRING_IN_USE_NAMED = (thing, campaignName) =>
+  `Your corporate campaign "${campaignName}" repeats every year and still uses ${thing} for its future greetings. Switch that campaign off with its on/off switch in For Business → Corporate Campaign Dashboard, then try again.`;
+// PROPOSED copy — pending founder's exact approved text
+export const M1_RECURRING_IN_USE_UNNAMED = (thing) =>
+  `A corporate campaign that repeats every year still uses ${thing} for its future greetings. It must be switched off with its on/off switch in For Business → Corporate Campaign Dashboard before ${thing} can be deleted.`;
+
 function sentenceFor(b, thing) {
   const when = formatWhen(b && b.scheduledForUtc);
   if (b && b.kind === 'queued_send') {
     const occ = b.occasionType ? OCCASION_WORDS[b.occasionType] || String(b.occasionType).replace(/_/g, ' ') : null;
     const what = occ ? `A ${occ} greeting` : 'A greeting';
     return `${what}${when ? ` scheduled for ${when}` : ''} is about to send with ${thing}. Try again after it has been sent, or turn off that occasion's automatic send first.`;
+  }
+  if (b && b.kind === 'corporate_campaign' && b.recurring === true) {
+    return b.campaignName ? M1_RECURRING_IN_USE_NAMED(thing, b.campaignName) : M1_RECURRING_IN_USE_UNNAMED(thing);
   }
   if (b && b.kind === 'corporate_campaign') {
     // Release 2b assembly (T5 D2): a greeting already on its way (`status: 'queued'`) cannot be stopped by switching the

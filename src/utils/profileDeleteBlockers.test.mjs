@@ -3,7 +3,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { describeProfileAssetInUse } from "./profileDeleteBlockers.js";
+import { describeProfileAssetInUse, M1_RECURRING_IN_USE_NAMED, M1_RECURRING_IN_USE_UNNAMED } from "./profileDeleteBlockers.js";
 
 const inUse = (data) => Object.assign(new Error("A Greet-Me or campaign still needs this."), { status: 409, code: "PROFILE_ASSET_IN_USE", data: { code: "PROFILE_ASSET_IN_USE", ...data } });
 
@@ -49,4 +49,23 @@ test("T5 D2: a corporate greeting already QUEUED says 'try again after it has be
   // A still-waiting occurrence keeps the switch-off advice (it works for that one).
   const w = describeProfileAssetInUse(inUse({ inUseBy: "corporate_campaign", blockers: [{ kind: "corporate_campaign", scheduledForUtc: "2027-09-02T07:00:00.000Z", campaignName: "Preflight", status: "scheduled" }] }));
   assert.match(w, /Switch that campaign off or remove it, then try again\.$/);
+});
+
+// M1 (founder 2026-10-29): a locked recurring campaign (server blocker `recurring: true`).
+test("M1: a locked recurring campaign -> the switch-it-off sentence, identical to the server's", () => {
+  const named = describeProfileAssetInUse(inUse({ inUseBy: "corporate_campaign", blockers: [{ kind: "corporate_campaign", scheduledForUtc: null, campaignName: "Client birthdays", status: null, recurring: true }] }));
+  assert.equal(named, 'Your corporate campaign "Client birthdays" repeats every year and still uses this photo for its future greetings. Switch that campaign off with its on/off switch in For Business → Corporate Campaign Dashboard, then try again.');
+  assert.equal(named, M1_RECURRING_IN_USE_NAMED("this photo", "Client birthdays"));
+  const unnamed = describeProfileAssetInUse(inUse({ inUseBy: "corporate_campaign", blockers: [{ kind: "corporate_campaign", scheduledForUtc: null, campaignName: null, status: null, recurring: true }] }), "voice");
+  assert.equal(unnamed, "A corporate campaign that repeats every year still uses this voice recording for its future greetings. It must be switched off with its on/off switch in For Business → Corporate Campaign Dashboard before this voice recording can be deleted.");
+  assert.equal(unnamed, M1_RECURRING_IN_USE_UNNAMED("this voice recording"));
+  const two = describeProfileAssetInUse(inUse({ inUseBy: "corporate_campaign", blockers: [
+    { kind: "corporate_campaign", campaignName: "Client birthdays", recurring: true }, { kind: "corporate_campaign", campaignName: "Anniversaries", recurring: true }] }));
+  assert.equal(two, `${M1_RECURRING_IN_USE_NAMED("this photo", "Client birthdays")} (1 more scheduled greeting also uses it.)`);
+});
+
+test("M1: the existing schedule-row corporate sentences are unchanged", () => {
+  const s = describeProfileAssetInUse(inUse({ inUseBy: "corporate_campaign", blockers: [{ kind: "corporate_campaign", scheduledForUtc: "2027-09-02T07:00:00.000Z", campaignName: "Preflight", status: "scheduled" }] }));
+  assert.match(s, /^Your corporate campaign "Preflight" still uses this photo for a greeting scheduled for September 2, 2027/);
+  assert.match(s, /Switch that campaign off or remove it, then try again\.$/);
 });
