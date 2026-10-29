@@ -219,8 +219,8 @@ test("F6: an intent seen again (refresh/Back after the Home Send) sends nothing 
   m = await mountAt(url);
   try {
     assert.equal(mod.__sends.length, 1, "no second send");
-    assert.match(bodyText(), /Already opened from Home/);
-    assert.match(bodyText(), /This Greet-Me was already opened from Home\. Check Sent before sending it again\./);
+    assert.match(bodyText(), /Check your send status/);
+    assert.match(bodyText(), /This greeting was previously opened from Home\. Check Sent to see whether it was delivered before trying again\./);
   } finally { await m.unmount(); }
 });
 
@@ -228,8 +228,8 @@ test("F6: an intent that never arrived (or expired) sends nothing and says so", 
   const m = await mountAt("/dashboard/send?contactId=c1&occasion=Thank+You&from=dashboard&intent=never-stored");
   try {
     assert.equal(mod.__sends.length, 0);
-    assert.match(bodyText(), /Not sent automatically/);
-    assert.match(bodyText(), /Nothing was sent\. Review this Greet-Me and press Done & Send to send it\./);
+    assert.match(bodyText(), /Ready for your review/);
+    assert.match(bodyText(), /Nothing was sent\. Review your greeting, then select Done & Send\./);
   } finally { await m.unmount(); }
 });
 

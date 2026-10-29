@@ -1627,9 +1627,9 @@ export default function SendGreeting() {
     // Team 5 F6: say why nothing happened. Seen again (refresh/Back) → it was already started, so a second send is not
     // invited; never arrived or expired → nothing was sent, and Done & Send sends it.
     if (homeSendIntentUsed(window.sessionStorage, nonce)) {
-      showManualToast('Already opened from Home', 'This Greet-Me was already opened from Home. Check Sent before sending it again.', COMMS_CATEGORIES.SYSTEM);
+      showManualToast('Check your send status', 'This greeting was previously opened from Home. Check Sent to see whether it was delivered before trying again.', COMMS_CATEGORIES.SYSTEM);
     } else {
-      showManualToast('Not sent automatically', 'Nothing was sent. Review this Greet-Me and press Done & Send to send it.', COMMS_CATEGORIES.SYSTEM);
+      showManualToast('Ready for your review', 'Nothing was sent. Review your greeting, then select Done & Send.', COMMS_CATEGORIES.SYSTEM);
     }
   }, [location.search, loading, contacts, user?.id, formData.contactId, formData.occasionType]);
   useEffect(() => {
