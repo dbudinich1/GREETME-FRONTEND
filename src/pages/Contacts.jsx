@@ -31,6 +31,7 @@ import { resolveRecipientLimit, recipientLimitMessage, isAtRecipientCap } from '
 import CelebrationsWorkspace from '../components/celebrations/CelebrationsWorkspace';
 import { launcherChoicesForOccasion, businessCelebrationContacts } from '../utils/celebrationsModel';
 import { saveLauncherState } from '../utils/dashboardLauncherState';
+import { readAddRecipientReturn, sendReturnPath, noteAddedRecipientForDashboard, safeRecipientId } from '../utils/addRecipientEntry';
 
 // Session storage key (must match ContactForm.jsx)
 const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
@@ -44,13 +45,20 @@ export default function Recipients() {
   // Opened from the dashboard to edit (or add) a recipient: after saving or closing, go back there, where the
   // dashboard restores the sender's in-progress choices (utils/dashboardLauncherState.js). Read once on arrival —
   // the deep-link effects below clear location.state.
-  const returnToDashboardRef = useRef(location.state?.returnTo === 'dashboard');
+  // Lane 1 (2026-10-28): or opened from the send editor ('send') to add a recipient — after saving or closing, back to
+  // that greeting, kept in sendGreetingState (utils/addRecipientEntry.js). One ref holds where to go back to, or null.
+  const returnToDashboardRef = useRef(readAddRecipientReturn(location.state));
   // Report 135: the dashboard's Celebration Manager opens an occasion here ({ celebrations: { path, occasion } }), read once.
   const celebrationsEntryRef = useRef({ path: location.state?.celebrations?.path === 'occasions' ? 'occasions' : 'recipients', occasion: /^[a-z_]{1,40}$/.test(location.state?.celebrations?.occasion || '') ? location.state.celebrations.occasion : 'birthday' });
-  const backToDashboard = (savedMessage) => {
-    if (!returnToDashboardRef.current) return false;
+  // `addedId`: the recipient this visit created (server id). The composition that sent the sender here gets it back
+  // selected: Home through its kept launcher snapshot, the send editor through its return URL.
+  const backToDashboard = (savedMessage, addedId = null) => {
+    const target = returnToDashboardRef.current;
+    if (!target) return false;
     returnToDashboardRef.current = false;
     if (savedMessage) { try { showManualToast('Saved ✓', savedMessage, COMMS_CATEGORIES.PROFILE); } catch { /* ignore */ } }
+    if (target === 'send') { navigate(sendReturnPath(addedId), { replace: true }); return true; }
+    if (addedId) noteAddedRecipientForDashboard(window.sessionStorage, user && user.id, addedId);
     navigate('/dashboard');
     return true;
   };
@@ -376,13 +384,23 @@ export default function Recipients() {
       if (response && response.data) {
         fetchRecipients();
       }
-      backToDashboard('Recipient added.');
+      backToDashboard('Recipient added.', safeRecipientId(response?.data?.id));
     } catch (error) {
       console.error('Add recipient error:', error);
 
       // LIVE-1 — not accepted by the server (e.g. never reached it): not "stored locally", not a
       // success. Hand it back to the form, which shows the message and stays open for a retry.
       if (error?.saveNotAccepted) throw error;
+
+      // Lane 1 (2026-10-28) — the server already holds a recipient with this email (409 EMAIL_EXISTS). It used to fall
+      // through to the "stored locally" path below and add a second, local-only copy. Now nothing is added: the form
+      // stays open and says why, so the sender can use the existing recipient or change the email.
+      if (error?.status === 409 || error?.code === 'EMAIL_EXISTS') {
+        const dup = new Error('Someone with this email is already in your recipients. Choose them from your list, or use a different email.');
+        dup.saveNotAccepted = true;
+        dup.status = 409;
+        throw dup;
+      }
 
       // SUB-RECIPIENT-CAPS — do NOT fall back to local/offline storage when the plan cap is hit.
       if (error?.code === 'RECIPIENT_LIMIT_REACHED') {

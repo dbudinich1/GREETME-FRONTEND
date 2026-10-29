@@ -1412,7 +1412,8 @@ test("walkthrough: Celebration Manager card: centred title, Import Wizard and Ad
   const add = $("[data-testid=gx-mgr-add]");
   assert.equal(add.getAttribute("aria-label"), "Add Recipient");
   await click(add);
-  assert.deepEqual(globalThis.__nav.at(-1), { to: "/dashboard/contacts", opts: { state: { openAddRecipient: true } } });
+  // Lane 1 (2026-10-28): the same full Add New Recipient dialog, with Home's choices kept for the return.
+  assert.deepEqual(globalThis.__nav.at(-1), { to: "/dashboard/contacts", opts: { state: { openAddRecipient: true, returnTo: "dashboard" } } });
 });
 
 test("§6 Home: on the QR Cash slide 'How it works' sits beside the title and opens the shared approved explanation, with its Add QR Cash action", async () => {

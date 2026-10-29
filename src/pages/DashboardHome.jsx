@@ -57,6 +57,7 @@ import { SCHEDULED_PHYSICAL_GIFT_AVAILABLE } from '../config/scheduledPhysicalGi
 import { scheduledGiftConsentsFor, authorizationStepEnabled, scheduledGiftSavedConfirmations } from '../utils/scheduledPhysicalGift';
 import { SCHEDULED_QRCASH_AVAILABLE } from '../config/scheduledQrCash';
 import { saveLauncherState, readLauncherState, clearLauncherState } from '../utils/dashboardLauncherState';
+import { addRecipientEntry, picksWithAddedRecipient } from '../utils/addRecipientEntry';
 import { displayFirstName } from '../utils/displayName';
 import giftLuxuryBox from '../assets/gifts/gift-luxury-box.png';
 import giftBouquet from '../assets/gifts/gift-bouquet.png';
@@ -328,7 +329,9 @@ export default function DashboardHome() {
   const [occasions, setOccasions] = useState((Array.isArray(K('occasions', [])) ? K('occasions', []) : []).filter((o) => OFFERED_OCCASIONS.has(o)));
   const [menuOpen, setMenuOpen] = useState(null);
   const [audience, setAudience] = useState(AUDIENCES.some((a) => a.key === K('audience', 'one')) ? K('audience', 'one') : 'one');
-  const [picks, setPicks] = useState(K('picks', []));
+  // Lane 1 (2026-10-28): a recipient just added from here (Add Recipient keeps these choices) comes back selected when
+  // Home's own rules allow it (utils/addRecipientEntry.js); otherwise they are in the list, nothing else changes.
+  const [picks, setPicks] = useState(() => picksWithAddedRecipient({ picks: K('picks', []), audience, occasions, addedId: K('addedRecipientId', null), max: GROUP_MAX }));
   const [excluded, setExcluded] = useState(K('excluded', []));
   const [pickerOpen, setPickerOpen] = useState(false);
   const [find, setFind] = useState('');
@@ -378,14 +381,17 @@ export default function DashboardHome() {
   const voiceDone = Boolean(user?.voiceId || user?.voiceUrl);
   const photoDone = Boolean(user?.photoUrl);
   const firstName = displayFirstName(user?.name); // Walkthrough 2026-10-24: first letter capitalised, the rest kept as typed
-  const goAddRecipient = () => navigate('/dashboard/contacts', { state: { openAddRecipient: true } });
   // Editing a recipient (or opening their Occasion Scheduler) from here keeps the in-progress choices and brings the
   // sender back to them after saving or closing the edit (Contacts.jsx returnTo).
   const keepChoices = () => {
     const kept2 = saveLauncherState(window.sessionStorage, user?.id, { mode, occasions, audience, picks, excluded, words, memoryPhotos, gift, whoDone, confirmed, rows, groupDefaultGift, datesOpen });
     if (kept2 === 'without_photos') showManualToast('Photos not kept', 'Your memory photos were too large to keep on this device while you edit. Your other choices are kept.', COMMS_CATEGORIES.SYSTEM);
   };
-  const goAddFromFlow = () => { keepChoices(); navigate('/dashboard/contacts', { state: { openAddRecipient: true, returnTo: 'dashboard' } }); };
+  // Lane 1 (2026-10-28): every Add Recipient on Home (hero, Celebration Manager, empty list, the picker's "Add a new
+  // recipient") opens the same full Add New Recipient dialog, keeps these choices and comes back here after Save
+  // (the new person selected) or Cancel (nothing changed). It used to drop the choices and stay on Recipients.
+  const goAddRecipient = () => { keepChoices(); const e = addRecipientEntry('dashboard'); navigate(e.to, e.opts); };
+  const goAddFromFlow = goAddRecipient;
   const goEdit = (id) => { keepChoices(); navigate('/dashboard/contacts', { state: { openEditRecipientId: id, returnTo: 'dashboard' } }); };
   const goScheduler = (contactId, occasionType) => { keepChoices(); navigate(`/dashboard/contacts?contactId=${encodeURIComponent(contactId)}&occasion=${encodeURIComponent(occasionType)}`, { state: { returnTo: 'dashboard' } }); };
   const filtered = useMemo(() => contacts.filter((c) => (c.name || '').toLowerCase().includes(term.toLowerCase()) || (c.relationship || '').toLowerCase().includes(term.toLowerCase())), [contacts, term]);
