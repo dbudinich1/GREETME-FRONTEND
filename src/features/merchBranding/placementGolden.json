@@ -1,0 +1,1642 @@
+{
+  "_comment": "REPORT 153 golden placements. GENERATED from merch-be services/merchBranding/placementEngine.js + printSpecs.js (print areas API-read 2026-10-29 from GET /mockup-generator/printfiles/{id}; placement boxes are proposals pending founder approval). The identical file lives in merch-fe src/features/merchBranding/placementGolden.json; both engines are tested against it.",
+  "engineVersion": 1,
+  "specs": {
+    "431621330": {
+      "productKey": "canvas",
+      "box": null,
+      "variants": {
+        "5298250656": {
+          "printfulVariantId": 19292,
+          "placement": "default",
+          "area": {
+            "widthPx": 3300,
+            "heightPx": 3300,
+            "dpi": 300
+          },
+          "box": {
+            "left": 0.2818,
+            "top": 0.2818,
+            "width": 0.4364,
+            "height": 0.4364
+          },
+          "requiredDpi": 300,
+          "confirmed": true
+        },
+        "5298250658": {
+          "printfulVariantId": 823,
+          "placement": "default",
+          "area": {
+            "widthPx": 5400,
+            "heightPx": 5400,
+            "dpi": 300
+          },
+          "box": {
+            "left": 0.3,
+            "top": 0.3,
+            "width": 0.4,
+            "height": 0.4
+          },
+          "requiredDpi": 300,
+          "confirmed": true
+        },
+        "5298250661": {
+          "printfulVariantId": 824,
+          "placement": "default",
+          "area": {
+            "widthPx": 6600,
+            "heightPx": 6600,
+            "dpi": 300
+          },
+          "box": {
+            "left": 0.2818,
+            "top": 0.2818,
+            "width": 0.4364,
+            "height": 0.4364
+          },
+          "requiredDpi": 300,
+          "confirmed": true
+        }
+      }
+    },
+    "431622804": {
+      "productKey": "mug",
+      "box": {
+        "left": 0.58,
+        "top": 0.14,
+        "width": 0.34,
+        "height": 0.72
+      },
+      "variants": {
+        "5298267871": {
+          "printfulVariantId": 1320,
+          "placement": "default",
+          "area": {
+            "widthPx": 2700,
+            "heightPx": 1050,
+            "dpi": 300
+          },
+          "box": {
+            "left": 0.58,
+            "top": 0.14,
+            "width": 0.34,
+            "height": 0.72
+          },
+          "requiredDpi": 300,
+          "confirmed": true
+        },
+        "5298267872": {
+          "printfulVariantId": 4830,
+          "placement": "default",
+          "area": {
+            "widthPx": 2700,
+            "heightPx": 1140,
+            "dpi": 300
+          },
+          "box": {
+            "left": 0.58,
+            "top": 0.14,
+            "width": 0.34,
+            "height": 0.72
+          },
+          "requiredDpi": 300,
+          "confirmed": true
+        },
+        "5298267873": {
+          "printfulVariantId": 16586,
+          "placement": "default",
+          "area": {
+            "widthPx": 3071,
+            "heightPx": 1205,
+            "dpi": 300
+          },
+          "box": {
+            "left": 0.58,
+            "top": 0.14,
+            "width": 0.34,
+            "height": 0.72
+          },
+          "requiredDpi": 300,
+          "confirmed": true
+        }
+      }
+    },
+    "431623973": {
+      "productKey": "laptop_sleeve",
+      "box": {
+        "left": 0.25,
+        "top": 0.25,
+        "width": 0.5,
+        "height": 0.5
+      },
+      "variants": {
+        "5298284576": {
+          "printfulVariantId": 10984,
+          "placement": "default",
+          "area": {
+            "widthPx": 2250,
+            "heightPx": 1725,
+            "dpi": 150
+          },
+          "box": {
+            "left": 0.25,
+            "top": 0.25,
+            "width": 0.5,
+            "height": 0.5
+          },
+          "requiredDpi": 150,
+          "confirmed": true
+        },
+        "5298284577": {
+          "printfulVariantId": 10985,
+          "placement": "default",
+          "area": {
+            "widthPx": 2325,
+            "heightPx": 1800,
+            "dpi": 150
+          },
+          "box": {
+            "left": 0.25,
+            "top": 0.25,
+            "width": 0.5,
+            "height": 0.5
+          },
+          "requiredDpi": 150,
+          "confirmed": true
+        }
+      }
+    },
+    "431624815": {
+      "productKey": "notebook",
+      "box": {
+        "left": 0.2,
+        "top": 0.3,
+        "width": 0.6,
+        "height": 0.4
+      },
+      "variants": {
+        "5298296504": {
+          "printfulVariantId": 16958,
+          "placement": "front",
+          "area": {
+            "widthPx": 900,
+            "heightPx": 1500,
+            "dpi": 300
+          },
+          "box": {
+            "left": 0.2,
+            "top": 0.3,
+            "width": 0.6,
+            "height": 0.4
+          },
+          "requiredDpi": 300,
+          "confirmed": true
+        }
+      }
+    }
+  },
+  "cases": [
+    {
+      "syncVariantId": 5298250656,
+      "logo": {
+        "name": "square_1000",
+        "widthPx": 1000,
+        "heightPx": 1000
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 3300,
+          "area_height": 3300,
+          "width": 1440,
+          "height": 1440,
+          "top": 930,
+          "left": 930,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 208,
+        "minLogoPx": {
+          "width": 1440,
+          "height": 1440
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298250656,
+      "logo": {
+        "name": "wide_2000x500",
+        "widthPx": 2000,
+        "heightPx": 500
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 3300,
+          "area_height": 3300,
+          "width": 1440,
+          "height": 360,
+          "top": 1470,
+          "left": 930,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 416,
+        "minLogoPx": {
+          "width": 1440,
+          "height": 360
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298250656,
+      "logo": {
+        "name": "tall_500x2000",
+        "widthPx": 500,
+        "heightPx": 2000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 3300,
+          "area_height": 3300,
+          "width": 360,
+          "height": 1440,
+          "top": 930,
+          "left": 1470,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 416,
+        "minLogoPx": {
+          "width": 360,
+          "height": 1440
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298250656,
+      "logo": {
+        "name": "small_400",
+        "widthPx": 400,
+        "heightPx": 400
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 3300,
+          "area_height": 3300,
+          "width": 1440,
+          "height": 1440,
+          "top": 930,
+          "left": 930,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 83,
+        "minLogoPx": {
+          "width": 1440,
+          "height": 1440
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298250656,
+      "logo": {
+        "name": "large_3000",
+        "widthPx": 3000,
+        "heightPx": 3000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 3300,
+          "area_height": 3300,
+          "width": 1440,
+          "height": 1440,
+          "top": 930,
+          "left": 930,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 625,
+        "minLogoPx": {
+          "width": 1440,
+          "height": 1440
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298250656,
+      "logo": {
+        "name": "odd_1237x811",
+        "widthPx": 1237,
+        "heightPx": 811
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 3300,
+          "area_height": 3300,
+          "width": 1440,
+          "height": 944,
+          "top": 1178,
+          "left": 930,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 257,
+        "minLogoPx": {
+          "width": 1440,
+          "height": 944
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298250658,
+      "logo": {
+        "name": "square_1000",
+        "widthPx": 1000,
+        "heightPx": 1000
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 5400,
+          "area_height": 5400,
+          "width": 2160,
+          "height": 2160,
+          "top": 1620,
+          "left": 1620,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 138,
+        "minLogoPx": {
+          "width": 2160,
+          "height": 2160
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298250658,
+      "logo": {
+        "name": "wide_2000x500",
+        "widthPx": 2000,
+        "heightPx": 500
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 5400,
+          "area_height": 5400,
+          "width": 2160,
+          "height": 540,
+          "top": 2430,
+          "left": 1620,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 277,
+        "minLogoPx": {
+          "width": 2160,
+          "height": 540
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298250658,
+      "logo": {
+        "name": "tall_500x2000",
+        "widthPx": 500,
+        "heightPx": 2000
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 5400,
+          "area_height": 5400,
+          "width": 540,
+          "height": 2160,
+          "top": 1620,
+          "left": 2430,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 277,
+        "minLogoPx": {
+          "width": 540,
+          "height": 2160
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298250658,
+      "logo": {
+        "name": "small_400",
+        "widthPx": 400,
+        "heightPx": 400
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 5400,
+          "area_height": 5400,
+          "width": 2160,
+          "height": 2160,
+          "top": 1620,
+          "left": 1620,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 55,
+        "minLogoPx": {
+          "width": 2160,
+          "height": 2160
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298250658,
+      "logo": {
+        "name": "large_3000",
+        "widthPx": 3000,
+        "heightPx": 3000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 5400,
+          "area_height": 5400,
+          "width": 2160,
+          "height": 2160,
+          "top": 1620,
+          "left": 1620,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 416,
+        "minLogoPx": {
+          "width": 2160,
+          "height": 2160
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298250658,
+      "logo": {
+        "name": "odd_1237x811",
+        "widthPx": 1237,
+        "heightPx": 811
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 5400,
+          "area_height": 5400,
+          "width": 2160,
+          "height": 1416,
+          "top": 1992,
+          "left": 1620,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 171,
+        "minLogoPx": {
+          "width": 2160,
+          "height": 1416
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298250661,
+      "logo": {
+        "name": "square_1000",
+        "widthPx": 1000,
+        "heightPx": 1000
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 6600,
+          "area_height": 6600,
+          "width": 2880,
+          "height": 2880,
+          "top": 1860,
+          "left": 1860,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 104,
+        "minLogoPx": {
+          "width": 2880,
+          "height": 2880
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298250661,
+      "logo": {
+        "name": "wide_2000x500",
+        "widthPx": 2000,
+        "heightPx": 500
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 6600,
+          "area_height": 6600,
+          "width": 2880,
+          "height": 720,
+          "top": 2940,
+          "left": 1860,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 208,
+        "minLogoPx": {
+          "width": 2880,
+          "height": 720
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298250661,
+      "logo": {
+        "name": "tall_500x2000",
+        "widthPx": 500,
+        "heightPx": 2000
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 6600,
+          "area_height": 6600,
+          "width": 720,
+          "height": 2880,
+          "top": 1860,
+          "left": 2940,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 208,
+        "minLogoPx": {
+          "width": 720,
+          "height": 2880
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298250661,
+      "logo": {
+        "name": "small_400",
+        "widthPx": 400,
+        "heightPx": 400
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 6600,
+          "area_height": 6600,
+          "width": 2880,
+          "height": 2880,
+          "top": 1860,
+          "left": 1860,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 41,
+        "minLogoPx": {
+          "width": 2880,
+          "height": 2880
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298250661,
+      "logo": {
+        "name": "large_3000",
+        "widthPx": 3000,
+        "heightPx": 3000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 6600,
+          "area_height": 6600,
+          "width": 2880,
+          "height": 2880,
+          "top": 1860,
+          "left": 1860,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 312,
+        "minLogoPx": {
+          "width": 2880,
+          "height": 2880
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298250661,
+      "logo": {
+        "name": "odd_1237x811",
+        "widthPx": 1237,
+        "heightPx": 811
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 6600,
+          "area_height": 6600,
+          "width": 2880,
+          "height": 1888,
+          "top": 2356,
+          "left": 1860,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 128,
+        "minLogoPx": {
+          "width": 2880,
+          "height": 1888
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298267871,
+      "logo": {
+        "name": "square_1000",
+        "widthPx": 1000,
+        "heightPx": 1000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2700,
+          "area_height": 1050,
+          "width": 756,
+          "height": 756,
+          "top": 147,
+          "left": 1647,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 396,
+        "minLogoPx": {
+          "width": 756,
+          "height": 756
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298267871,
+      "logo": {
+        "name": "wide_2000x500",
+        "widthPx": 2000,
+        "heightPx": 500
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2700,
+          "area_height": 1050,
+          "width": 918,
+          "height": 230,
+          "top": 410,
+          "left": 1566,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 653,
+        "minLogoPx": {
+          "width": 918,
+          "height": 230
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298267871,
+      "logo": {
+        "name": "tall_500x2000",
+        "widthPx": 500,
+        "heightPx": 2000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2700,
+          "area_height": 1050,
+          "width": 189,
+          "height": 756,
+          "top": 147,
+          "left": 1930,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 793,
+        "minLogoPx": {
+          "width": 189,
+          "height": 756
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298267871,
+      "logo": {
+        "name": "small_400",
+        "widthPx": 400,
+        "heightPx": 400
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 2700,
+          "area_height": 1050,
+          "width": 756,
+          "height": 756,
+          "top": 147,
+          "left": 1647,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 158,
+        "minLogoPx": {
+          "width": 756,
+          "height": 756
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298267871,
+      "logo": {
+        "name": "large_3000",
+        "widthPx": 3000,
+        "heightPx": 3000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2700,
+          "area_height": 1050,
+          "width": 756,
+          "height": 756,
+          "top": 147,
+          "left": 1647,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 1190,
+        "minLogoPx": {
+          "width": 756,
+          "height": 756
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298267871,
+      "logo": {
+        "name": "odd_1237x811",
+        "widthPx": 1237,
+        "heightPx": 811
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2700,
+          "area_height": 1050,
+          "width": 918,
+          "height": 602,
+          "top": 224,
+          "left": 1566,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 404,
+        "minLogoPx": {
+          "width": 918,
+          "height": 602
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298267872,
+      "logo": {
+        "name": "square_1000",
+        "widthPx": 1000,
+        "heightPx": 1000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2700,
+          "area_height": 1140,
+          "width": 820,
+          "height": 820,
+          "top": 160,
+          "left": 1615,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 365,
+        "minLogoPx": {
+          "width": 820,
+          "height": 820
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298267872,
+      "logo": {
+        "name": "wide_2000x500",
+        "widthPx": 2000,
+        "heightPx": 500
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2700,
+          "area_height": 1140,
+          "width": 918,
+          "height": 230,
+          "top": 455,
+          "left": 1566,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 653,
+        "minLogoPx": {
+          "width": 918,
+          "height": 230
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298267872,
+      "logo": {
+        "name": "tall_500x2000",
+        "widthPx": 500,
+        "heightPx": 2000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2700,
+          "area_height": 1140,
+          "width": 205,
+          "height": 820,
+          "top": 160,
+          "left": 1922,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 731,
+        "minLogoPx": {
+          "width": 205,
+          "height": 820
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298267872,
+      "logo": {
+        "name": "small_400",
+        "widthPx": 400,
+        "heightPx": 400
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 2700,
+          "area_height": 1140,
+          "width": 820,
+          "height": 820,
+          "top": 160,
+          "left": 1615,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 146,
+        "minLogoPx": {
+          "width": 820,
+          "height": 820
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298267872,
+      "logo": {
+        "name": "large_3000",
+        "widthPx": 3000,
+        "heightPx": 3000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2700,
+          "area_height": 1140,
+          "width": 820,
+          "height": 820,
+          "top": 160,
+          "left": 1615,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 1097,
+        "minLogoPx": {
+          "width": 820,
+          "height": 820
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298267872,
+      "logo": {
+        "name": "odd_1237x811",
+        "widthPx": 1237,
+        "heightPx": 811
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2700,
+          "area_height": 1140,
+          "width": 918,
+          "height": 602,
+          "top": 269,
+          "left": 1566,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 404,
+        "minLogoPx": {
+          "width": 918,
+          "height": 602
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298267873,
+      "logo": {
+        "name": "square_1000",
+        "widthPx": 1000,
+        "heightPx": 1000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 3071,
+          "area_height": 1205,
+          "width": 867,
+          "height": 867,
+          "top": 169,
+          "left": 1869,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 346,
+        "minLogoPx": {
+          "width": 867,
+          "height": 867
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298267873,
+      "logo": {
+        "name": "wide_2000x500",
+        "widthPx": 2000,
+        "heightPx": 500
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 3071,
+          "area_height": 1205,
+          "width": 1044,
+          "height": 261,
+          "top": 472,
+          "left": 1781,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 574,
+        "minLogoPx": {
+          "width": 1044,
+          "height": 261
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298267873,
+      "logo": {
+        "name": "tall_500x2000",
+        "widthPx": 500,
+        "heightPx": 2000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 3071,
+          "area_height": 1205,
+          "width": 217,
+          "height": 867,
+          "top": 169,
+          "left": 2194,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 691,
+        "minLogoPx": {
+          "width": 217,
+          "height": 867
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298267873,
+      "logo": {
+        "name": "small_400",
+        "widthPx": 400,
+        "heightPx": 400
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 3071,
+          "area_height": 1205,
+          "width": 867,
+          "height": 867,
+          "top": 169,
+          "left": 1869,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 138,
+        "minLogoPx": {
+          "width": 867,
+          "height": 867
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298267873,
+      "logo": {
+        "name": "large_3000",
+        "widthPx": 3000,
+        "heightPx": 3000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 3071,
+          "area_height": 1205,
+          "width": 867,
+          "height": 867,
+          "top": 169,
+          "left": 1869,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 1038,
+        "minLogoPx": {
+          "width": 867,
+          "height": 867
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298267873,
+      "logo": {
+        "name": "odd_1237x811",
+        "widthPx": 1237,
+        "heightPx": 811
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 3071,
+          "area_height": 1205,
+          "width": 1044,
+          "height": 684,
+          "top": 260,
+          "left": 1781,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 355,
+        "minLogoPx": {
+          "width": 1044,
+          "height": 684
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298284576,
+      "logo": {
+        "name": "square_1000",
+        "widthPx": 1000,
+        "heightPx": 1000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2250,
+          "area_height": 1725,
+          "width": 862,
+          "height": 862,
+          "top": 431,
+          "left": 694,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 174,
+        "minLogoPx": {
+          "width": 862,
+          "height": 862
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298284576,
+      "logo": {
+        "name": "wide_2000x500",
+        "widthPx": 2000,
+        "heightPx": 500
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2250,
+          "area_height": 1725,
+          "width": 1125,
+          "height": 281,
+          "top": 721,
+          "left": 563,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 266,
+        "minLogoPx": {
+          "width": 1125,
+          "height": 281
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298284576,
+      "logo": {
+        "name": "tall_500x2000",
+        "widthPx": 500,
+        "heightPx": 2000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2250,
+          "area_height": 1725,
+          "width": 216,
+          "height": 862,
+          "top": 431,
+          "left": 1017,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 347,
+        "minLogoPx": {
+          "width": 216,
+          "height": 862
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298284576,
+      "logo": {
+        "name": "small_400",
+        "widthPx": 400,
+        "heightPx": 400
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 2250,
+          "area_height": 1725,
+          "width": 862,
+          "height": 862,
+          "top": 431,
+          "left": 694,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 69,
+        "minLogoPx": {
+          "width": 862,
+          "height": 862
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298284576,
+      "logo": {
+        "name": "large_3000",
+        "widthPx": 3000,
+        "heightPx": 3000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2250,
+          "area_height": 1725,
+          "width": 862,
+          "height": 862,
+          "top": 431,
+          "left": 694,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 522,
+        "minLogoPx": {
+          "width": 862,
+          "height": 862
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298284576,
+      "logo": {
+        "name": "odd_1237x811",
+        "widthPx": 1237,
+        "heightPx": 811
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2250,
+          "area_height": 1725,
+          "width": 1125,
+          "height": 738,
+          "top": 493,
+          "left": 563,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 164,
+        "minLogoPx": {
+          "width": 1125,
+          "height": 738
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298284577,
+      "logo": {
+        "name": "square_1000",
+        "widthPx": 1000,
+        "heightPx": 1000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2325,
+          "area_height": 1800,
+          "width": 900,
+          "height": 900,
+          "top": 450,
+          "left": 712,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 166,
+        "minLogoPx": {
+          "width": 900,
+          "height": 900
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298284577,
+      "logo": {
+        "name": "wide_2000x500",
+        "widthPx": 2000,
+        "heightPx": 500
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2325,
+          "area_height": 1800,
+          "width": 1162,
+          "height": 291,
+          "top": 754,
+          "left": 581,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 258,
+        "minLogoPx": {
+          "width": 1162,
+          "height": 291
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298284577,
+      "logo": {
+        "name": "tall_500x2000",
+        "widthPx": 500,
+        "heightPx": 2000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2325,
+          "area_height": 1800,
+          "width": 225,
+          "height": 900,
+          "top": 450,
+          "left": 1049,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 333,
+        "minLogoPx": {
+          "width": 225,
+          "height": 900
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298284577,
+      "logo": {
+        "name": "small_400",
+        "widthPx": 400,
+        "heightPx": 400
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 2325,
+          "area_height": 1800,
+          "width": 900,
+          "height": 900,
+          "top": 450,
+          "left": 712,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 66,
+        "minLogoPx": {
+          "width": 900,
+          "height": 900
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298284577,
+      "logo": {
+        "name": "large_3000",
+        "widthPx": 3000,
+        "heightPx": 3000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2325,
+          "area_height": 1800,
+          "width": 900,
+          "height": 900,
+          "top": 450,
+          "left": 712,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 500,
+        "minLogoPx": {
+          "width": 900,
+          "height": 900
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298284577,
+      "logo": {
+        "name": "odd_1237x811",
+        "widthPx": 1237,
+        "heightPx": 811
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 2325,
+          "area_height": 1800,
+          "width": 1162,
+          "height": 762,
+          "top": 519,
+          "left": 581,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 159,
+        "minLogoPx": {
+          "width": 1162,
+          "height": 762
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298296504,
+      "logo": {
+        "name": "square_1000",
+        "widthPx": 1000,
+        "heightPx": 1000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 900,
+          "area_height": 1500,
+          "width": 540,
+          "height": 540,
+          "top": 480,
+          "left": 180,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 555,
+        "minLogoPx": {
+          "width": 540,
+          "height": 540
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298296504,
+      "logo": {
+        "name": "wide_2000x500",
+        "widthPx": 2000,
+        "heightPx": 500
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 900,
+          "area_height": 1500,
+          "width": 540,
+          "height": 135,
+          "top": 682,
+          "left": 180,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 1111,
+        "minLogoPx": {
+          "width": 540,
+          "height": 135
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298296504,
+      "logo": {
+        "name": "tall_500x2000",
+        "widthPx": 500,
+        "heightPx": 2000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 900,
+          "area_height": 1500,
+          "width": 150,
+          "height": 600,
+          "top": 450,
+          "left": 375,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 1000,
+        "minLogoPx": {
+          "width": 150,
+          "height": 600
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298296504,
+      "logo": {
+        "name": "small_400",
+        "widthPx": 400,
+        "heightPx": 400
+      },
+      "expected": {
+        "ok": false,
+        "position": {
+          "area_width": 900,
+          "area_height": 1500,
+          "width": 540,
+          "height": 540,
+          "top": 480,
+          "left": 180,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 222,
+        "minLogoPx": {
+          "width": 540,
+          "height": 540
+        },
+        "problemCodes": [
+          "RESOLUTION_TOO_LOW"
+        ]
+      }
+    },
+    {
+      "syncVariantId": 5298296504,
+      "logo": {
+        "name": "large_3000",
+        "widthPx": 3000,
+        "heightPx": 3000
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 900,
+          "area_height": 1500,
+          "width": 540,
+          "height": 540,
+          "top": 480,
+          "left": 180,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 1666,
+        "minLogoPx": {
+          "width": 540,
+          "height": 540
+        },
+        "problemCodes": []
+      }
+    },
+    {
+      "syncVariantId": 5298296504,
+      "logo": {
+        "name": "odd_1237x811",
+        "widthPx": 1237,
+        "heightPx": 811
+      },
+      "expected": {
+        "ok": true,
+        "position": {
+          "area_width": 900,
+          "area_height": 1500,
+          "width": 540,
+          "height": 354,
+          "top": 573,
+          "left": 180,
+          "limit_to_print_area": true
+        },
+        "effectiveDpi": 687,
+        "minLogoPx": {
+          "width": 540,
+          "height": 354
+        },
+        "problemCodes": []
+      }
+    }
+  ]
+}

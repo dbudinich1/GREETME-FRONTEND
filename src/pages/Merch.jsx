@@ -58,6 +58,11 @@ import { useProviderCatalogue } from '../components/giftPlace/useProviderCatalog
 import ProviderCheckoutModal from '../components/providerCheckout/ProviderCheckoutModal';
 // A gift box's own checkout: Greet-Me is the merchant of record and places the order server-side.
 import GiftBoxCheckoutModal from '../components/providerCheckout/GiftBoxCheckoutModal';
+// REPORT 153 — Printful branded catalog, SWITCHED OFF (merchBrandingEnabled() is a literal false). While off, every
+// hunk below is inert: the button keeps its contact-sales route and nothing else renders.
+import { merchBrandingEnabled } from '../features/merchBranding/merchBrandingFlags';
+import { useMerchBranding } from '../features/merchBranding/useMerchBranding';
+import MerchBrandingLayer, { BrandingControls } from '../features/merchBranding/MerchBrandingLayer';
 
 export default function Merch() {
   const navigate = useNavigate();
@@ -65,6 +70,7 @@ export default function Merch() {
   // CHECKPOINT 2 — founder drawer state. Nothing about the customer surface depends on this.
   const { user } = useAuth();
   const founder = isFounder(user);
+  const branding = useMerchBranding({ enabled: merchBrandingEnabled() });
   const [catalogOpen, setCatalogOpen] = useState(false);
   // GIFT CARDS — Manage Catalog Publish/Unpublish is the checkout authority (Team C, 2026-09-22).
   // "Coming later" is the honest DEFAULT, not a hardcoded permanent state: this asks the server —
@@ -537,6 +543,8 @@ export default function Merch() {
   };
 
   const addVariantToCart = (product, variant) => {
+    // REPORT 153 — with a logo applied, a supported product goes to the artwork-approval step instead (inert while off).
+    if (branding.enabled && branding.interceptVariant(product, variant)) { setShowCartModal(false); setPickerProduct(null); return; }
     try {
       cartService.addItem({
         printfulSyncProductId: product.syncProductId,
@@ -972,7 +980,7 @@ export default function Merch() {
                 {BRANDABLE_TAGLINE}
               </p>
               <button
-                onClick={() => navigate('/business?contact=sales')}
+                onClick={branding.enabled ? branding.openBrandingStep : () => navigate('/business?contact=sales')}
                 style={{
                   flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem',
                   padding: '0.3125rem 0.75rem', background: 'white', color: '#1e3a8a', border: 'none',
@@ -984,6 +992,7 @@ export default function Merch() {
               </button>
             </div>
           )}
+          {branding.enabled && selectedCategory === BRANDABLE && <BrandingControls branding={branding} isNarrow={isNarrow} />}
         </div>
       )}
 
@@ -1167,6 +1176,7 @@ export default function Merch() {
           variant="gallery"
           chipFor={chipFor}
           priceNoteFor={priceNoteFor}
+          brandingFor={branding.enabled ? branding.cardBranding : null}
         />
       )}
       </div>
@@ -1247,6 +1257,8 @@ export default function Merch() {
           customer={user}
         />
       )}
+
+      {branding.enabled && <MerchBrandingLayer branding={branding} products={products} />}
 
       {/* CHECKPOINT 2 — the modal renders OVER this page. No route change, no second page. */}
       {founder && (
