@@ -47,7 +47,12 @@ const PENDING_REPLACE_PROVEN_TEXT = "No payment was taken, and this card can’t
 const CHANGED_TEXT = Object.freeze({
   confirmed: "Your payment is confirmed, but this send cannot be completed because its details changed. You won\u2019t be charged again. Contact support.",
   not_charged: "No payment was taken, but this send cannot be completed because its details changed. Start over to send it again.",
-  other: "This send cannot be completed because its details changed. Nothing more was charged. Contact support.",
+  // PAY-142 (PROPOSED copy, pending founder approval). The original charge may have gone through, so nothing about it is
+  // claimed; "won't be charged again" holds because a changed send is never replayed and no new key is made (Send stays off).
+  unconfirmed: "We haven’t confirmed this payment yet, and this send can’t be completed because its details changed. You won’t be charged again. Contact support.",
+  // Every other state (processing, unknown, a failed check, not yet checked) proves nothing about the original charge either
+  // (PROPOSED copy, pending founder approval; it replaces "... Nothing more was charged. Contact support.").
+  other: "We can’t confirm this payment yet, and this send can’t be completed because its details changed. You won’t be charged again. Contact support.",
 });
 
 // `catalogClient`: the campaigns client, whose listGiftCatalog is the campaign editor's own organization catalog read.
@@ -145,6 +150,13 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
     (async () => { if (alive) await loadReview(); })();
     return () => { alive = false; };
   }, [open, step, previewKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // LIVE-5: a card saved from the review's card panel changes the server's answer (cardOnFile, canSend), so ask again. The same
+  // review, the same inputs, the same idempotency key: nothing was sent from it (Confirm was off). Never while a send is going out
+  // or a kept send exists; that path keeps its own rules (confirm() re-reads it at the press).
+  const reloadAfterCardSaved = () => {
+    if (!open || step !== 3 || !isOccasion(occasionType) || sendingRef.current || loadPending(store, orgId)) return;
+    loadReview();
+  };
 
   async function confirm() {
     if (sendingRef.current) return;                    // same-tick double press
@@ -575,7 +587,8 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
                       </div>
                     ) : null}
                     {totalLine(pv.gift) ? <p data-testid="sendnow-total" style={{ margin: "0 0 6px", fontSize: ".9rem" }}><strong>{totalLine(pv.gift)}</strong></p> : null}
-                    {pv.gift.cardOnFile === false ? <SavedCardPanel orgId={orgId} client={cardClient} stripeOverride={stripeOverride} /> : null}
+                    {/* LIVE-5: a card saved here re-asks the server, so "A saved card is needed" and the disabled Confirm follow it. */}
+                    {pv.gift.cardOnFile === false ? <SavedCardPanel orgId={orgId} client={cardClient} stripeOverride={stripeOverride} onSaved={reloadAfterCardSaved} /> : null}
                   </div>
                 ) : <p data-testid="sendnow-nopay" style={{ fontSize: ".85rem", margin: "10px 0" }}>Nothing to pay for this send.</p>}
 
