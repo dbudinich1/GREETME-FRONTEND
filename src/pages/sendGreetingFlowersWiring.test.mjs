@@ -362,7 +362,9 @@ test("the Gift Place is ONE destination, reached through the existing return-to-
   // separation panel's own Top Up/Upgrade actions. So however many logical callers now reuse it —
   // five, at last count — the literal count of NEW write sites this packet introduced stays at
   // exactly one, and all three sites are restored by the same existing effect.
-  assert.equal((CODE.match(/sessionStorage\.setItem\('sendGreetingState'/g) || []).length, 3,
+  // Lane 1 (2026-10-28): a fourth caller family, Add Recipient ("+ Add New" / "+ Add Recipient"), keeps the greeting
+  // through the SAME key and the SAME ?returnTo=send restore, with one write site of its own.
+  assert.equal((CODE.match(/sessionStorage\.setItem\('sendGreetingState'/g) || []).length, 4,
     "the preservation mechanism must stay at one write site per caller family, however many callers use it");
   assert.match(CODE, /const saveDraftForPricingReturn = \(\) => \{/,
     "the entitlement-remediation callers must share ONE write, not one each");

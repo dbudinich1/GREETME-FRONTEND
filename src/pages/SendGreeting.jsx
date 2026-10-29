@@ -45,12 +45,24 @@
 //   replayed intent sending twice (guarded: the intent is removed when read, needs the URL nonce, expires in two
 //   minutes, and executeGreetingSend keeps its stable sendRequestId); an ordinary ?from=dashboard URL sending by itself
 //   (guarded: no intent → nothing). Verification gate, voice recovery, review, payment and send paths unchanged.
+//
+// 2026-10-28 (lane 1, Shared Add Recipient, founder-authorized, not released): "+ Add Recipient" (no recipients yet)
+//   and "+ Add New" (beside Recipient) no longer open this page's name-and-email mini form (removed, with its
+//   api.createContact call); they open the one full "Add New Recipient" dialog on the Recipients page
+//   (utils/addRecipientEntry.js). This greeting is kept first in the existing sendGreetingState record (same shape as
+//   the pricing/Animation Bank return) and restored by the existing ?returnTo=send restore; after a save the return URL
+//   carries &addedContactId=<id>, which the restore sets as formData.contactId. Affected locked milestones: 4c29ace8,
+//   01d93f5f, 1c43a750, f98ffdb5. Potential regressions: a greeting too large for sessionStorage is kept without its
+//   photos (toast says so) or, if nothing fits, the dialog is not opened; browser Back from the Recipients page lands
+//   on a fresh send page (the kept greeting returns only through Save/Cancel). Verification gate, review, payment and
+//   send unchanged.
 
 import { useState, useEffect } from 'react';
 import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff, dashboardGiftPlaceEntry, markGiftPlaceEntryUsed, giftPlaceEntryUsed, takeHomeSendIntent } from '../utils/dashboardSendHandoff';
 import { senderPhotoUsable } from '../utils/senderPhoto';
 import { buildGreetingPayload, qrCashGiftForPayload } from '../utils/sendGreetingPayload';
 import { getPhotoSrc } from '../utils/getPhotoSrc';
+import { addRecipientEntry, readAddedContactId } from '../utils/addRecipientEntry';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Send, Edit3, Gift, ArrowLeft, Camera, Plus, X, Check } from 'lucide-react';
 import { useRef } from 'react';
@@ -168,11 +180,6 @@ export default function SendGreeting() {
   // Bank packs / Anytime) are never offered to it; see utils/sendGating.js.
   const unsubscribed = isUnsubscribedAccount(user);
   const [contacts, setContacts] = useState([]);
-  const [showInlineAdd, setShowInlineAdd] = useState(false);
-  const [newContactName, setNewContactName] = useState('');
-  const [newContactEmail, setNewContactEmail] = useState('');
-  const [addingContact, setAddingContact] = useState(false);
-  const [addContactError, setAddContactError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [jobId, setJobId] = useState(null);
@@ -902,11 +909,14 @@ export default function SendGreeting() {
       // Restore saved form state from sessionStorage
       const savedState = sessionStorage.getItem('sendGreetingState');
       let restoredMemoryPhotos = [];
+      // Lane 1: back from Add Recipient after a save — the new recipient becomes this greeting's recipient.
+      const addedContactId = returnTo === 'send' ? readAddedContactId(location.search) : null;
 
       if (savedState) {
         try {
           const parsed = JSON.parse(savedState);
-          if (parsed.formData) setFormData(parsed.formData);
+          if (parsed.formData) setFormData(addedContactId ? { ...parsed.formData, contactId: addedContactId } : parsed.formData);
+          else if (addedContactId) setFormData(prev => ({ ...prev, contactId: addedContactId }));
           if (giftType) {
             setGiftSettings({ ...parsed.giftSettings, type: giftType });
           } else if (parsed.giftSettings) {
@@ -948,6 +958,7 @@ export default function SendGreeting() {
         // No saved state, just set the gift type
         setGiftSettings(prev => ({ ...prev, type: giftType }));
       }
+      if (!savedState && addedContactId) setFormData(prev => ({ ...prev, contactId: addedContactId }));
 
       // If returning from media library with a selected photo (single photo, legacy)
       if (selectedPhoto) {
@@ -1201,31 +1212,29 @@ export default function SendGreeting() {
   }
 };
 
-  const handleInlineAddContact = async () => {
-    if (!newContactName.trim() || !newContactEmail.trim()) {
-      setAddContactError('Name and email are required.');
-      return;
+  // Lane 1 (2026-10-28): "+ Add Recipient" and "+ Add New" open the SAME full Add New Recipient dialog every other entry
+  // uses (Recipients page; utils/addRecipientEntry.js). They used to open a name-and-email mini form here, a second
+  // recipient form. This greeting is kept in the existing sendGreetingState record (the Gift Place round trip's) and
+  // restored on /dashboard/send?returnTo=send — with the new recipient selected after Save, unchanged after Cancel.
+  // Photos too large to keep on this device are dropped from the kept copy (said so); if nothing can be kept, the
+  // sender stays here with nothing lost.
+  const openAddRecipientFromSend = () => {
+    const stateToSave = {
+      formData, giftSettings, defaultPhoto, memoryPhotos, useMemoryPhotos,
+      excludedMemoryPhotos: Array.from(excludedMemoryPhotos),
+      confirmedGiftPayload: confirmedGiftPayload || null,
+      giftSeparatedByEntitlement: !!giftSeparatedByEntitlement,
+    };
+    // One write site: the whole greeting first, then (storage full) the same greeting without its photos.
+    const attempts = [stateToSave, { ...stateToSave, memoryPhotos: [], defaultPhoto: null }];
+    let kept = -1;
+    for (let i = 0; i < attempts.length && kept < 0; i += 1) {
+      try { sessionStorage.setItem('sendGreetingState', JSON.stringify(attempts[i])); kept = i; } catch { /* try the smaller copy */ }
     }
-    setAddingContact(true);
-    setAddContactError(null);
-    try {
-      const result = await api.createContact({
-        name: newContactName.trim(),
-        email: newContactEmail.trim(),
-      });
-      const newId = result?.contact?.id || result?.id;
-      await fetchContacts();
-      if (newId) {
-        setFormData(prev => ({ ...prev, contactId: newId }));
-      }
-      setNewContactName('');
-      setNewContactEmail('');
-      setShowInlineAdd(false);
-    } catch (err) {
-      setAddContactError(getErrorMessage(err));
-    } finally {
-      setAddingContact(false);
-    }
+    if (kept < 0) { showManualToast('Add Recipient not opened', 'This greeting couldn’t be kept on this device, so it stays open here. Add the recipient from Recipients, then come back.', COMMS_CATEGORIES.SYSTEM); return; }
+    if (kept > 0) showManualToast('Photos not kept', 'Your photos were too large to keep on this device while you add a recipient. Your other choices are kept.', COMMS_CATEGORIES.SYSTEM);
+    const entry = addRecipientEntry('send');
+    navigate(entry.to, entry.opts);
   };
 
   const pollJobStatus = async () => {
@@ -2689,7 +2698,7 @@ if (typeof window !== "undefined") {
             fontStyle: 'italic'
           }} data-testid="send-banner-occasion">{/* The occasion this greeting is for (Report 135): it read "Just Because" for every greeting. */}{formData.occasionType || 'Just Because'}</p>
         </div>
-        {contacts.length === 0 && !showInlineAdd && (
+        {contacts.length === 0 && (
           <div style={{
             background: '#fffbeb',
             border: '1px solid #fde68a',
@@ -2707,7 +2716,8 @@ if (typeof window !== "undefined") {
             </span>
             <button
               type="button"
-              onClick={() => setShowInlineAdd(true)}
+              data-testid="send-add-recipient"
+              onClick={openAddRecipientFromSend}
               style={{
                 padding: '0.4rem 1rem',
                 background: '#667eea',
@@ -2724,82 +2734,6 @@ if (typeof window !== "undefined") {
             </button>
           </div>
         )}
-        {showInlineAdd && (
-          <div style={{
-            background: 'white',
-            border: '1px solid var(--border, #e5e7eb)',
-            borderRadius: 'var(--radius-md)',
-            padding: '1rem 1.25rem',
-            marginBottom: '1rem',
-          }}>
-            <p style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
-              Add a recipient
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <input
-                type="text"
-                placeholder="Name"
-                value={newContactName}
-                onChange={(e) => setNewContactName(e.target.value)}
-                style={{
-                  width: '100%', padding: '0.5rem 0.75rem',
-                  border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius-md)',
-                  fontSize: '1rem', fontFamily: 'inherit', outline: 'none',
-                }}
-              />
-              <input
-                type="email"
-                placeholder="Email"
-                value={newContactEmail}
-                onChange={(e) => setNewContactEmail(e.target.value)}
-                style={{
-                  width: '100%', padding: '0.5rem 0.75rem',
-                  border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius-md)',
-                  fontSize: '1rem', fontFamily: 'inherit', outline: 'none',
-                }}
-              />
-              {addContactError && (
-                <p style={{ color: 'var(--error, #ef4444)', fontSize: '0.75rem', margin: 0 }}>{addContactError}</p>
-              )}
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-                <button
-                  type="button"
-                  onClick={handleInlineAddContact}
-                  disabled={addingContact}
-                  style={{
-                    padding: '0.5rem 1.25rem',
-                    background: addingContact ? '#d1d5db' : '#667eea',
-                    color: 'white', border: 'none', borderRadius: 'var(--radius-md)',
-                    fontSize: '0.8125rem', fontWeight: 600,
-                    cursor: addingContact ? 'default' : 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  {addingContact ? 'Adding...' : 'Add & Continue'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setShowInlineAdd(false); setAddContactError(null); }}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: 'transparent', color: 'var(--text-secondary, #6b7280)',
-                    border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius-md)',
-                    fontSize: '0.8125rem', fontWeight: 500,
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-            <a
-              href="#/dashboard/contacts"
-              style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-tertiary, #9ca3af)', marginTop: '0.75rem', textDecoration: 'underline' }}
-            >
-              Or manage all contacts
-            </a>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-10">
         {/* Referral banner */}
         {referralCode && referralValue && (
@@ -3109,7 +3043,8 @@ if (typeof window !== "undefined") {
               </label>
               <button
                 type="button"
-                onClick={() => setShowInlineAdd(true)}
+                data-testid="send-add-new-recipient"
+                onClick={openAddRecipientFromSend}
                 style={{ fontSize: '0.75rem', color: '#667eea', background: 'none', border: 'none', fontWeight: 500, cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}
               >
                 + Add New
