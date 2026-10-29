@@ -15,9 +15,10 @@ import PhotoUpload from "../PhotoUpload";
 import VoiceRecorder from "../VoiceRecorder";
 import VideoFilePicker from "./VideoFilePicker";
 import { ChoiceBubble, BubbleGroup } from "../corporateCampaign/Bubbles.jsx";
+import { SquarePlay } from "lucide-react";
 import { readSenderLibraryPhotos } from "./libraryPhotos";
 import {
-  MEDIA_CHOICES, FEATURED_SPREAD_INTRO, MEDIA_MODES, CONTROL_INSTRUCTIONS, MESSAGE_MAX, VALIDATION_TEXT,
+  MEDIA_CHOICES, FEATURED_SPREAD_INTRO, FEATURED_SPREAD_TITLE, MEDIA_MODES, CONTROL_INSTRUCTIONS, MESSAGE_MAX, VALIDATION_TEXT,
   controlsFor, setMode, setAsset, setMessage, validateSelection, emptySelection,
 } from "./featuredMediaModel";
 import "./personalization.css";
@@ -43,6 +44,7 @@ export default function FeaturedMediaChooser({
   showMessage = true,
   title = "Featured media",
   showIntro = true, // the founder's supporting copy (FEATURED_SPREAD_INTRO) above the choices
+  showHeading = false, // the section title + play-in-a-frame icon, for contexts without their own heading (the campaign card has one)
 }) {
   const sel = selection || emptySelection();
   const id = (s) => `${idPrefix}-${s}`;
@@ -76,6 +78,9 @@ export default function FeaturedMediaChooser({
 
   return (
     <div className="pm-chooser" data-testid={id("chooser")} data-mode={sel.mode}>
+      {showHeading ? (
+        <h4 className="pm-heading" data-testid={id("heading")}><SquarePlay size={18} strokeWidth={2} aria-hidden="true" /> {FEATURED_SPREAD_TITLE}</h4>
+      ) : null}
       {showIntro ? <p className="pm-intro" data-testid={id("intro")}>{FEATURED_SPREAD_INTRO}</p> : null}
       <BubbleGroup label={title} role="radiogroup" testId={id("modes")}>
         {MEDIA_CHOICES.filter((c) => !c.quiet).map((c) => (

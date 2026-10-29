@@ -165,3 +165,5 @@
 .pm-chooser .pm-quiet-choice input { margin: 0; width: auto; min-height: 0; accent-color: var(--pm-purple); }
 .pm-chooser .pm-quiet-label { font-weight: 600; color: var(--pm-muted); }
 .pm-chooser .pm-quiet-note { flex-basis: 100%; padding-left: 22px; font-size: .78rem; color: var(--pm-faint); }
+.pm-chooser .pm-heading { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 1rem; font-weight: 700; color: var(--pm-ink); }
+.pm-chooser .pm-heading svg { color: var(--pm-purple); flex: none; }

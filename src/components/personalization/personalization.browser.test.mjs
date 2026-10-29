@@ -132,6 +132,15 @@ test("founder copy 2026-10-29: supporting text, three main choices, and No featu
   assert.equal(q("#t-mode-none").checked, true);
 });
 
+test("the optional section heading: Featured Spread with the play-in-a-frame icon (for contexts without their own heading)", async () => {
+  await mount(React.createElement(M.FeaturedMediaChooser, { idPrefix: "h", selection: null, onChange: () => {}, showHeading: true, libraryPhotos: [] }));
+  const h = tid("h-heading");
+  assert.ok(h, "heading shown");
+  assert.equal(h.textContent.trim(), "Featured Spread");
+  assert.ok(h.querySelector("svg"), "an icon, not the old emoji");
+  assert.doesNotMatch(h.textContent, /\u{1F3A8}/u, "no painter's palette");
+});
+
 test("animate requires a voice: the error shows until a voice is chosen", async () => {
   const photo = { url: "https://x/p.jpg", source: "upload" };
   await mount(React.createElement(Host, { initial: { ...emptySelection(), mode: "animate", photo } }));
