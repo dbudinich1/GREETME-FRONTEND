@@ -64,6 +64,12 @@ export default function CampaignFeaturedMediaSection({
           ? "This campaign still has the earlier organization photo-and-voice setting saved. Choose its own featured media below and save."
           : <>Saved for this campaign: <strong>{savedChoiceLabel(config)}</strong>.</>}
       </p>
+      {/* Report 146 (verified on live BE f5297c8): sent campaign cards do not read this choice yet. The lock freezes the
+          owner's profile photo and voice (frozenSender.js) and the schedule payload carries them (corporateSchedule.js);
+          nothing writes the job field the campaign-media adapter needs. Said here so the saved choice promises nothing. */}
+      <p className="gcd-wcard-note" role="note" data-testid={id("featured-delivery-note")} style={{ margin: "0 0 10px", fontSize: ".8rem" }}>
+        Sent campaign cards don't use this choice yet: they still show the account owner's photo and voice. Use Preview My Card to see the presentation.
+      </p>
 
       <FeaturedMediaChooser idPrefix={id("fm")} selection={selection} onChange={(s) => { setStatus(null); setSelection(s); }}
         disabled={locked} />

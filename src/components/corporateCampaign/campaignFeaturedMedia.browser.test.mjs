@@ -121,6 +121,8 @@ test("campaign explicit choice: save No featured media sends { featuredSpreadCon
   const r = await mount(cardEl({ featuredSpreadConfig: body.featuredSpreadConfig }));
   assert.equal(r.q(`#${P}-fm-mode-none`).checked, true);
   assert.match(r.tid(`${P}-featured-saved`).textContent, /Saved for this campaign: No featured media/);
+  // Report 146: the saved choice promises nothing about sent cards (verified: delivery uses the owner's frozen media).
+  assert.match(r.tid(`${P}-featured-delivery-note`).textContent, /Sent campaign cards don't use this choice yet: they still show the account owner's photo and voice\./);
   assert.equal(r.tid(`${P}-featured-save`).disabled, true, "nothing to save until the choice changes");
 });
 
