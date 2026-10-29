@@ -18,7 +18,7 @@ import { needsScheduledGiftConsent, backupCapCents } from './scheduledPhysicalGi
 
 export const SCHED_QRCASH_WORDING_VERSION = 'w07-sched-qrcash-v1';
 export const CONSENT_TICK_LABEL = 'I agree';
-// LIVE-3 (PROPOSED copy, pending founder approval): shown above the consent text ONLY for an unchanged older Auto-Gift asked for
+// LIVE-3 (copy APPROVED by the founder 2026-10-29): shown above the consent text ONLY for an unchanged older Auto-Gift asked for
 // its first consent (planAuthorization item.firstConsent). It is not part of the consent wording version.
 export const FIRST_CONSENT_NOTE = 'This Auto-Gift was set up before we started asking for payment authorization, so we need your OK before it can send automatically.';
 export const PAYMENT_INFO_TEXT = 'Auto-Gift requires a valid form of payment on file. You will be prompted when you click Save.';

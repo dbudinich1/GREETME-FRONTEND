@@ -47,11 +47,11 @@ const PENDING_REPLACE_PROVEN_TEXT = "No payment was taken, and this card can’t
 const CHANGED_TEXT = Object.freeze({
   confirmed: "Your payment is confirmed, but this send cannot be completed because its details changed. You won\u2019t be charged again. Contact support.",
   not_charged: "No payment was taken, but this send cannot be completed because its details changed. Start over to send it again.",
-  // PAY-142 (PROPOSED copy, pending founder approval). The original charge may have gone through, so nothing about it is
+  // PAY-142 (copy APPROVED by the founder 2026-10-29). The original charge may have gone through, so nothing about it is
   // claimed; "won't be charged again" holds because a changed send is never replayed and no new key is made (Send stays off).
   unconfirmed: "We haven’t confirmed this payment yet, and this send can’t be completed because its details changed. You won’t be charged again. Contact support.",
   // Every other state (processing, unknown, a failed check, not yet checked) proves nothing about the original charge either
-  // (PROPOSED copy, pending founder approval; it replaces "... Nothing more was charged. Contact support.").
+  // (copy APPROVED by the founder 2026-10-29; it replaces "... Nothing more was charged. Contact support.").
   other: "We can’t confirm this payment yet, and this send can’t be completed because its details changed. You won’t be charged again. Contact support.",
 });
 

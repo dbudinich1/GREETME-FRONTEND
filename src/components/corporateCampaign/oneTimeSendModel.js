@@ -256,7 +256,7 @@ export const PAYMENT_STATUS_TEXT = Object.freeze({
   not_charged: "No payment was taken for this send. You can send it again (you may be asked for a different card).",
   processing: "Your bank is still processing this payment. Don\u2019t submit another payment yet.",
   unknown: "We can\u2019t confirm this payment yet. Don\u2019t submit another payment yet.",
-  // PAY-142 (PROPOSED copy, pending founder approval).
+  // PAY-142 (copy APPROVED by the founder 2026-10-29).
   unconfirmed: "We haven\u2019t confirmed this payment yet. Press Send now to finish this send. It resends your original request, so you won\u2019t be charged twice.",
   check_failed: "We couldn\u2019t check the payment right now. Try again in a moment.",
 });
