@@ -26,17 +26,12 @@ const draftFrom = (item) => ({
   brandable: item.curation.brandable === true,
   featuredRank: item.curation.featuredRank ?? null,
   state: item.curation.state || 'active',
-  // REPORT 153E — present only when the server offers the control (branding feature on).
-  ...('customerLogoEligible' in (item.curation || {}) ? { customerLogoEligible: item.curation.customerLogoEligible === true } : {}),
 });
 
 export default function MerchCurationSection({ client, onDirtyChange }) {
   const [items, setItems] = useState([]);
   const [overlayState, setOverlayState] = useState(null);
   const [writesEnabled, setWritesEnabled] = useState(true);
-  // REPORT 153E — the customer-logo eligibility control appears ONLY when the server says the branding
-  // feature is on (it is a literal false today, so this drawer is unchanged).
-  const [eligibilityEditable, setEligibilityEditable] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -51,7 +46,6 @@ export default function MerchCurationSection({ client, onDirtyChange }) {
       setItems(list);
       setOverlayState(res?.overlayState || null);
       setWritesEnabled(res?.writesEnabled !== false);
-      setEligibilityEditable(res?.brandingEligibilityEditable === true);
       setDrafts(Object.fromEntries(list.map((i) => [i.syncProductId, draftFrom(i)])));
     } catch (e) {
       setError(e?.message || 'Could not load the merch catalog.');
@@ -84,7 +78,6 @@ export default function MerchCurationSection({ client, onDirtyChange }) {
         brandable: draft.brandable,
         featuredRank: draft.featuredRank === '' || draft.featuredRank == null
           ? null : Number(draft.featuredRank),
-        ...(eligibilityEditable ? { customerLogoEligible: draft.customerLogoEligible === true } : {}),
       }, item.etag);
       const next = res?.item;
       if (next) {
@@ -187,23 +180,6 @@ export default function MerchCurationSection({ client, onDirtyChange }) {
                   onChange={(e) => setDraft(id, { brandable: e.target.checked })} />
                 Show under Brandable Goods
               </label>
-
-              {eligibilityEditable && (
-                <div data-testid={`merch-logo-eligibility-${id}`}
-                  style={{ marginTop: '0.5rem', padding: '0.5rem 0.625rem', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md, 8px)' }}>
-                  <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.8125rem', fontWeight: 600 }}>
-                    <input type="checkbox" data-testid={`merch-logo-eligible-${id}`}
-                      checked={draft.customerLogoEligible === true} disabled={!writesEnabled || retired}
-                      aria-checked={draft.customerLogoEligible === true}
-                      onChange={(e) => setDraft(id, { customerLogoEligible: e.target.checked })} />
-                    Customers may add their company logo
-                  </label>
-                  <p style={{ margin: '0.25rem 0 0 1.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                    Off unless you turn it on. Separate from Brandable Goods, categories and price.
-                    {' '}Print area: <strong data-testid={`merch-logo-spec-${id}`}>{item.logoPrintSpecReady ? 'ready' : 'not set up — customers can’t add a logo yet'}</strong>.
-                  </p>
-                </div>
-              )}
 
               <fieldset style={{ border: 'none', margin: '0.5rem 0 0', padding: 0 }}>
                 <legend style={{ ...label }}>Categories</legend>

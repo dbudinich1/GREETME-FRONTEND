@@ -84,7 +84,6 @@ export function merchIsDirty(draft, saved) {
   if (!draft || !saved) return false;
   return draft.displayEnabled !== saved.displayEnabled
     || draft.brandable !== saved.brandable
-    || (draft.customerLogoEligible === true) !== (saved.customerLogoEligible === true)
     || String(draft.featuredRank ?? '') !== String(saved.featuredRank ?? '')
     || [...(draft.greetMeCategories || [])].sort().join(',')
       !== [...(saved.greetMeCategories || [])].sort().join(',');
