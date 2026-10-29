@@ -145,6 +145,13 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
     (async () => { if (alive) await loadReview(); })();
     return () => { alive = false; };
   }, [open, step, previewKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // LIVE-5: a card saved from the review's card panel changes the server's answer (cardOnFile, canSend), so ask again. The same
+  // review, the same inputs, the same idempotency key: nothing was sent from it (Confirm was off). Never while a send is going out
+  // or a kept send exists; that path keeps its own rules (confirm() re-reads it at the press).
+  const reloadAfterCardSaved = () => {
+    if (!open || step !== 3 || !isOccasion(occasionType) || sendingRef.current || loadPending(store, orgId)) return;
+    loadReview();
+  };
 
   async function confirm() {
     if (sendingRef.current) return;                    // same-tick double press
@@ -575,7 +582,8 @@ export default function SendNowFlow({ orgId, contacts, client, catalogClient, ca
                       </div>
                     ) : null}
                     {totalLine(pv.gift) ? <p data-testid="sendnow-total" style={{ margin: "0 0 6px", fontSize: ".9rem" }}><strong>{totalLine(pv.gift)}</strong></p> : null}
-                    {pv.gift.cardOnFile === false ? <SavedCardPanel orgId={orgId} client={cardClient} stripeOverride={stripeOverride} /> : null}
+                    {/* LIVE-5: a card saved here re-asks the server, so "A saved card is needed" and the disabled Confirm follow it. */}
+                    {pv.gift.cardOnFile === false ? <SavedCardPanel orgId={orgId} client={cardClient} stripeOverride={stripeOverride} onSaved={reloadAfterCardSaved} /> : null}
                   </div>
                 ) : <p data-testid="sendnow-nopay" style={{ fontSize: ".85rem", margin: "10px 0" }}>Nothing to pay for this send.</p>}
 
