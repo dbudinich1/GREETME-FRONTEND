@@ -163,3 +163,28 @@ test("NOT CHARGED: Start over only after the 10-minute window, as before", async
   await click(s2.tid("sendnow-check-status"));
   assert.ok(s2.tid("sendnow-start-over"), "after the window");
 });
+
+test("UNCONFIRMED whose details changed: a message that claims nothing about the original charge; Send off, no Start over; processing/unknown likewise", async () => {
+  const UNCONFIRMED_CHANGED = "We haven’t confirmed this payment yet, and this send can’t be completed because its details changed. You won’t be charged again. Contact support.";
+  const OTHER_CHANGED = "We can’t confirm this payment yet, and this send can’t be completed because its details changed. You won’t be charged again. Contact support.";
+  const store = memStore();
+  const c = client([payment("unconfirmed", { sameKeySendAllowed: true }), payment("processing"), payment("unknown")], () => ({ ok: false, error: "quote_changed" }));
+  const s = await mount(flow(c, store));
+  await toPending(s);
+  await click(s.tid("sendnow-check-status"));
+  await click(s.tid("sendnow-confirm"));                       // the same-key replay is refused: the details changed
+  assert.equal(c.calls.send.length, 2);
+  assert.equal(c.calls.send[1].idempotencyKey, c.calls.send[0].idempotencyKey);
+  assert.equal(s.tid("sendnow-changed").textContent, UNCONFIRMED_CHANGED);
+  assert.doesNotMatch(s.tid("sendnow-changed").textContent, /Nothing more was charged/);
+  assert.equal(s.tid("sendnow-confirm").disabled, true, "Send stays off once the details changed");
+  assert.equal(s.tid("sendnow-start-over"), null);
+  for (const _ of ["processing", "unknown"]) {
+    await click(s.tid("sendnow-check-status"));
+    assert.equal(s.tid("sendnow-changed").textContent, OTHER_CHANGED);
+    assert.equal(s.tid("sendnow-confirm").disabled, true);
+    assert.equal(s.tid("sendnow-start-over"), null);
+  }
+  await click(s.tid("sendnow-confirm"));
+  assert.equal(c.calls.send.length, 2, "nothing re-sent after the details changed");
+});
