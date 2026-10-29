@@ -105,7 +105,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
   const isBusinessEdit = Boolean(businessOrgId && contact && contact.id);
   const [businessEdit, setBusinessEdit] = useState({ state: 'idle', record: null });
   useEffect(() => {
-    if (!isBusinessEdit) { setBusinessEdit({ state: 'idle', record: null }); return undefined; }
+    if (!isBusinessEdit) { setBusinessEdit((prev) => (prev.state === 'idle' ? prev : { state: 'idle', record: null })); return undefined; }
     let alive = true;
     setBusinessEdit({ state: 'loading', record: null });
     (async () => {
