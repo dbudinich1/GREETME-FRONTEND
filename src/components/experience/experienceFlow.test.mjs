@@ -129,7 +129,7 @@ test("media end while paused: nothing moves until Resume, then the photos (with 
   clock.tick(600000); assert.equal(id(), "video");
   g.resume();
   assert.equal(id(), "photos", "Resume moves on to the photos");
-  assert.match(log.at(-1), /video>photos:media/);
+  assert.match(log.at(-1), /video>photos:resume/, "on the visitor's own Resume");
   assert.equal(g.state().paused, false);
   clock.tick(29999); assert.equal(id(), "photos");
   clock.tick(1); assert.equal(id(), "finale");
@@ -161,7 +161,7 @@ test("Next just after an AUTO-advance is absorbed (the visitor meant the step th
 });
 
 test("manual next/back at all times, including the Featured Spread halves", () => {
-  const { g, id } = setup();
+  const { clock, g, id } = setup();
   g.start();
   g.back(); assert.equal(id(), "invite", "no step before the first");
   const seen = [id()];
@@ -171,10 +171,28 @@ test("manual next/back at all times, including the Featured Spread halves", () =
   g.next(); assert.equal(id(), "finale", "Next from the video goes past the (still locked) photos");
   g.back(); assert.equal(id(), "video", "Back from the finale: the video half while it has not ended");
   g.mediaEnd(); assert.equal(id(), "photos");
+  clock.tick(EXPERIENCE_TIMING.autoNextGuardMs); // past the guard that follows the video's end
   g.next(); g.back(); assert.equal(id(), "photos", "after the video ended, Back from the finale returns to the photos");
   g.back(); assert.equal(id(), "intro", "Back from the photos goes to the Intro");
   g.goTo("claim"); g.back(); assert.equal(id(), "finale");
   g.goTo("return"); g.back(); assert.equal(id(), "claim");
+});
+
+test("Next just after the video's END (a media advance) is absorbed too; after a paused end, Resume is the visitor's own press", () => {
+  const { clock, g, id } = setup();
+  g.start(); g.goTo("video");
+  clock.tick(5000);
+  g.mediaEnd();
+  assert.equal(id(), "photos");
+  assert.equal(g.next(), false, "0 ms after the video's end: absorbed");
+  clock.tick(400); assert.equal(g.next(), false, "400 ms: absorbed");
+  assert.equal(id(), "photos", "photos and music are not skipped");
+  clock.tick(300); assert.equal(g.next(), true, "700 ms: a deliberate Next");
+  assert.equal(id(), "finale");
+  const b = setup(); b.g.start(); b.g.goTo("video"); b.clock.tick(5000);
+  b.g.pause(); b.g.mediaEnd(); b.g.resume();
+  assert.equal(b.id(), "photos");
+  assert.equal(b.g.next(), true, "after the visitor's own Resume, Next is not guarded");
 });
 
 test("finish: the last step's dwell, or Next on it, ends the experience once", () => {

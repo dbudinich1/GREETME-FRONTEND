@@ -151,18 +151,18 @@ export default function Landing() {
   const sampleBtnRef = useRef(null);
   const clearSampleQuery = () => { try { if (sampleCreditRequested) window.history.replaceState(null, '', window.location.pathname + '#/'); } catch { /* ignore */ } };
   const returnFocusRef = useRef(false);
+  const [experienceOpen, setExperienceOpen] = useState(false); // The Greet-Me Experience (below)
   const closeSample = () => { setSampleOpen(false); setScanRevealOpen(false); clearSampleQuery(); returnFocusRef.current = true; };
   // After the sample closes, focus goes back to the button that opened it.
   useEffect(() => {
-    if (sampleOpen || scanRevealOpen || !returnFocusRef.current) return;
+    if (sampleOpen || scanRevealOpen || experienceOpen || !returnFocusRef.current) return;
     returnFocusRef.current = false;
     sampleBtnRef.current?.focus();
-  }, [sampleOpen, scanRevealOpen]);
+  }, [sampleOpen, scanRevealOpen, experienceOpen]);
 
   // The Greet-Me Experience (entry CTA): the guided sample. Same gate as the sample (enabled AND its video loads).
   // On the way back the intro video starts from the beginning where the browser permits (useIntroVideo); when
   // it refuses, the Play cover stays with a short prompt, and keyboard focus goes to Play.
-  const [experienceOpen, setExperienceOpen] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const bigPlayRef = useRef(null);
   const openExperience = () => { intro.pause(); setScanRevealOpen(false); setAutoplayBlocked(false); setExperienceOpen(true); };
@@ -170,7 +170,8 @@ export default function Landing() {
     setExperienceOpen(false);
     clearSampleQuery();
     videoCardRef.current?.scrollIntoView?.({ block: 'center' });
-    if (videoStatus === 'failed') { sampleBtnRef.current?.focus(); return; }
+    // No intro to play: focus goes back to the entry button, after the dialog has closed and the landing is live again.
+    if (videoStatus === 'failed') { returnFocusRef.current = true; return; }
     // Called from the visitor's Exit / Back press where there was one, so the browser can count that tap.
     focusBarRef.current = true;
     intro.autoplayFromStart().then((ok) => {
