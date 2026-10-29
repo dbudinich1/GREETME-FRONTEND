@@ -230,7 +230,8 @@ test("choosing a gift box returns to the Gift tab with it selected; only its mis
   assert.equal(giftRadio(s, "gift_boxes").checked, true);
   assert.equal(s.q(`[data-testid="c-${ID}-giftbox"] input:checked`).value, "box-a", "the existing gift-box control holds it");
   assert.ok(s.tid(`card-giftbox-variants-${ID}`), "its published options are offered (the one thing still to decide)");
-  assert.equal(s.tid(`card-giftbox-note-${ID}`), null, "no 'choose a gift box' prompt: that is already answered");
+  // Report 146 (founder 2026-10-29): the one prompt left names only the missing option (Send now's rule).
+  assert.equal(s.tid(`card-giftbox-note-${ID}`).textContent, "Choose this gift box's option to save this campaign.", "only the missing option is asked for");
   assert.equal(s.tid(`card-qrcash-${ID}`), null, "nothing unrelated is asked");
   assert.match(audienceTotal(s), /^3 contacts/, "recipients kept across the round trip");
   assert.match(s.tid(`card-when-${ID}`) ? s.tid(`card-when-${ID}`).value : "", /^2026-12-15/, "schedule kept");
@@ -289,6 +290,33 @@ test("Save after a Gift Place choice uses the existing delivery-config save, unc
   assert.equal(body.scheduleMode, "campaign_date");
   assert.equal(calls.some(([m]) => m === "setAudience"), false, "audience not rewritten: it did not change");
   assert.equal(calls.some(([m]) => m === "schedule" || m === "activate"), false, "no scheduling, funding or send");
+  await s.unmount();
+});
+
+test("Report 146: a gift box with options cannot be saved until one is chosen (Send now's rule); then it saves with it", async () => {
+  calls = []; withCatalog([BOX_A, BOX_B]);
+  const s = await mount(cardEl());
+  await openPicker(s);
+  await click(s.tid("gift-card-action-box-a"));
+  await click(s.tid(`act-save-${ID}`));
+  assert.equal(calls.some(([m]) => m === "updateDeliveryConfig"), false, "no save without the option");
+  await click(s.q(`[data-testid="card-giftbox-variants-${ID}"] input[value="Dark Roast"]`));
+  assert.equal(s.tid(`card-giftbox-note-${ID}`), null, "nothing left to ask");
+  await click(s.tid(`act-save-${ID}`));
+  const put = calls.find(([m]) => m === "updateDeliveryConfig");
+  assert.ok(put, "saved once the option is chosen");
+  assert.deepEqual(put[3].defaultGift.variants, ["Dark Roast"]);
+  await s.unmount();
+});
+
+test("Report 146: the campaign's gift-box list shows no per-item catalog price", async () => {
+  withCatalog([BOX_A, BOX_B]);
+  const s = await mount(cardEl());
+  await openPicker(s);
+  await click(s.tid("gift-card-action-box-b"));
+  const list = s.q(`[data-testid="c-${ID}-giftbox"]`);
+  assert.ok(list, "the list is shown");
+  assert.doesNotMatch(list.textContent, /\$\s?\d/, "no $ amounts on the boxes");
   await s.unmount();
 });
 

@@ -216,10 +216,15 @@ export default function CampaignCard({
   // saveable campaign (the wire contract would serialize NO gift, silently turning it into a greeting-only one).
   const qrCashMissing = draft.giftType === "qrcash" && !isQrCashAmountCents(draft.qrCashAmountCents);
   const qrCashWrongSchedule = draft.giftType === "qrcash" && draft.scheduleMode !== "campaign_date";
-  const giftBlocked = staleProduct || productMissing || qrCashMissing || qrCashWrongSchedule;
+  // Report 146 (founder 2026-10-29): the same rule as Send now (SendNowFlow optionsMissing): a box that publishes options
+  // is not saveable until one is chosen, so a campaign can never be configured to reach funding without them (the server's
+  // quote would refuse it then — before any charge — but only at scheduling or the T-14 funding pass).
+  const optionsMissing = Boolean(productChosen) && variantChoices.length > 0 && chosenVariants.length === 0;
+  const giftBlocked = staleProduct || productMissing || optionsMissing || qrCashMissing || qrCashWrongSchedule;
   const giftBlockedNote = staleProduct
     ? "That gift box is no longer published. Choose one from the list to save this campaign."
     : (productMissing ? "Choose a gift box to save this campaign."
+      : optionsMissing ? "Choose this gift box's option to save this campaign."
       : (qrCashWrongSchedule ? "QR Cash is sent once, on one campaign date. Choose One Campaign Date to save this campaign."
         : (qrCashMissing ? "Enter a QR Cash amount from $5 to $100 to save this campaign." : null)));
 
@@ -928,7 +933,10 @@ export default function CampaignCard({
                           <ChoiceBubble
                             key={id} id={uid(`gb-${id}`)} name={uid("gb-group")} value={id}
                             label={item.title || id}
-                            note={Number.isInteger(item.priceCents) ? centsToDisplay(item.priceCents) : null}
+                            // Report 146 (founder 2026-10-29): no per-item price here. The catalog's raw price is not what the
+                            // organisation pays (fees, tax and shipping are in the authoritative quote, shown at Schedule &
+                            // Payment), so it misled; Send now's list shows none either.
+                            note={null}
                             checked={productChosen === id}
                             disabled={locked}
                             // One product replaces the other outright, and its variants go with it:
