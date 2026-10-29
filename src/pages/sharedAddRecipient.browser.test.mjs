@@ -54,7 +54,8 @@ const known = {
   async getSmartCardTiles() { return { ok: true, tiles: [] }; },
   async getHeartsBalance() { return { balance: 0 }; },
   async getSendEntitlementPreflight() { return { ok: true, canSendGreeting: true }; },
-  async sendGreeting() { throw new Error('no test may send'); },
+  // Every attempt is RECORDED; it is refused unless a test sets __store.sendAnswer (Team 5 F1 tests count them).
+  async sendGreeting(p) { (S().sends = S().sends || []).push(p); const a = S().sendAnswer; if (a && a.error) throw Object.assign(new Error(a.error), { code: a.code }); throw new Error('no test may send'); },
   async chargeGift() { throw new Error('no test may charge'); },
   async get() { return { data: {} }; },
 };
@@ -146,9 +147,10 @@ const setValue = async (el, value) => {
   await settle(2);
 };
 
-async function mount(url, { contacts = BASE(), state } = {}) {
-  globalThis.__store = { contacts, creates: [], uploads: [] };
+async function mount(url, { contacts = BASE(), state, session = {} } = {}) {
+  globalThis.__store = { contacts, creates: [], uploads: [], sends: [] };
   window.sessionStorage.clear(); window.localStorage.clear();
+  for (const [k, v] of Object.entries(session)) window.sessionStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
   if (root) { const r = root; root = null; await act(async () => { r.unmount(); }); }
   document.body.innerHTML = "";
   const host = document.createElement("div"); document.body.appendChild(host);
@@ -358,4 +360,45 @@ test("memory photos uploaded in the dialog are saved on THAT recipient only; oth
   const theresa = globalThis.__store.contacts.find((c) => c.id === "c1");
   assert.deepEqual(theresa.memoryPhotos.map((p) => p.url), ["https://acct.blob.core.windows.net/memory/theresa.jpg"], "Theresa's photos unchanged");
   assert.equal($('select[name="contactId"]').value, "new-3");
+});
+
+// ── Team 5 F1 (Report 146): the Add Recipient round trip must never send a paid gift's greeting by itself ──────────────
+// Start state through the EXISTING Top-Up return path (as Team 5's harness): a gift already charged whose greeting was
+// refused for lack of a send, so the recovery panel is showing.
+const CHARGED = { recipientEmail: "t@example.test", recipientName: "Theresa Morgan", occasionKey: "thankyou", contactId: "c1",
+  includeGift: true, gift: { type: "qrcash", amount: 25, status: "charged", claimToken: "sim-claim-token" } };
+const RECOVERY_STATE = {
+  formData: { contactId: "c1", occasionType: "Thank You", customMessage: "Paid gift greeting", tone: "warm" },
+  giftSettings: { type: "qrcash", amount: 25 }, defaultPhoto: null, memoryPhotos: [], useMemoryPhotos: true, excludedMemoryPhotos: [],
+  confirmedGiftPayload: CHARGED, giftSeparatedByEntitlement: true, sendRequestId: "key-original",
+};
+
+test("F1: while a charged gift waits for its greeting, '+ Add New' stays here and sends nothing; the recovery is kept", async () => {
+  await mount("/dashboard/send?returnTo=send", { session: { sendGreetingState: RECOVERY_STATE } });
+  globalThis.__store.sendAnswer = { error: "No sends left", code: "LIMIT_EXCEEDED" };
+  await wait(200); await settle();
+  const before = globalThis.__store.sends.length; // the existing Top-Up return retry (refused), unchanged by this fix
+  globalThis.__store.sendAnswer = null;
+  await click($("[data-testid=send-add-new-recipient]"));
+  await wait(200); await settle();
+  assert.match(at(), /^\/dashboard\/send/, "did not leave for Recipients");
+  assert.equal(globalThis.__store.sends.length, before, "no automatic send");
+  assert.equal($('select[name="contactId"]').value, "c1", "same recipient");
+});
+
+test("F1: an ordinary '+ Add New' round trip keeps the greeting's send key and never carries a charged-gift payload", async () => {
+  await mount("/dashboard/send", { session: { sendGreetingState: { sendRequestId: "key-original" } } });
+  await sendComposeForTheresa();
+  await click($("[data-testid=send-add-new-recipient]"));
+  await wait(150);
+  assert.equal(at(), "/dashboard/contacts");
+  const kept = JSON.parse(window.sessionStorage.getItem("sendGreetingState"));
+  assert.equal(kept.sendRequestId, "key-original", "merged, not overwritten: the send key survives");
+  assert.equal(kept.confirmedGiftPayload, undefined, "no charged-gift payload carried");
+  assert.equal(kept.giftSeparatedByEntitlement, undefined);
+  assert.equal(kept.formData.customMessage, "Thinking of you this week.", "the greeting is kept");
+  await click(byText("button", /^Cancel$/));
+  await settle(10); await wait(200);
+  assert.match(at(), /^\/dashboard\/send/);
+  assert.equal(globalThis.__store.sends.length, 0, "nothing sent on the return");
 });

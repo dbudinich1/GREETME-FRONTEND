@@ -56,6 +56,12 @@
 //   photos (toast says so) or, if nothing fits, the dialog is not opened; browser Back from the Recipients page lands
 //   on a fresh send page (the kept greeting returns only through Save/Cancel). Verification gate, review, payment and
 //   send unchanged.
+// 2026-10-29 (Team 5 F1 fix, Report 146; preview, not released): "+ Add New" / "+ Add Recipient" no longer leave while a
+//   charged gift awaits its greeting (confirmedGiftPayload, the recovery panel): a message asks to finish it first. The
+//   kept greeting never carries confirmedGiftPayload/giftSeparatedByEntitlement, so ?returnTo=send cannot arm the
+//   recovery auto-retry, and it is MERGED into the existing sendGreetingState so sendRequestId and pendingGiftLink
+//   survive. Affected locked milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regression: Add Recipient is
+//   unavailable during that recovery (by design). Verification gate, voice recovery, review, payment and send unchanged.
 
 import { useState, useEffect } from 'react';
 import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff, dashboardGiftPlaceEntry, markGiftPlaceEntryUsed, giftPlaceEntryUsed, takeHomeSendIntent } from '../utils/dashboardSendHandoff';
@@ -86,7 +92,7 @@ import { retryGiftLink } from '../api/providerCheckout';
 // one-shot remount replay that uses it. No new storage system, route or checkout attempt.
 import {
   clearPendingGiftLink, clearSendRequestId, ensureSendRequestId, persistPendingGiftLink,
-  readPendingGiftLink,
+  readPendingGiftLink, SEND_STATE_KEY,
 } from './pendingGiftLink';
 import { usePendingGiftLinkRecovery } from '../components/giftPlace/usePendingGiftLinkRecovery';
 import { CHECKOUT_STATUS } from '../components/providerCheckout/providerCheckoutModel';
@@ -1219,11 +1225,24 @@ export default function SendGreeting() {
   // Photos too large to keep on this device are dropped from the kept copy (said so); if nothing can be kept, the
   // sender stays here with nothing lost.
   const openAddRecipientFromSend = () => {
+    // Team 5 F1 (Report 146): a gift already charged and waiting for its greeting (the recovery panel) stays here. Leaving
+    // would carry that recovery into ?returnTo=send, whose restore auto-retries the greeting with no click — to the OLD
+    // recipient. The recovery belongs to this recipient, so it is finished first; nothing here sends or charges.
+    if (confirmedGiftPayload) {
+      showManualToast('Finish this greeting first', 'Its gift is already paid for. Send this greeting from here, then add a new recipient.', COMMS_CATEGORIES.SYSTEM);
+      return;
+    }
+    // The composition only — never confirmedGiftPayload / giftSeparatedByEntitlement, so the return can't arm the
+    // recovery auto-retry. MERGED into the existing record, so its send key (sendRequestId) and any pending gift-link
+    // marker (pendingGiftLink) survive the round trip (pendingGiftLink.js keeps them in this same record).
+    let existing = null;
+    try { existing = JSON.parse(sessionStorage.getItem(SEND_STATE_KEY) || 'null'); } catch { existing = null; }
+    const keep = existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {};
+    delete keep.confirmedGiftPayload; delete keep.giftSeparatedByEntitlement;
     const stateToSave = {
+      ...keep,
       formData, giftSettings, defaultPhoto, memoryPhotos, useMemoryPhotos,
       excludedMemoryPhotos: Array.from(excludedMemoryPhotos),
-      confirmedGiftPayload: confirmedGiftPayload || null,
-      giftSeparatedByEntitlement: !!giftSeparatedByEntitlement,
     };
     // One write site: the whole greeting first, then (storage full) the same greeting without its photos.
     const attempts = [stateToSave, { ...stateToSave, memoryPhotos: [], defaultPhoto: null }];
