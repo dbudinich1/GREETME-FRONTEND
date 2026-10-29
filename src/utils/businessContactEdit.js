@@ -113,7 +113,9 @@ export function businessContactPatch(record, formData, { nameTyped = true } = {}
   return patch;
 }
 
+// Loading, failed and not-found: PROPOSED copy, pending founder approval.
 export const BUSINESS_EDIT_LOADING_TEXT = 'Loading this contact’s saved details…';
 export const BUSINESS_EDIT_FAILED_TEXT = 'We couldn’t load this contact’s saved details, so it can’t be edited right now. Nothing was changed. Close this and try again.';
+// Copy APPROVED by the founder 2026-10-29.
 export const BUSINESS_EDIT_FORBIDDEN_TEXT = 'You don’t have access to edit this contact.';
 export const BUSINESS_EDIT_NOT_FOUND_TEXT = 'This contact is no longer in your business contacts. Nothing was changed.';

@@ -141,7 +141,7 @@ function Inner({ plan, card, formData, setFormData, onSave, onCancel, withStripe
             : need.card ? 'Auto-Gift needs a valid payment method on file before we save.'
             : need.consent && need.address ? 'Please confirm your Auto-Gift authorization and give the mailing address for this gift before we save.'
             : need.consent ? (items.length > 1 ? 'Please confirm your authorization for each Auto-Gift below before we save.'
-              // LIVE-3 (PROPOSED copy, pending founder approval): an unchanged older Auto-Gift asked for its first consent was not changed.
+              // LIVE-3 (copy APPROVED by the founder 2026-10-29): an unchanged older Auto-Gift asked for its first consent was not changed.
               : items.every((it) => it.firstConsent) ? 'Please confirm your authorization for this Auto-Gift before we save.'
               : 'You changed this Auto-Gift, so please confirm your authorization before we save.')
             : 'This gift is shipped, so we need the recipient’s mailing address before we save.'}
