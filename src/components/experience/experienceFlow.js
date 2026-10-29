@@ -23,7 +23,13 @@ export const EXPERIENCE_TIMING = {
   videoTailMs: 8000,     // after the video's real length, before the safety ceiling advances anyway
   noVideoDwellMs: 12000, // when the video cannot be shown, the Featured Spread still gets this long
   claimTapMs: 4000,      // on the claim step, the inert claim button is pressed for the visitor after this
-  cardSyncGraceMs: 1500, // after the guide moves the card, ignore stale screen reports for this long
+  cardSyncGraceMs: 1500, // after the guide moves the card, keep steering it towards the step for this long
+  // A Next pressed this soon after an AUTO-advance is absorbed: the visitor meant the step that just appeared.
+  // 700 ms = Team 5's measured overlap in Chromium (up to 400 ms between the step appearing and a press already
+  // on its way landing) + a 300 ms margin for slower devices; still shorter than any deliberate second press
+  // after reading the new label, and longer than the player's own page turn (420 ms), during which a press would
+  // otherwise be lost by the card.
+  autoNextGuardMs: 700,
 };
 
 // Reading time for the Intro (written intro + poem): 300 ms a word, never under 12 s or over 30 s.
@@ -65,6 +71,9 @@ export function createExperienceGuide({ steps, onChange = () => {}, onStep = () 
   let remaining = null;    // ms left on it
   let armedAt = 0;
   let done = false;
+  let lastAutoAt = -Infinity; // when the last automatic advance happened / was shown (for the Next guard)
+  let lastHow = null;
+  let mediaPending = false;   // the video ended while the visitor had paused: move on when they resume
 
   const byId = (id) => steps.findIndex((s) => s.id === id);
   const state = () => ({ index, step: steps[index], paused, mediaEnded, remainingMs: remaining, timerMs, total: steps.length, finished: done });
@@ -75,7 +84,7 @@ export function createExperienceGuide({ steps, onChange = () => {}, onStep = () 
     stop();
     if (paused || done || remaining == null) return;
     armedAt = now();
-    timer = setTimer(() => { timer = null; remaining = 0; advance('auto'); }, remaining);
+    timer = setTimer(() => { timer = null; remaining = 0; lastAutoAt = now(); advance('auto'); }, remaining);
   };
   const armFor = (i) => {
     const s = steps[i];
@@ -87,6 +96,8 @@ export function createExperienceGuide({ steps, onChange = () => {}, onStep = () 
   function enter(i, how) {
     const from = steps[index];
     index = i;
+    lastHow = how;
+    mediaPending = false;
     armFor(i);
     onStep(steps[i], from, how);
     emit();
@@ -114,8 +125,16 @@ export function createExperienceGuide({ steps, onChange = () => {}, onStep = () 
 
   return {
     state,
-    start() { done = false; enter(0, 'auto'); },
-    next() { advance('manual'); },
+    start() { done = false; enter(0, 'start'); },
+    // The orchestrator calls this once an automatically entered step is on screen, so the guard runs from what the
+    // visitor saw (a heavy screen can take a moment to render after the timer fired).
+    shown() { if (lastHow === 'auto') lastAutoAt = Math.max(lastAutoAt, now()); },
+    // Returns false when the press was absorbed by the auto-advance guard.
+    next() {
+      if (now() - lastAutoAt < EXPERIENCE_TIMING.autoNextGuardMs) return false;
+      advance('manual');
+      return true;
+    },
     back() { if (index > 0) enter(prevIndex(), 'manual'); },
     goTo(id, how = 'manual') { const i = byId(id); if (i >= 0 && i !== index) enter(i, how); },
     // The card moved by itself (the visitor tapped, swiped or used the arrow keys): follow it.
@@ -126,11 +145,13 @@ export function createExperienceGuide({ steps, onChange = () => {}, onStep = () 
       if (screen === 'featured' && mediaEnded) i = byId('photos');
       if (i >= 0) enter(i, 'card');
     },
-    // The featured video finished: move from the video to the photos and music.
+    // The featured video finished: move from the video to the photos and music. While the visitor has paused,
+    // nothing moves; the photos follow when they press Resume.
     mediaEnd() {
       mediaEnded = true;
-      if (steps[index].id === 'video') enter(byId('photos'), 'media');
-      else emit();
+      if (steps[index].id === 'video') {
+        if (paused) { mediaPending = true; emit(); } else enter(byId('photos'), 'media');
+      } else emit();
     },
     // Replace the current step's timer (e.g. the real video length once known, or a dwell when there is no video).
     setStepTimer(ms) { timerMs = ms; remaining = ms; run(); emit(); },
@@ -139,7 +160,12 @@ export function createExperienceGuide({ steps, onChange = () => {}, onStep = () 
       if (timer) { remaining = Math.max(0, remaining - (now() - armedAt)); stop(); }
       paused = true; emit();
     },
-    resume() { if (!paused) return; paused = false; run(); emit(); },
+    resume() {
+      if (!paused) return;
+      paused = false;
+      if (mediaPending && steps[index].id === 'video') { enter(byId('photos'), 'media'); return; }
+      run(); emit();
+    },
     interact() { this.pause(); },
     replay() { stop(); paused = false; mediaEnded = false; done = false; enter(0, 'replay'); },
     destroy() { stop(); done = true; },

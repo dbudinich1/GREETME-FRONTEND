@@ -29,6 +29,7 @@ const CSS = `
   /* Phones in portrait: the card stacks its Featured Spread taller than the screen and the page scrolls, as on the
      real recipient page; the spacer keeps the end of it clear of the controls. */
   .gx-stage-end { height: 64px; }
+  .gx-shield { position: absolute; inset: 0; z-index: 10; background: transparent; }
   @media (orientation: landscape) { .gx-stage { overflow-y: hidden; } .gx-stage-end { display: none; } }
   .gx-top, .gx-bottom { position: absolute; left: 0; right: 0; z-index: 30; display: flex; align-items: center; gap: .5rem;
     padding: .3rem max(16px, env(safe-area-inset-left)); box-sizing: border-box; background: rgba(15, 10, 32, .78);
@@ -120,6 +121,7 @@ export default function GreetMeExperience({ onExit }) {
   const [sound, setSound] = useState(true);
   const [soundBlocked, setSoundBlocked] = useState(false);
   const [videoMissing, setVideoMissing] = useState(false);
+  const [spinShield, setSpinShield] = useState(false);
   const rootRef = useRef(null);
   const hostRef = useRef(null);
   const stageRef = useRef(null);
@@ -128,6 +130,7 @@ export default function GreetMeExperience({ onExit }) {
   const subRef = useRef([]);             // cancel functions of the current step's sub-actions
   const soundRef = useRef({ on: true, blocked: false });
   const tryingSoundRef = useRef(false);
+  const albumRef = useRef({ btn: null, on: null }); // the album mute the guide last set (respects the visitor's own)
   const exitRef = useRef(onExit); exitRef.current = onExit;
   const reducedMotion = useRef(prefersReducedMotion()).current;
 
@@ -138,11 +141,35 @@ export default function GreetMeExperience({ onExit }) {
 
   const exit = useCallback(() => { guideRef.current?.destroy(); clearSub(); exitRef.current?.(); }, []);
 
-  // Move the card one screen towards the step's screen, through the player's own controls.
+  // Steer the card to the step's screen through the player's own controls. The player moves one screen per press
+  // and ignores presses while a page turn or the envelope exit is animating, so the guide keeps steering (a short
+  // poll) until the card arrives; meanwhile the card's in-between screens do not pull the guide back. This keeps a
+  // Next pressed during an animation (e.g. the envelope exit) from being lost, and the label from flickering.
+  const stopSteering = () => { const p = pendingRef.current; if (p?.poll) window.clearInterval(p.poll); pendingRef.current = null; };
   const driveCard = (target) => {
-    const did = stepCardToward(hostRef.current, window, target);
-    if (did === 'remount') { setCardKey((k) => k + 1); return; }
-    if (did !== 'none') pendingRef.current = { target, until: Date.now() + EXPERIENCE_TIMING.cardSyncGraceMs };
+    stopSteering();
+    const host = hostRef.current;
+    if (!host) return;
+    const press = () => {
+      const did = stepCardToward(hostRef.current, window, target);
+      if (did === 'remount') { stopSteering(); setCardKey((k) => k + 1); return; }
+      if (did !== 'none' && pendingRef.current) { pendingRef.current.until = Date.now() + EXPERIENCE_TIMING.cardSyncGraceMs; pendingRef.current.pressedAt = Date.now(); }
+    };
+    if (readCardScreen(host) === target) return;
+    pendingRef.current = { target, until: Date.now() + EXPERIENCE_TIMING.cardSyncGraceMs, pressedAt: 0, poll: null };
+    press();
+    if (!pendingRef.current) return;
+    pendingRef.current.poll = window.setInterval(() => {
+      const p = pendingRef.current; if (!p) return;
+      const screen = readCardScreen(hostRef.current);
+      if (screen === p.target) { stopSteering(); guideRef.current?.shown(); return; }
+      // Still animating: wait; the steering window only runs while the card is settled (a slow device can take
+      // longer than the window to finish a page turn).
+      if (!screen) { p.until = Date.now() + EXPERIENCE_TIMING.cardSyncGraceMs; return; }
+      if (Date.now() > p.until) { stopSteering(); if (screen) guideRef.current?.syncScreen(screen); return; }
+      // settled on another screen: press again (not within 150 ms of the last press, while the player arms its turn)
+      if (Date.now() - p.pressedAt > 150) press();
+    }, 60);
   };
 
   // The guide: created once. onStep performs the card action for guide-initiated moves only; when the visitor
@@ -160,10 +187,14 @@ export default function GreetMeExperience({ onExit }) {
     const guide = createExperienceGuide({ steps, onChange: setSt, onStep, onFinish: () => exit() });
     guideRef.current = guide;
     guide.start();
-    return () => { guide.destroy(); clearSub(); };
+    return () => { guide.destroy(); clearSub(); stopSteering(); };
+    // stopSteering only touches refs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [steps, exit]);
 
   const stepId = st?.step?.id;
+  // The Next guard counts from when an auto-advanced step is actually on screen.
+  useEffect(() => { guideRef.current?.shown(); }, [st?.index]);
   const cardMounted = !!st && st.index >= 1;
 
   // Follow the card: its screen, sound, and the video's events.
@@ -172,15 +203,15 @@ export default function GreetMeExperience({ onExit }) {
     if (!cardMounted || !host) { setCardScreen(null); return undefined; }
     const look = () => {
       const s = soundRef.current;
-      applyCardSound(host, s.on, { allowVideoSound: !s.blocked });
+      const on = s.on && !s.blocked; // one sound state for everything the card plays
+      const albumBtn = host.querySelector('.gc-album-mute-btn');
+      const syncAlbum = !!albumBtn && (albumBtn !== albumRef.current.btn || albumRef.current.on !== on);
+      applyCardSound(host, on, { syncAlbum });
+      if (albumBtn) albumRef.current = { btn: albumBtn, on };
       const screen = readCardScreen(host);
       setCardScreen(screen);
       if (!screen) return;
-      const p = pendingRef.current;
-      if (p) {
-        if (screen === p.target || Date.now() > p.until) pendingRef.current = null;
-        else return; // the card has not caught up with the guide yet
-      }
+      if (pendingRef.current) return; // the guide is still steering the card to the step's screen
       guideRef.current?.syncScreen(screen);
     };
     const mo = new MutationObserver(look);
@@ -195,11 +226,15 @@ export default function GreetMeExperience({ onExit }) {
         g.setStepTimer(Math.round((v.duration / (v.playbackRate || 1)) * 1000) + EXPERIENCE_TIMING.videoTailMs);
       }
       const s = soundRef.current;
-      if (s.on && !s.blocked && v.muted && !tryingSoundRef.current) {
+      if (s.on && !s.blocked && !tryingSoundRef.current) {
         tryingSoundRef.current = true; // the muted re-play below fires 'playing' again: do not try twice
         tryVideoSound(host, window).then((r) => {
           tryingSoundRef.current = false;
-          if (r === 'blocked') { soundRef.current = { ...soundRef.current, blocked: true }; setSoundBlocked(true); }
+          if (r === 'blocked') {
+            soundRef.current = { ...soundRef.current, blocked: true }; setSoundBlocked(true);
+            applyCardSound(host, false, { syncAlbum: true });
+            albumRef.current = { btn: host.querySelector('.gc-album-mute-btn'), on: false };
+          }
         });
       }
     };
@@ -218,13 +253,15 @@ export default function GreetMeExperience({ onExit }) {
     const host = hostRef.current;
     if (!host) return;
     if (stepId === 'reverse' && cardScreen === 'envelope') {
-      const cancel = spinEnvelope(host, window, { durationMs: EXPERIENCE_TIMING.spinMs, reducedMotion });
+      setSpinShield(true);
+      const cancel = spinEnvelope(host, window, { durationMs: EXPERIENCE_TIMING.spinMs, reducedMotion, onDone: () => setSpinShield(false) });
       subRef.current.push(cancel);
     }
     // When the card is taller than the screen (phones in portrait), bring the step's part into view. A
     // programmatic scroll is not a visitor interaction, so it does not pause the tour.
+    // Not while the visitor has paused: they are looking around and the page stays where they put it.
     const stage = stageRef.current;
-    if (stage && stage.scrollHeight > stage.clientHeight + 4) {
+    if (stage && !guideRef.current?.state().paused && stage.scrollHeight > stage.clientHeight + 4) {
       const part = stepId === 'video' ? host.querySelector('.gc-video-page') : stepId === 'photos' ? host.querySelector('.gc-album-page') : null;
       const behavior = reducedMotion ? 'auto' : 'smooth';
       if (part && cardScreen === 'featured') part.scrollIntoView?.({ block: 'center', behavior });
@@ -258,14 +295,54 @@ export default function GreetMeExperience({ onExit }) {
         if (NON_INTERACTION_KEYS.has(e.key)) return;
       }
       if (e.target?.closest?.('[data-exp-controls]')) return;
+      stopSteering(); // the visitor takes the card: follow them, do not steer against them
       guideRef.current?.interact();
     };
     const types = ['pointerdown', 'mousedown', 'touchstart', 'keydown', 'wheel'];
     types.forEach((t) => document.addEventListener(t, onAny, true));
     const prev = document.body.style.overflow; document.body.style.overflow = 'hidden';
-    rootRef.current?.focus?.();
     return () => { types.forEach((t) => document.removeEventListener(t, onAny, true)); document.body.style.overflow = prev; };
   }, [exit]);
+
+  // Modal focus. The dialog renders only once the guide has its first state, so focus is placed then (not at
+  // mount, when nothing is rendered yet): on the invitation's Open, else on Next. While open, the landing behind
+  // is inert and hidden from assistive technology, Tab / Shift+Tab cycle inside the dialog, and focus that lands
+  // outside comes back. On exit the landing places focus itself (Pause when the intro plays, else its Play).
+  const opened = !!st;
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!opened || !root) return undefined;
+    const hidden = [...(root.parentElement?.children || [])].filter((el) => el !== root && el.tagName !== 'STYLE' && !el.hasAttribute('inert'));
+    hidden.forEach((el) => { el.setAttribute('inert', ''); el.setAttribute('aria-hidden', 'true'); });
+    const focusables = () => [...root.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+      .filter((el) => !el.disabled && !el.closest('[inert]') && !el.closest('[aria-hidden="true"]'));
+    const home = () => root.querySelector('[data-testid="experience-open-invite"]') || root.querySelector('[data-testid="experience-next"]') || root;
+    home().focus();
+    const onTab = (e) => {
+      if (e.key !== 'Tab') return;
+      const f = focusables(); if (!f.length) return;
+      const a = document.activeElement; const first = f[0]; const last = f[f.length - 1];
+      const inside = root.contains(a) && a !== root;
+      if (e.shiftKey ? (!inside || a === first) : (!inside || a === last)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+    };
+    const onFocusIn = (e) => { if (!root.contains(e.target)) home().focus(); };
+    document.addEventListener('keydown', onTab, true);
+    document.addEventListener('focusin', onFocusIn, true);
+    return () => {
+      document.removeEventListener('keydown', onTab, true);
+      document.removeEventListener('focusin', onFocusIn, true);
+      hidden.forEach((el) => { el.removeAttribute('inert'); el.removeAttribute('aria-hidden'); });
+    };
+  }, [opened]);
+  // A step change can unmount the focused button (Open, the claim's Back, the end screen's buttons): put focus on
+  // Next rather than let it fall to the page.
+  useEffect(() => {
+    const root = rootRef.current; if (!root) return;
+    const a = document.activeElement;
+    if (!a || a === document.body || !root.contains(a)) {
+      (root.querySelector('[data-testid="experience-open-invite"]') || root.querySelector('[data-testid="experience-next"]'))?.focus();
+    }
+  }, [stepId]);
 
   // What the visitor hears: off when they turned it off, or while the browser keeps the video muted.
   const soundOn = sound && !soundBlocked;
@@ -275,6 +352,7 @@ export default function GreetMeExperience({ onExit }) {
     soundRef.current = { on, blocked: false };
     const host = hostRef.current;
     applyCardSound(host, on);
+    albumRef.current = { btn: host?.querySelector('.gc-album-mute-btn') || null, on };
     // This press is a tap, so the browser now allows the video's sound.
     const v = findFeaturedVideo(host);
     if (v && on && v.paused && !v.ended && v.currentTime > 0) v.play().catch(() => {});
@@ -294,12 +372,13 @@ export default function GreetMeExperience({ onExit }) {
 
       <div className="gx-stage" ref={stageRef}>
         {cardMounted ? (
-          <div ref={hostRef} className="gc-public-wrapper" data-testid="experience-card">
+          <div ref={hostRef} className="gc-public-wrapper" data-testid="experience-card" inert={showClaim || showEnd || undefined}>
             <GreetingCard key={cardKey} greeting={SAMPLE_GREETING} isOwner={false} onRetryVideo={null}
               sample={{ qrTarget: sampleQrTarget(), onCreditTap: () => guideRef.current?.goTo('claim', 'card') }} />
           </div>
         ) : null}
         {cardMounted ? <div className="gx-stage-end" aria-hidden="true" /> : null}
+        {spinShield && stepId === 'reverse' ? <div className="gx-shield" aria-hidden="true" data-testid="experience-spin-shield" /> : null}
         {showInvite ? <Invitation onOpen={() => g.next()} /> : null}
         {showClaim ? (
           <div style={{ position: 'absolute', inset: 0, zIndex: 20, overflowY: 'auto', paddingTop: 56, paddingBottom: 72, background: '#1B2A4A', boxSizing: 'border-box' }}
@@ -342,7 +421,7 @@ export default function GreetMeExperience({ onExit }) {
           <button type="button" className="gx-btn" onClick={() => g.resume()} data-testid="experience-resume-pill">▶ Resume</button>
         </div>
       ) : null}
-      {!paused && (soundBlocked || videoMissing) ? (
+      {!paused && stepId === 'video' && (soundBlocked || videoMissing) ? (
         <div className="gx-note" style={{ top: 54 }} role="status" data-testid="experience-note">
           {videoMissing ? 'The video could not be shown here. The tour continues with the rest of the card.'
             : 'Your browser started the video without sound. Press Sound on to hear it.'}

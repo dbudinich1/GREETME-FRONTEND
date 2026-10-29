@@ -113,12 +113,51 @@ test("pause on interaction freezes progression; Resume continues with the remain
   clock.tick(2999); assert.equal(id(), "invite");
   clock.tick(1); assert.equal(id(), "envelope", "resumes with exactly the remaining 3 s");
   // Manual navigation while paused stays paused (the visitor is driving).
+  clock.tick(EXPERIENCE_TIMING.autoNextGuardMs);
   g.pause(); g.next();
   assert.equal(id(), "reverse"); assert.equal(g.state().paused, true);
   clock.tick(60000); assert.equal(id(), "reverse");
-  // A media end while paused still moves the video to the photos, but their dwell waits for Resume.
-  g.goTo("video"); g.mediaEnd(); assert.equal(id(), "photos");
-  clock.tick(60000); assert.equal(id(), "photos");
+});
+
+test("media end while paused: nothing moves until Resume, then the photos (with their full dwell)", () => {
+  const { clock, g, id, log } = setup();
+  g.start(); g.goTo("video");
+  g.pause();
+  g.mediaEnd();
+  assert.equal(id(), "video", "paused: the step does not change when the video ends");
+  assert.equal(g.state().mediaEnded, true);
+  clock.tick(600000); assert.equal(id(), "video");
+  g.resume();
+  assert.equal(id(), "photos", "Resume moves on to the photos");
+  assert.match(log.at(-1), /video>photos:media/);
+  assert.equal(g.state().paused, false);
+  clock.tick(29999); assert.equal(id(), "photos");
+  clock.tick(1); assert.equal(id(), "finale");
+  // A paused media end does not linger: leaving the video step manually drops it.
+  const b = setup(); b.g.start(); b.g.goTo("video"); b.g.pause(); b.g.mediaEnd(); b.g.back(); b.g.resume();
+  assert.equal(b.id(), "intro");
+});
+
+test("Next just after an AUTO-advance is absorbed (the visitor meant the step that just appeared); later presses work", () => {
+  const { clock, g, id } = setup();
+  g.start();
+  clock.tick(8000);
+  assert.equal(id(), "envelope", "auto-advanced");
+  clock.tick(400);
+  assert.equal(g.next(), false, "a press 400 ms after the auto-advance is absorbed");
+  assert.equal(id(), "envelope", "the step that just appeared stays");
+  clock.tick(EXPERIENCE_TIMING.autoNextGuardMs - 400 - 1);
+  assert.equal(g.next(), false, "still inside the guard at 699 ms");
+  clock.tick(1);
+  assert.equal(g.next(), true, "at 700 ms a press is a deliberate Next");
+  assert.equal(id(), "reverse");
+  assert.equal(g.next(), true, "manual presses are never guarded against each other");
+  assert.equal(id(), "cover");
+  assert.equal(EXPERIENCE_TIMING.autoNextGuardMs, 700);
+  // The claim step: an auto-advance from the finale followed by a stray press keeps the $5 reveal on screen.
+  const c = setup(); c.g.start(); c.g.goTo("finale");
+  c.clock.tick(10000); assert.equal(c.id(), "claim");
+  c.clock.tick(200); c.g.next(); assert.equal(c.id(), "claim");
 });
 
 test("manual next/back at all times, including the Featured Spread halves", () => {

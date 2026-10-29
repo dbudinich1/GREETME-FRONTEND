@@ -57,6 +57,10 @@ export function clickSeal(root) {
 
 // Spin the envelope a full turn and on round to its back (540 degrees = 1080 px of drag) over `durationMs`;
 // with reduced motion, one move straight to the back. Returns cancel().
+// The player ends a drag on the visitor's real mouseleave / mouseup (Envelope.jsx handleDragEnd). The orchestrator
+// covers the card with a transparent shield during the spin so the real pointer does not reach the envelope; if a
+// real drag-end gets through anyway (e.g. the boundary event when the shield appears under the cursor), the spin
+// re-arms the drag where it was and carries on, so it always lands on the back.
 export function spinEnvelope(root, win, { durationMs = 2600, reducedMotion = false, onDone = () => {} } = {}) {
   const env = root?.querySelector('.gc-envelope');
   const wrap = root?.querySelector('.gc-envelope-wrapper');
@@ -64,17 +68,47 @@ export function spinEnvelope(root, win, { durationMs = 2600, reducedMotion = fal
   const mouse = (el, type, x) => asDriver(() => el.dispatchEvent(new win.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: 0 })));
   const totalPx = reducedMotion ? 360 : 1080;
   const frames = reducedMotion ? 1 : Math.max(1, Math.round(durationMs / 33));
-  let i = 0; let timer = null; let cancelled = false;
-  const finish = (ok) => { if (!cancelled) { cancelled = true; try { mouse(wrap, 'mouseup', 0); } catch { /* gone */ } onDone(ok); } };
+  let i = 0; let timer = null; let cancelled = false; let x = 0; let rearm = false;
+  // React derives the envelope's onMouseLeave from mouseout, so the same events are watched here.
+  const onRealEnd = (e) => {
+    if (isDriving()) return;
+    if (e.type === 'mouseout' && e.relatedTarget && wrap.contains(e.relatedTarget)) return;
+    rearm = true;
+  };
+  wrap.addEventListener('mouseout', onRealEnd);
+  wrap.addEventListener('mouseup', onRealEnd);
+  const finish = (ok) => {
+    if (cancelled) return;
+    cancelled = true;
+    wrap.removeEventListener('mouseout', onRealEnd); wrap.removeEventListener('mouseup', onRealEnd);
+    try { mouse(wrap, 'mouseup', x); } catch { /* gone */ }
+    onDone(ok);
+  };
   mouse(env, 'mousedown', 0);
+  const step = Math.round(durationMs / frames);
   const tick = () => {
     if (cancelled) return;
     if (!wrap.isConnected) { finish(false); return; }
+    if (rearm) { rearm = false; mouse(env, 'mousedown', x); timer = win.setTimeout(tick, step); return; } // resume the drag at x
     i += 1;
     // ease in-out so the turn starts and lands gently
     const t = i / frames; const eased = t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2;
-    mouse(wrap, 'mousemove', Math.round(totalPx * eased));
-    if (i >= frames) finish(true); else timer = win.setTimeout(tick, Math.round(durationMs / frames));
+    x = Math.round(totalPx * eased);
+    mouse(wrap, 'mousemove', x);
+    if (i >= frames) timer = win.setTimeout(settle, step); else timer = win.setTimeout(tick, step);
+  };
+  // Land exactly on the back: read the envelope's own rotation and drag the difference (a frame can be lost when
+  // a real drag-end got through), at most a few times.
+  const targetDeg = totalPx * 0.5;
+  let tries = 0;
+  const settle = () => {
+    if (cancelled) return;
+    const m = /rotateY\((-?[\d.]+)deg\)/.exec(env.style.transform || '');
+    const diff = m ? targetDeg - parseFloat(m[1]) : 0;
+    if (Math.abs(diff) < 0.25 || tries >= 5 || !wrap.isConnected) { finish(true); return; }
+    tries += 1;
+    mouse(env, 'mousedown', x);
+    timer = win.setTimeout(() => { if (cancelled) return; x += Math.round(diff * 2); mouse(wrap, 'mousemove', x); timer = win.setTimeout(settle, step * 2); }, step * 2);
   };
   timer = win.setTimeout(tick, 40); // let the player register the drag first
   return () => { if (timer) win.clearTimeout(timer); finish(false); };
@@ -94,15 +128,17 @@ export function startFeaturedVideo(root) {
 }
 
 // Sound on/off for everything the player plays. Media elements in the card are muted directly; the photo album's
-// music is not in the page, so its own mute button is pressed when it disagrees (aria-label 'Mute' = sound on).
+// music is not in the page, so its own mute button is pressed when it disagrees (aria-label 'Mute' = sound on),
+// but only when `syncAlbum` is true: the caller passes it only when the guide's sound changed or a new album
+// appeared, so a visitor's own press on the album's mute is respected.
 // `allowVideoSound` is false while the browser has refused sound for the video (it then keeps playing muted).
-export function applyCardSound(root, on, { allowVideoSound = true } = {}) {
+export function applyCardSound(root, on, { allowVideoSound = true, syncAlbum = true } = {}) {
   if (!root) return;
   root.querySelectorAll('video, audio').forEach((m) => {
     const want = !on || (m.matches('video.gc-video') && !allowVideoSound);
     if (m.muted !== want) m.muted = want;
   });
-  const albumBtn = root.querySelector('.gc-album-mute-btn');
+  const albumBtn = syncAlbum ? root.querySelector('.gc-album-mute-btn') : null;
   if (albumBtn) {
     const albumOn = albumBtn.getAttribute('aria-label') === 'Mute';
     if (albumOn !== on) asDriver(() => albumBtn.click());

@@ -63,7 +63,8 @@ before(async () => {
   Object.assign(global, { HTMLElement: window.HTMLElement, Node: window.Node, getComputedStyle: window.getComputedStyle,
     MutationObserver: window.MutationObserver, localStorage: window.localStorage, sessionStorage: window.sessionStorage });
   global.IS_REACT_ACT_ENVIRONMENT = true;
-  window.matchMedia = (q) => ({ matches: /prefers-reduced-motion: reduce/.test(q), media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
+  window.__rm = true; // prefers-reduced-motion: reduce, unless a test turns it off
+  window.matchMedia = (q) => ({ matches: window.__rm && /prefers-reduced-motion: reduce/.test(q), media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
   global.ResizeObserver = window.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
   global.requestAnimationFrame = window.requestAnimationFrame;
   global.cancelAnimationFrame = window.cancelAnimationFrame;
@@ -352,6 +353,158 @@ test("the end screen's Back to Greet-Me returns to the landing too", async () =>
   await click($("experience-back-to-landing"), 60);
   assert.equal($("experience-overlay"), null);
   assert.equal(plays.filter((x) => x.isIntro).length, 1);
+});
+
+test("M1 focus: on open focus is inside the dialog (Open); Enter there opens the card without pausing; then Next", async () => {
+  await mount();
+  const cta = $("landing-experience");
+  cta.focus();
+  await click(cta, 60); // a keyboard Enter on a button activates it with a click
+  const open = $("experience-open-invite");
+  assert.equal(document.activeElement, open, "focus moved into the dialog, on the invitation's Open");
+  assert.ok($("experience-overlay").contains(document.activeElement));
+  // Enter on the focused control: the guide's own control, so no pause; and the CTA behind is not re-fired.
+  await key("Enter", document.activeElement, 10);
+  await click(document.activeElement, 60);
+  assert.equal(step(), "envelope");
+  assert.equal(paused(), false, "Enter on the dialog's own button is not an interruption");
+  assert.equal(document.activeElement, $("experience-next"), "Open unmounted: focus went to Next, not to the page");
+});
+
+test("M1 focus trap: the landing is inert and hidden; Tab from the last control wraps to the first, Shift+Tab back; outside focus returns", async () => {
+  await openExperience();
+  const overlay = $("experience-overlay");
+  const landingParts = [...overlay.parentElement.children].filter((el) => el !== overlay && el.tagName !== "STYLE");
+  assert.ok(landingParts.length >= 3, "menu, panel and footer behind the dialog");
+  assert.ok(landingParts.every((el) => el.hasAttribute("inert") && el.getAttribute("aria-hidden") === "true"), "the landing behind is inert and aria-hidden");
+  await click($("experience-open-invite"), 60);
+  const replay = $("experience-replay"); // the last control in the dialog
+  replay.focus();
+  await key("Tab", replay, 10);
+  const first = document.activeElement;
+  assert.ok(overlay.contains(first), "Tab from the last control stays in the dialog");
+  assert.notEqual(first, replay);
+  await act(async () => { first.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true })); }); await wait(10);
+  assert.equal(document.activeElement, replay, "Shift+Tab from the first control goes to the last");
+  assert.equal(paused(), false, "Tab and Shift+Tab are not interruptions");
+  // Focus escaping to the landing (e.g. a script or an old browser without inert) is pulled back in.
+  await act(async () => { $("landing-register-tile").focus(); }); await wait(10);
+  assert.ok(overlay.contains(document.activeElement), "focus outside the dialog comes back");
+  // Exit: the landing is live again and the existing return focus (the bar's Pause) applies.
+  await click($("experience-exit"), 60);
+  assert.ok(landingParts.every((el) => !el.hasAttribute("inert") && !el.hasAttribute("aria-hidden")), "landing restored");
+  assert.equal(document.activeElement, $("landing-pause"), "focus returns to the intro's Pause");
+});
+
+test("m1: a Next pressed during the envelope exit is not lost and the step does not bounce back", async () => {
+  await openExperience();
+  await click($("experience-open-invite"), 100);
+  await click($("experience-next"), 300); // reverse
+  const seen = [];
+  const mo = new window.MutationObserver(() => { const s = step(); if (seen.at(-1) !== s) seen.push(s); });
+  mo.observe($("experience-overlay"), { attributes: true, attributeFilter: ["data-step"] });
+  await click($("experience-next"), 0);  // seal: the envelope exit animates
+  await click($("experience-next"), 0);  // pressed during that animation
+  await wait(1200);
+  mo.disconnect();
+  assert.deepEqual(seen, ["cover", "intro"], "cover then intro, never back to cover");
+  assert.ok(document.querySelector(".gc-interior-spread"), "and the card got there");
+});
+
+test("m1 (real motion): two Next presses 50 ms apart from the turned-over envelope go cover then intro, no bounce", async () => {
+  window.__rm = false;
+  try {
+    await openExperience();
+    await click($("experience-open-invite"), 100);
+    await click($("experience-next"), 50);
+    await click($("experience-pause"), 10); // hold the dwell while jsdom renders the spin; Next still works while paused
+    for (let i = 0; i < 100 && $("experience-spin-shield"); i++) await wait(100);
+    const seen = [];
+    const mo = new window.MutationObserver(() => { const s = step(); if (seen.at(-1) !== s) seen.push(s); });
+    mo.observe($("experience-overlay"), { attributes: true, attributeFilter: ["data-step"] });
+    await click($("experience-next"), 50);
+    await click($("experience-next"), 0);
+    for (let i = 0; i < 40 && !document.querySelector(".gc-interior-spread"); i++) await wait(100);
+    await wait(1600);
+    mo.disconnect();
+    assert.deepEqual(seen, ["cover", "intro"]);
+    assert.equal(step(), "intro");
+    assert.ok(document.querySelector(".gc-interior-spread"), "the card is on the Intro");
+  } finally { window.__rm = true; }
+});
+
+test("m2: the spin is shielded from the real pointer and completes even when a real mouseout ends the drag", async () => {
+  window.__rm = false; // real motion: the 2.6 s spin
+  try {
+    await openExperience();
+    await click($("experience-open-invite"), 100);
+    await click($("experience-next"), 400);
+    assert.equal(step(), "reverse");
+    // jsdom renders every spin frame, which can outlast the 6 s dwell; Pause holds the dwell (the spin carries on).
+    await click($("experience-pause"), 10);
+    assert.ok($("experience-spin-shield"), "a transparent shield covers the card during the spin");
+    const wrap = document.querySelector(".gc-envelope-wrapper");
+    // A real hover straight onto the envelope (in a browser the shield stops it; here it is dispatched directly):
+    await act(async () => { wrap.dispatchEvent(new window.MouseEvent("mousemove", { bubbles: true, clientX: 640, clientY: 400, buttons: 0 })); });
+    await wait(30);
+    await act(async () => { wrap.dispatchEvent(new window.MouseEvent("mouseout", { bubbles: true, relatedTarget: document.body })); }); // the visitor's cursor leaves
+    for (let i = 0; i < 100 && $("experience-spin-shield"); i++) await wait(100); // jsdom renders each frame: slower than 2.6 s
+    const deg = parseFloat(/rotateY\((-?[\d.]+)deg\)/.exec(document.querySelector(".gc-envelope").style.transform)[1]);
+    assert.ok(Math.abs(deg - 540) <= 0.5, `the spin still lands on the back (540 degrees, got ${deg})`);
+    assert.equal($("experience-spin-shield"), null, "the shield goes when the spin is done");
+  } finally { window.__rm = true; }
+});
+
+test("m3: while paused, the video's end does not advance or scroll; Resume moves on to the photos", async () => {
+  await openExperience();
+  await nextTo("video");
+  await wait(1700);
+  await click($("experience-pause"));
+  const stage = document.querySelector(".gx-stage");
+  let scrolls = 0; const realInto = window.HTMLElement.prototype.scrollIntoView;
+  window.HTMLElement.prototype.scrollIntoView = function scrollIntoView() { scrolls += 1; };
+  try {
+    await act(async () => { window.__endMedia(cardVideo()); }); await wait(80);
+    assert.equal(step(), "video", "paused: no advance");
+    assert.equal(scrolls, 0, "paused: no scroll");
+    assert.ok(stage);
+    await click($("experience-resume"), 80);
+    assert.equal(step(), "photos", "Resume moves on");
+  } finally { window.HTMLElement.prototype.scrollIntoView = realInto; }
+});
+
+test("m4: when the browser blocks sound, everything the card plays is muted (one state); the note clears after the video step", async () => {
+  await openExperience();
+  window.__blockUnmute = true;
+  try {
+    await nextTo("video");
+    await wait(1700);
+    assert.ok($("experience-note"), "the note on the video step");
+    const v = cardVideo();
+    await act(async () => { window.__endMedia(v); }); await wait(80);
+    assert.equal(step(), "photos");
+    assert.equal($("experience-note"), null, "the note is gone after the video step");
+    assert.equal($("experience-sound").getAttribute("aria-pressed"), "false");
+    const media = [...document.querySelectorAll(".gc-container video, .gc-container audio")];
+    assert.ok(media.every((m) => m.muted), "card video and cue sounds muted");
+    assert.equal(document.querySelector(".gc-album-mute-btn").getAttribute("aria-label"), "Unmute", "album music muted too");
+  } finally { window.__blockUnmute = false; }
+  await click($("experience-sound"));
+  assert.equal(document.querySelector(".gc-album-mute-btn").getAttribute("aria-label"), "Mute", "Sound on turns it all on");
+});
+
+test("N1: the visitor's own album mute is respected when the card changes", async () => {
+  await openExperience();
+  await nextTo("video");
+  await wait(1700);
+  await act(async () => { window.__endMedia(cardVideo()); }); await wait(80);
+  const albumBtn = () => document.querySelector(".gc-album-mute-btn");
+  await click(albumBtn(), 30); // the visitor mutes the album music
+  assert.equal(albumBtn().getAttribute("aria-label"), "Unmute");
+  await click(document.querySelector(".gc-album-next"), 400); // a card DOM change (next photo)
+  await act(async () => { $("experience-card").appendChild(document.createElement("span")); }); await wait(30);
+  assert.equal(albumBtn().getAttribute("aria-label"), "Unmute", "still muted: the guide did not undo it");
+  assert.equal($("experience-sound").getAttribute("aria-pressed"), "true", "the guide's own sound state is unchanged");
 });
 
 test("no network: no fetch, XHR or beacon (so nothing to claim, payment or send endpoints); no greetme_ storage", async () => {

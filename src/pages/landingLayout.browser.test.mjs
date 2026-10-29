@@ -2,7 +2,7 @@
 //
 // The revised landing layout (Team 3; founder-approved rendering, Report 75 rev 3), MOUNTED:
 //   - settled copy and labels, the italic supporting line, one grouping panel with three cards;
-//   - "View Sample Greet-Me" kept OFF (SHOW_SAMPLE_ENTRY = false) until the sample is authorized;
+//   - the sample entry ("The Greet-Me Experience", formerly "View Sample Greet-Me") kept OFF (SHOW_SAMPLE_ENTRY = false) here;
 //   - intro-video controls call Team 2's useIntroVideo only: nothing plays before a tap, the cover's
 //     Play starts from 0:00 with sound, Pause/Resume, Replay, the after-end Replay cover, the error card;
 //   - keyboard focus moves to the bar (Resume, then Pause) when the cover's Play goes away (Team 5 N2).
@@ -105,14 +105,15 @@ test("settled copy and structure; the sample entry stays off", async () => {
   assert.equal(menuBtn.getAttribute("aria-expanded"), "true");
   assert.equal($("landing-register-top").textContent, "Create your free account");
   assert.equal($("landing-menu-play").textContent.trim(), "▶ Play demo");
-  assert.equal($("landing-menu-sample"), null, "the menu's View Sample item follows the same gate as the main button");
+  assert.ok($("landing-menu-play"), "the open menu is rendered (so the next check is not vacuous)");
+  assert.equal($("landing-menu-experience"), null, "the menu's Greet-Me Experience item follows the same gate as the main button");
   assert.equal($("landing-register-tile").textContent.trim(), "Create your free account");
   assert.match(text, /New accounts include 5 free sends during your 7-day trial\./);
   assert.match(text, /Your first test Greet-Me is free and doesn’t count against your five trial sends\./);
   assert.equal($("landing-signin").getAttribute("href"), "/login");
   assert.equal($("landing-register-top").getAttribute("href"), "/register");
-  assert.equal($("landing-view-sample"), null, "View Sample Greet-Me is not rendered while SHOW_SAMPLE_ENTRY is false");
-  assert.doesNotMatch(text, /View Sample Greet-Me|Tap for sound|Test a Greet-Me|onboarding test|Loading demo/);
+  assert.equal($("landing-experience"), null, "The Greet-Me Experience is not rendered while SHOW_SAMPLE_ENTRY is false");
+  assert.doesNotMatch(text, /View Sample Greet-Me|The Greet-Me Experience|Tap for sound|Test a Greet-Me|onboarding test|Loading demo/);
 });
 
 test("nothing plays before a tap; the cover's Play starts from 0:00 with sound", async () => {
