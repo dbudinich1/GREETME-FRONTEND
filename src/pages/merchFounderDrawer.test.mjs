@@ -298,7 +298,8 @@ test("the isolated feature is switched off: literal false, no env override", () 
 });
 
 test("every Merch.jsx hunk of the feature is behind the switch; with it off the button keeps its contact-sales route", () => {
-  assert.match(MERCH_CODE, /const branding = useMerchBranding\(\{ enabled: merchBrandingEnabled\(\) \}\);/);
+  // 153C: the page also tells the feature whether the customer is signed in (inert while the switch is off).
+  assert.match(MERCH_CODE, /const branding = useMerchBranding\(\{ enabled: merchBrandingEnabled\(\), signedIn: Boolean\(user\) \}\);/);
   assert.match(MERCH_CODE, /onClick=\{branding\.enabled \? branding\.openBrandingStep : \(\) => navigate\('\/business\?contact=sales'\)\}/);
   assert.match(MERCH_CODE, /\{branding\.enabled && <MerchBrandingLayer /);
   assert.match(MERCH_CODE, /\{branding\.enabled && selectedCategory === BRANDABLE && <BrandingControls /);

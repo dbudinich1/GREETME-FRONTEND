@@ -7,13 +7,22 @@
 // The applied logo lives in a module-level session store, so it is RETAINED while the customer browses
 // categories and opens products (Merch remounts keep it). Clear branding removes it here and on the
 // server (retention default: "kept only while in use; Clear deletes" — Q3 open).
+//
+// 153C — signed-out handling. Branding needs an account (the logo is stored under the customer's id, so
+// only they can see, replace or clear it). A signed-out customer who presses "Brand for My Company" gets
+// a sign-in step instead of the upload; a sign-in that expires mid-session (any 401) drops the local
+// branding and shows the same step with an "expired" line. Nothing is uploaded while signed out.
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { getBrandingApi } from './brandingApiProvider.js';
 import { BRANDING_STRINGS as S } from './brandingStrings.js';
 
 const POLL_MS = 15000;
-const MAX_POLLS = 12;
+// 153C: 40 polls x 15 s = 10 minutes. The server creates at most 2 mockup tasks a minute (Q8: the
+// store's create-task header said 10/min on 2026-10-29; 2 is kept until confirmed), so 4 products'
+// first variants are ready within ~2 minutes and all 9 variants within ~5.
+const MAX_POLLS = 40;
+const isAuthFailure = (r) => Boolean(r && r.status === 401);
 
 const initial = () => ({ logo: null, previewSrc: null, catalog: [], mockups: {}, config: null });
 let session = initial();
@@ -29,7 +38,7 @@ function toPreviewSrc(file) {
   try { return URL.createObjectURL(file); } catch { return null; }
 }
 
-export function useMerchBranding({ enabled = false, api: apiOverride = null } = {}) {
+export function useMerchBranding({ enabled = false, signedIn = true, api: apiOverride = null } = {}) {
   const [state, setState] = useState(session);
   const [step, setStep] = useState(null); // null | {type:'logo'} | {type:'preview'|'approval', syncProductId, syncVariantId}
   const [busy, setBusy] = useState(false);
@@ -44,14 +53,21 @@ export function useMerchBranding({ enabled = false, api: apiOverride = null } = 
     return () => { listeners.delete(l); };
   }, [enabled]);
 
+  // A 401 means the sign-in ended: forget the local branding and ask the customer to sign in again.
+  const signInAgain = useCallback(() => {
+    setSession(initial());
+    setStep({ type: 'signin', expired: true });
+  }, []);
+
   const refreshMockups = useCallback(async (logoId) => {
     if (!api || !logoId) return;
     const r = await api.getMockups(logoId);
+    if (isAuthFailure(r)) { signInAgain(); return; }
     if (!r || !r.ok || !Array.isArray(r.mockups)) return;
     setSession((s) => (s.logo && s.logo.logoId === logoId
       ? { mockups: Object.fromEntries(r.mockups.map((m) => [m.syncVariantId, m])) }
       : {}));
-  }, [api]);
+  }, [api, signInAgain]);
 
   // Poll while any mockup is still being prepared (browsing never waits on it).
   useEffect(() => {
@@ -69,6 +85,7 @@ export function useMerchBranding({ enabled = false, api: apiOverride = null } = 
     try {
       const current = session.logo;
       const r = current ? await api.replaceLogo(current.logoId, file) : await api.uploadLogo(file);
+      if (isAuthFailure(r)) { signInAgain(); return { ok: false }; }
       if (!r || !r.ok) { setError((r && r.error) || S.uploadFailed); return { ok: false }; }
       const cfg = session.config || (await api.getConfig().catch(() => null));
       polls.current = 0;
@@ -78,7 +95,7 @@ export function useMerchBranding({ enabled = false, api: apiOverride = null } = 
     } finally {
       setBusy(false);
     }
-  }, [api]);
+  }, [api, signInAgain]);
 
   const clear = useCallback(async () => {
     if (!api || !session.logo) return;
@@ -129,7 +146,7 @@ export function useMerchBranding({ enabled = false, api: apiOverride = null } = 
     busy,
     error,
     setStep: enabled ? setStep : () => {},
-    openBrandingStep: () => { if (enabled) { setError(null); setStep({ type: 'logo' }); } },
+    openBrandingStep: () => { if (enabled) { setError(null); setStep(signedIn ? { type: 'logo' } : { type: 'signin', expired: false }); } },
     applyFile,
     clear,
     cardBranding,

@@ -8,6 +8,7 @@
 // position — explicitly NOT a photo of the product. The "Product preview" is Printful's own mockup.
 
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BRANDING_STRINGS as S } from './brandingStrings.js';
 import { SPECS } from './brandingApi.js';
 
@@ -57,6 +58,27 @@ function LogoStep({ branding }) {
         <button type="button" style={btnGhost} onClick={close}>{S.cancel}</button>
         <button type="button" data-testid="branding-apply" style={{ ...btnPrimary, opacity: file && !branding.busy ? 1 : 0.5, cursor: file && !branding.busy ? 'pointer' : 'not-allowed' }}
           disabled={!file || branding.busy} onClick={() => branding.applyFile(file)}>{branding.busy ? S.uploading : S.applyLogo}</button>
+      </div>
+    </Dialog>
+  );
+}
+
+/** 153C — shown instead of the upload when the customer is signed out or their sign-in expired. */
+function SignInStep({ branding }) {
+  const navigate = useNavigate();
+  const close = () => branding.setStep(null);
+  // Login returns to the dashboard today: utils/paymentMethod.js loginReturnPath() only honours the
+  // payment-method page. Coming back to the Gift Place needs that shared allowlist extended (Team 6).
+  const signIn = () => { branding.setStep(null); navigate('/login', { state: { from: '/dashboard/gifts' } }); };
+  return (
+    <Dialog title={S.signInTitle} onClose={close} testId="branding-signin-step">
+      {branding.step && branding.step.expired
+        ? <p role="alert" data-testid="branding-signin-expired" style={{ margin: '0 0 0.75rem', fontSize: '0.9375rem', lineHeight: 1.5, color: '#b45309', fontWeight: 600 }}>{S.signInExpired}</p>
+        : null}
+      <p style={{ margin: '0 0 1rem', fontSize: '0.9375rem', lineHeight: 1.5, color: '#4b4060' }}>{S.signInIntro}</p>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <button type="button" style={btnGhost} onClick={close}>{S.cancel}</button>
+        <button type="button" data-testid="branding-signin" style={btnPrimary} onClick={signIn}>{S.signInButton}</button>
       </div>
     </Dialog>
   );
@@ -153,6 +175,7 @@ function PlacementOrApproval({ branding, products, mode }) {
 
 export default function MerchBrandingLayer({ branding, products }) {
   if (!branding || !branding.enabled || !branding.step) return null;
+  if (branding.step.type === 'signin') return <SignInStep branding={branding} />;
   if (branding.step.type === 'logo') return <LogoStep branding={branding} />;
   if (branding.step.type === 'preview') return <PlacementOrApproval key={`p-${branding.step.syncProductId}`} branding={branding} products={products} mode="preview" />;
   if (branding.step.type === 'approval') return <PlacementOrApproval key={`a-${branding.step.syncVariantId}`} branding={branding} products={products} mode="approval" />;

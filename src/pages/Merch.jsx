@@ -70,7 +70,7 @@ export default function Merch() {
   // CHECKPOINT 2 — founder drawer state. Nothing about the customer surface depends on this.
   const { user } = useAuth();
   const founder = isFounder(user);
-  const branding = useMerchBranding({ enabled: merchBrandingEnabled() });
+  const branding = useMerchBranding({ enabled: merchBrandingEnabled(), signedIn: Boolean(user) });
   const [catalogOpen, setCatalogOpen] = useState(false);
   // GIFT CARDS — Manage Catalog Publish/Unpublish is the checkout authority (Team C, 2026-09-22).
   // "Coming later" is the honest DEFAULT, not a hardcoded permanent state: this asks the server —

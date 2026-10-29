@@ -63,7 +63,7 @@ async function bundle(out, flagsOn) {
 }
 
 before(async () => {
-  writeFileSync(T("auth.js"), "export const useAuth = () => ({ user: { id: 'u1', email: 'a@example.com', name: 'A' } });\nexport default { useAuth };\n");
+  writeFileSync(T("auth.js"), "export const useAuth = () => ({ user: globalThis.__TEST_SIGNED_OUT ? null : { id: 'u1', email: 'a@example.com', name: 'A' } });\nexport default { useAuth };\n");
   writeFileSync(T("api.js"),
     "const merch = " + JSON.stringify(MERCH_PRODUCTS) + ";\n"
     + "async function request(url = '') { if (String(url).includes('/api/merch/products')) return { products: merch }; return {}; }\n"
@@ -126,7 +126,8 @@ async function mount(mod) {
     root.render(h(mod.MemoryRouter, { initialEntries: ["/dashboard/gifts"] },
       h(mod.Routes, null,
         h(mod.Route, { path: "/dashboard/gifts", element: h(mod.Merch) }),
-        h(mod.Route, { path: "/business", element: h("div", { "data-testid": "business-page" }, "BUSINESS") }))));
+        h(mod.Route, { path: "/business", element: h("div", { "data-testid": "business-page" }, "BUSINESS") }),
+        h(mod.Route, { path: "/login", element: h("div", { "data-testid": "login-page" }, "LOGIN") }))));
   });
   await tick(); await tick();
   return { host, unmount: () => act(() => root.unmount()) };
@@ -254,4 +255,57 @@ test("ON: adding a branded product opens the artwork approval in the purchase jo
     await click(q(m.host, "gift-card-action-999000111"));
     assert.equal(ON.cartCalls.length, 1);
   } finally { await m.unmount(); }
+});
+
+// ── 153C: signed out / sign-in expired ──────────────────────────────────────────────────────
+test("ON, signed out: the button opens a sign-in step, not the upload; nothing is uploaded; Sign in goes to /login", async () => {
+  ON.__resetBrandingSession();
+  globalThis.__TEST_SIGNED_OUT = true;
+  const m = await mount(ON);
+  try {
+    const before = ON.__api.calls.length;
+    await click(brandButton(m.host));
+    const dlg = q(win.document.body, "branding-signin-step");
+    assert.ok(dlg, "sign-in step shown");
+    assert.equal(text(dlg.querySelector("h2")), "Sign in to brand with your logo");
+    assert.match(text(dlg), /Your logo is kept in your Greet-Me account, so only you can see it, replace it or clear it\./);
+    assert.ok(!q(dlg, "branding-signin-expired"), "no 'expired' line for a customer who was never signed in");
+    assert.equal(win.document.querySelectorAll('input[type="file"]').length, 0, "no file input while signed out");
+    assert.equal(ON.__api.calls.length, before, "no branding API call while signed out");
+    await click(q(dlg, "branding-signin"));
+    assert.ok(q(m.host, "login-page"), "navigated to /login");
+    assert.ok(!q(win.document.body, "branding-signin-step"));
+  } finally { globalThis.__TEST_SIGNED_OUT = false; await m.unmount(); }
+});
+
+test("ON: a sign-in that expires mid-session (401) drops the local branding and asks to sign in again", async () => {
+  ON.__resetBrandingSession();
+  const m = await mount(ON);
+  const real = ON.__api.getMockups;
+  try {
+    // The upload itself succeeds; the first mockup read (made right after it) is answered 401.
+    ON.__api.getMockups = async () => ({ ok: false, status: 401 });
+    await click(brandButton(m.host));
+    await chooseFile(m.host, "logo.png");
+    await tick(); await tick();
+    const dlg = q(win.document.body, "branding-signin-step");
+    assert.ok(dlg, "sign-in step shown");
+    assert.equal(text(q(dlg, "branding-signin-expired")), "Your sign-in has expired. Sign in again to brand products with your logo.");
+    assert.equal(m.host.querySelectorAll('[data-testid^="gift-card-branding-"]').length, 0, "local branding dropped");
+    assert.ok(!q(m.host, "branding-controls"));
+  } finally { ON.__api.getMockups = real; await m.unmount(); }
+});
+
+test("ON: an upload answered 401 shows the sign-in step instead of a generic upload error", async () => {
+  ON.__resetBrandingSession();
+  const m = await mount(ON);
+  const real = ON.__api.uploadLogo;
+  try {
+    ON.__api.uploadLogo = async () => ({ ok: false, status: 401, error: "Invalid or expired token" });
+    await click(brandButton(m.host));
+    await chooseFile(m.host, "logo.png");
+    assert.ok(!q(win.document.body, "branding-logo-step"));
+    assert.ok(q(win.document.body, "branding-signin-expired"));
+    assert.ok(!q(win.document.body, "branding-error"), "the server's raw message is not shown");
+  } finally { ON.__api.uploadLogo = real; await m.unmount(); }
 });
