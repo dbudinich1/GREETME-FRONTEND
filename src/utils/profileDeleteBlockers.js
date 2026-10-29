@@ -31,6 +31,17 @@ export const M1_RECURRING_IN_USE_NAMED = (thing, campaignName) =>
 export const M1_RECURRING_IN_USE_UNNAMED = (thing) =>
   `A corporate campaign that repeats every year still uses ${thing} for its future greetings. It must be switched off with its on/off switch in For Business → Corporate Campaign Dashboard before ${thing} can be deleted.`;
 
+// PROPOSED copy — pending founder's exact approved text (T5 W6: the campaign could not be read, so it may already be off)
+export const M1_RECURRING_IN_USE_UNCONFIRMED = (thing) =>
+  `A corporate campaign that repeats every year may still use ${thing} for its future greetings. We couldn't check it just now, so nothing was deleted. Please try again shortly, or switch that campaign off with its on/off switch in For Business → Corporate Campaign Dashboard first.`;
+
+// T5 W5: N counts the FULL list (the server sends `blockerCount`, before its cap of 5) and the wording is neutral when any
+// of the others is a campaign (`moreIncludeCampaigns`). Identical to the server's MORE_BLOCKERS_SUFFIX.
+// PROPOSED copy — pending founder's exact approved text
+export const MORE_BLOCKERS_SUFFIX = (more, includesCampaign) => (includesCampaign
+  ? `(${more} more scheduled greeting${more === 1 ? '' : 's'} or campaign${more === 1 ? '' : 's'} also use${more === 1 ? 's' : ''} it.)`
+  : `(${more} more scheduled greeting${more === 1 ? '' : 's'} also use${more === 1 ? 's' : ''} it.)`);
+
 function sentenceFor(b, thing) {
   const when = formatWhen(b && b.scheduledForUtc);
   if (b && b.kind === 'queued_send') {
@@ -39,6 +50,7 @@ function sentenceFor(b, thing) {
     return `${what}${when ? ` scheduled for ${when}` : ''} is about to send with ${thing}. Try again after it has been sent, or turn off that occasion's automatic send first.`;
   }
   if (b && b.kind === 'corporate_campaign' && b.recurring === true) {
+    if (b.unconfirmed === true) return M1_RECURRING_IN_USE_UNCONFIRMED(thing);
     return b.campaignName ? M1_RECURRING_IN_USE_NAMED(thing, b.campaignName) : M1_RECURRING_IN_USE_UNNAMED(thing);
   }
   if (b && b.kind === 'corporate_campaign') {
@@ -71,8 +83,10 @@ export function describeProfileAssetInUse(error, asset = 'photo') {
   if (blockers.length) {
     const first = sentenceFor(blockers[0], thing);
     if (first) {
-      const more = blockers.length - 1;
-      return more > 0 ? `${first} (${more} more scheduled greeting${more === 1 ? '' : 's'} also use${more === 1 ? 's' : ''} it.)` : first;
+      const total = Number.isInteger(data && data.blockerCount) && data.blockerCount >= blockers.length ? data.blockerCount : blockers.length;
+      const more = total - 1;
+      const includesCampaign = (data && data.moreIncludeCampaigns === true) || blockers.slice(1).some((x) => x && x.kind === 'corporate_campaign');
+      return more > 0 ? `${first} ${MORE_BLOCKERS_SUFFIX(more, includesCampaign)}` : first;
     }
   }
   // Older server: only the kind is known.

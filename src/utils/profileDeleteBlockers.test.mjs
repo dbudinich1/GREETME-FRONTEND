@@ -3,7 +3,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { describeProfileAssetInUse, M1_RECURRING_IN_USE_NAMED, M1_RECURRING_IN_USE_UNNAMED } from "./profileDeleteBlockers.js";
+import { describeProfileAssetInUse, M1_RECURRING_IN_USE_NAMED, M1_RECURRING_IN_USE_UNNAMED, M1_RECURRING_IN_USE_UNCONFIRMED, MORE_BLOCKERS_SUFFIX } from "./profileDeleteBlockers.js";
 
 const inUse = (data) => Object.assign(new Error("A Greet-Me or campaign still needs this."), { status: 409, code: "PROFILE_ASSET_IN_USE", data: { code: "PROFILE_ASSET_IN_USE", ...data } });
 
@@ -31,7 +31,8 @@ test("queued send, voice wording, and the 'more' count", () => {
   ] }), "voice");
   assert.match(s, /^A work anniversary greeting scheduled for October 8, 2026/);
   assert.match(s, /is about to send with this voice recording\./);
-  assert.match(s, /\(1 more scheduled greeting also uses it\.\)$/);
+  // T5 W5: the other blocker is a campaign, so the suffix is the neutral form
+  assert.match(s, /\(1 more scheduled greeting or campaign also uses it\.\)$/);
 });
 
 test("older server (inUseBy only) still gets a specific sentence", () => {
@@ -61,11 +62,32 @@ test("M1: a locked recurring campaign -> the switch-it-off sentence, identical t
   assert.equal(unnamed, M1_RECURRING_IN_USE_UNNAMED("this voice recording"));
   const two = describeProfileAssetInUse(inUse({ inUseBy: "corporate_campaign", blockers: [
     { kind: "corporate_campaign", campaignName: "Client birthdays", recurring: true }, { kind: "corporate_campaign", campaignName: "Anniversaries", recurring: true }] }));
-  assert.equal(two, `${M1_RECURRING_IN_USE_NAMED("this photo", "Client birthdays")} (1 more scheduled greeting also uses it.)`);
+  assert.equal(two, `${M1_RECURRING_IN_USE_NAMED("this photo", "Client birthdays")} (1 more scheduled greeting or campaign also uses it.)`);
 });
 
 test("M1: the existing schedule-row corporate sentences are unchanged", () => {
   const s = describeProfileAssetInUse(inUse({ inUseBy: "corporate_campaign", blockers: [{ kind: "corporate_campaign", scheduledForUtc: "2027-09-02T07:00:00.000Z", campaignName: "Preflight", status: "scheduled" }] }));
   assert.match(s, /^Your corporate campaign "Preflight" still uses this photo for a greeting scheduled for September 2, 2027/);
   assert.match(s, /Switch that campaign off or remove it, then try again\.$/);
+});
+
+// Team 5 notes W5 / W6 (2026-10-29)
+test("W6: campaign could not be read -> the 'couldn't check' sentence", () => {
+  const s = describeProfileAssetInUse(inUse({ inUseBy: "corporate_campaign", blockers: [{ kind: "corporate_campaign", scheduledForUtc: null, campaignName: null, status: null, recurring: true, unconfirmed: true }] }));
+  assert.equal(s, "A corporate campaign that repeats every year may still use this photo for its future greetings. We couldn't check it just now, so nothing was deleted. Please try again shortly, or switch that campaign off with its on/off switch in For Business → Corporate Campaign Dashboard first.");
+  assert.equal(s, M1_RECURRING_IN_USE_UNCONFIRMED("this photo"));
+});
+
+test("W5: N comes from the server's full blockerCount, and the wording is neutral when the others include a campaign", () => {
+  const five = ["A", "B", "C", "D", "E"].map((x) => ({ kind: "corporate_campaign", campaignName: `Camp ${x}`, recurring: true }));
+  const s = describeProfileAssetInUse(inUse({ inUseBy: "corporate_campaign", blockers: five, blockerCount: 7, moreIncludeCampaigns: true }));
+  assert.equal(s, `${M1_RECURRING_IN_USE_NAMED("this photo", "Camp A")} (6 more scheduled greetings or campaigns also use it.)`);
+  // queued sends only: the original wording
+  const q = describeProfileAssetInUse(inUse({ inUseBy: "queued_send", blockers: [{ kind: "queued_send" }, { kind: "queued_send" }], blockerCount: 2, moreIncludeCampaigns: false }));
+  assert.match(q, / \(1 more scheduled greeting also uses it\.\)$/);
+  // a campaign hidden beyond the cap still switches the wording
+  const h = describeProfileAssetInUse(inUse({ inUseBy: "queued_send", blockers: [{ kind: "queued_send" }], blockerCount: 2, moreIncludeCampaigns: true }));
+  assert.match(h, / \(1 more scheduled greeting or campaign also uses it\.\)$/);
+  assert.equal(MORE_BLOCKERS_SUFFIX(1, false), "(1 more scheduled greeting also uses it.)");
+  assert.equal(MORE_BLOCKERS_SUFFIX(6, true), "(6 more scheduled greetings or campaigns also use it.)");
 });
