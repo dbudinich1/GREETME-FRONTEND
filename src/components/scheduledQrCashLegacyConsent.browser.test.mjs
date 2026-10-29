@@ -93,6 +93,7 @@ const BASE = { id: "c-legacy", name: "Avery Fixture", email: "avery@example.test
 const LEGACY = { birthday: { type: "qrcash", amount: 25, autoGift: true } };                                 // saved before consent existed
 const snap = (type, amountCents, wordingVersion = "w07-sched-qrcash-v1") => ({ contactId: "c-legacy", occasionType: type, amountCents, feeCents: 274, totalCents: amountCents + 274, maxTotalCents: amountCents + 274, recurrence: "yearly", wordingVersion, acceptedAt: "2026-10-01T00:00:00.000Z" });
 const contactWith = (settings, consents) => ({ ...BASE, occasionGiftSettings: JSON.parse(JSON.stringify(settings)), ...(consents ? { scheduledQrCashConsents: consents } : {}) });
+const subtitle = () => (document.querySelector('[data-testid="save-modal"] h2 + p') || {}).textContent;
 const save = async () => { await click(document.querySelector('[data-testid="contact-form-footer"] button[type="submit"]')); await flush(); };
 
 test("LIVE-3: an unchanged legacy Auto-Gift QR Cash with NO stored consent and a good card - SAVE opens the existing consent step for it", async () => {
@@ -105,6 +106,7 @@ test("LIVE-3: an unchanged legacy Auto-Gift QR Cash with NO stored consent and a
   assert.match(tid("consent-block-birthday").textContent.replace(/\s+/g, " "), /charge my card \$27\.74 on November 14 for Birthday: my \$25\.00 QR Cash gift/);
   assert.equal(tid("first-consent-note-birthday").textContent, "This Auto-Gift was set up before we started asking for payment authorization, so we need your OK before it can send automatically.", "the one explanatory line (PROPOSED copy)");
   assert.equal(all("consent-text").length, 1, "the consent wording itself is unchanged and separate");
+  assert.equal(subtitle(), "Please confirm your authorization for this Auto-Gift before we save.", "never 'You changed this Auto-Gift' for an unchanged setting (PROPOSED copy)");
   assert.equal(submitted.length, 0, "nothing saved yet");
 });
 
@@ -164,6 +166,17 @@ test("a CHANGED setting (new amount) gets the consent block WITHOUT the explanat
   await save();
   assert.ok(tid("consent-block-birthday"));
   assert.equal(document.querySelector('[data-testid^="first-consent-note-"]'), null);
+  assert.equal(subtitle(), "You changed this Auto-Gift, so please confirm your authorization before we save.", "a changed setting keeps today's subtitle");
+});
+
+test("several first-consent items keep today's 'each Auto-Gift below' subtitle (no claim of a change)", async () => {
+  const TWO = { birthday: { type: "qrcash", amount: 25, autoGift: true }, christmas: { type: "qrcash", amount: 50, autoGift: true } };
+  for (const consents of [undefined, { christmas: snap("christmas", 4000) }]) {   // none on record; or a consent that does not cover the amount
+    await mount(contactWith(TWO, consents));
+    await save();
+    assert.equal(all("consent-checkbox").length, 2);
+    assert.equal(subtitle(), "Please confirm your authorization for each Auto-Gift below before we save.");
+  }
 });
 
 test("Auto-Gift off or a manual QR Cash gift: nothing to consent to, no modal (unchanged behaviour)", async () => {
