@@ -1,0 +1,373 @@
+// src/components/experience/greetMeExperience.browser.test.mjs
+//
+// THE GREET-ME EXPERIENCE, MOUNTED with the real Landing, the real orchestrator and the real, unchanged card
+// player (GreetingCardProto/*), in jsdom:
+//   - the landing CTA reads "The Greet-Me Experience" and opens the guide at the invitation;
+//   - the guide drives the card through its own controls in flow order (envelope, turn-over, open, Intro,
+//     Featured Spread, finale, sample QR -> claim, return) and a video 'ended' moves it to the photos;
+//   - the visitor's pointer / touch / key interaction pauses progression (visible Paused + Resume); the guide's
+//     own controls and Tab do not;
+//   - manual Back / Next, Replay, Sound on/off, Exit (button and Escape);
+//   - back on the landing the intro video is started from 0:00 with sound; when play() is refused the Play
+//     cover stays with a prompt and focus goes to Play;
+//   - no fetch / XHR / beacon at all (so none to claim, payment or send endpoints), no /claim-credit/ link,
+//     no greetme_ storage.
+// jsdom has no media pipeline: play()/pause()/paused/muted/currentTime are stubbed on the element prototype.
+// prefers-reduced-motion is reported as 'reduce' so page turns take the player's 150 ms path.
+//
+// Run (Node 20.x):  node --test src/components/experience/greetMeExperience.browser.test.mjs
+
+import { test, before, after } from "node:test";
+import assert from "node:assert/strict";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { dirname, join } from "node:path";
+import { writeFileSync, rmSync } from "node:fs";
+import { JSDOM } from "jsdom";
+import esbuild from "esbuild";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PAGES = join(__dirname, "..", "..", "pages");
+const ENTRY = join(PAGES, `.__gx.${process.pid}.entry.jsx`);
+const OUT = join(PAGES, `.__gx.${process.pid}.bundle.mjs`);
+const QR_STUB = join(PAGES, `.__gx.${process.pid}.qr.js`);
+const SAMPLE_URL = "https://greetmedanny.blob.core.windows.net/public/greetme-sample-talking-photo-v1.mp4";
+
+let React, createRoot, act, window, mod, root, host;
+let net = [];          // every fetch / XHR / beacon attempt
+let plays = [];        // play() calls: { el, t, muted }
+let rejectIntro = false;
+
+before(async () => {
+  writeFileSync(ENTRY,
+    'import { MemoryRouter, useLocation } from "react-router-dom";\n'
+    + 'import Landing from "./Landing.jsx";\n'
+    + 'function Loc() { const l = useLocation(); return (<span data-testid="router-path">{l.pathname}</span>); }\n'
+    + 'export function App() { return (<MemoryRouter><Loc /><Landing /></MemoryRouter>); }\n');
+  writeFileSync(QR_STUB, "export default { toDataURL: () => Promise.resolve('data:image/png;base64,AAAA') };\n");
+  await esbuild.build({
+    entryPoints: [ENTRY], outfile: OUT, bundle: true, format: "esm", platform: "browser",
+    jsx: "automatic", jsxImportSource: "react", logLevel: "silent",
+    external: ["react", "react-dom", "react-dom/client", "react/jsx-runtime", "react-router-dom"],
+    loader: { ".css": "empty", ".jpg": "dataurl", ".jpeg": "dataurl", ".png": "dataurl", ".svg": "dataurl", ".wav": "dataurl", ".mp3": "dataurl" },
+    define: { "import.meta.env": "{}", "process.env.NODE_ENV": '"production"' },
+    plugins: [{ name: "stubs", setup(b) {
+      b.onResolve({ filter: /context\/AuthContext$/ }, () => ({ path: "auth", namespace: "stub" }));
+      b.onLoad({ filter: /^auth$/, namespace: "stub" }, () => ({ contents: "export const useAuth = () => ({ isAuthenticated: false, loading: false });", loader: "js" }));
+      b.onResolve({ filter: /^qrcode$/ }, () => ({ path: QR_STUB }));
+    } }],
+  });
+  const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "http://localhost/#/" });
+  window = dom.window;
+  global.window = window; global.document = window.document;
+  Object.defineProperty(globalThis, "navigator", { value: window.navigator, configurable: true, writable: true });
+  Object.assign(global, { HTMLElement: window.HTMLElement, Node: window.Node, getComputedStyle: window.getComputedStyle,
+    MutationObserver: window.MutationObserver, localStorage: window.localStorage, sessionStorage: window.sessionStorage });
+  global.IS_REACT_ACT_ENVIRONMENT = true;
+  window.matchMedia = (q) => ({ matches: /prefers-reduced-motion: reduce/.test(q), media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
+  global.ResizeObserver = window.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
+  global.requestAnimationFrame = window.requestAnimationFrame;
+  global.cancelAnimationFrame = window.cancelAnimationFrame;
+  window.document.fonts = { ready: Promise.resolve() };
+  window.HTMLElement.prototype.scrollIntoView = function scrollIntoView() {};
+  global.fetch = window.fetch = (u) => { net.push(`fetch ${u}`); return Promise.reject(new Error("no network in tests")); };
+  const xo = window.XMLHttpRequest.prototype.open;
+  window.XMLHttpRequest.prototype.open = function open(m, u, ...r) { net.push(`xhr ${m} ${u}`); return xo.call(this, m, u, ...r); };
+  window.navigator.sendBeacon = (u) => { net.push(`beacon ${u}`); return true; };
+  window.Audio = class { constructor() { this.muted = false; this.paused = true; } play() { this.paused = false; return Promise.resolve(); } pause() { this.paused = true; } };
+  global.Audio = window.Audio;
+  window.AudioContext = undefined;
+
+  const proto = window.HTMLMediaElement.prototype;
+  const st = new WeakMap();
+  const s = (el) => { if (!st.has(el)) st.set(el, { paused: true, t: 0, muted: false, ended: false }); return st.get(el); };
+  Object.defineProperty(proto, "paused", { configurable: true, get() { return s(this).paused; } });
+  Object.defineProperty(proto, "ended", { configurable: true, get() { return s(this).ended; } });
+  Object.defineProperty(proto, "currentTime", { configurable: true, get() { return s(this).t; }, set(v) { s(this).t = v; } });
+  Object.defineProperty(proto, "muted", { configurable: true, get() { return s(this).muted; }, set(v) {
+    s(this).muted = v;
+    // A browser that refuses sound without a recent tap pauses a video that script unmutes.
+    if (!v && window.__blockUnmute && this.matches("video.gc-video") && !s(this).paused) { s(this).paused = true; this.dispatchEvent(new window.Event("pause")); }
+  } });
+  Object.defineProperty(proto, "src", {
+    configurable: true,
+    get() { return this.getAttribute("src") || ""; },
+    set(v) { this.setAttribute("src", v); if (v === SAMPLE_URL) Promise.resolve().then(() => this.dispatchEvent(new window.Event("loadedmetadata"))); },
+  });
+  proto.play = function play() {
+    const isIntro = this.getAttribute("aria-label") === "Greet-Me intro video";
+    plays.push({ el: this, isIntro, t: s(this).t, muted: s(this).muted });
+    if (isIntro && rejectIntro) return Promise.reject(new window.DOMException("play() needs a user gesture", "NotAllowedError"));
+    s(this).paused = false; s(this).ended = false;
+    this.dispatchEvent(new window.Event("playing"));
+    return Promise.resolve();
+  };
+  proto.pause = function pause() { if (!s(this).paused) { s(this).paused = true; this.dispatchEvent(new window.Event("pause")); } };
+  proto.load = function load() {};
+  window.__endMedia = (el) => { s(el).paused = true; s(el).ended = true; el.dispatchEvent(new window.Event("ended")); };
+
+  React = (await import("react")).default;
+  act = React.act;
+  ({ createRoot } = await import("react-dom/client"));
+  mod = await import(pathToFileURL(OUT).href);
+});
+
+after(() => { for (const f of [ENTRY, OUT, QR_STUB]) { try { rmSync(f, { force: true }); } catch { /* ignore */ } } });
+
+const wait = async (ms) => { await act(async () => { await new Promise((r) => setTimeout(r, ms)); }); };
+async function mount() {
+  plays = []; rejectIntro = false;
+  window.history.replaceState(null, "", "/#/");
+  if (root) { await act(async () => root.unmount()); host.remove(); }
+  host = document.createElement("div"); document.body.appendChild(host);
+  root = createRoot(host);
+  await act(async () => { root.render(React.createElement(mod.App)); });
+  await wait(20);
+}
+const $ = (t) => document.querySelector(`[data-testid="${t}"]`);
+const step = () => $("experience-overlay")?.getAttribute("data-step") ?? null;
+const paused = () => $("experience-overlay")?.getAttribute("data-paused") === "true";
+const click = async (el, settle = 30) => { await act(async () => { el.dispatchEvent(new window.MouseEvent("click", { bubbles: true })); }); await wait(settle); };
+const key = async (k, target = document.body, settle = 30) => {
+  await act(async () => { target.dispatchEvent(new window.KeyboardEvent("keydown", { key: k, bubbles: true })); }); await wait(settle);
+};
+const pointer = async (el) => { await act(async () => { el.dispatchEvent(new window.Event("pointerdown", { bubbles: true })); }); await wait(10); };
+const cardVideo = () => document.querySelector("video.gc-video");
+const introVideo = () => document.querySelector('video[aria-label="Greet-Me intro video"]');
+async function openExperience() {
+  await mount();
+  const cta = $("landing-experience");
+  assert.ok(cta, "the CTA is shown (sample video available)");
+  await click(cta);
+  await wait(30);
+  assert.equal(step(), "invite");
+}
+// Next until `id`, letting the card's own animations finish between presses.
+async function nextTo(id) {
+  for (let i = 0; i < 12 && step() !== id; i++) await click($("experience-next"), 400);
+  assert.equal(step(), id);
+}
+
+test("CTA: 'The Greet-Me Experience' on the landing and in the menu; it opens the guide at the invitation email", async () => {
+  await mount();
+  const cta = $("landing-experience");
+  assert.match(cta.textContent, /^✉ The Greet-Me Experience$/);
+  assert.equal($("landing-support").nextElementSibling, cta, "same place as the sample entry it replaces");
+  assert.doesNotMatch(document.body.textContent, /View Sample Greet-Me/);
+  await click($("landing-menu-btn-page"));
+  assert.match($("landing-menu-experience").textContent, /The Greet-Me Experience/);
+  await click($("landing-menu-btn-page"));
+  await click(cta);
+  assert.ok($("experience-overlay"));
+  assert.equal(step(), "invite");
+  assert.match($("experience-invite").textContent, /Claire sent you a Greet-Me/);
+  assert.match($("experience-step-label").textContent, /^1 of 10 · Your invitation$/);
+  assert.equal(document.querySelector(".gc-container"), null, "the card is not mounted yet");
+  await click($("experience-open-invite"));
+  assert.equal(step(), "envelope");
+  assert.ok(document.querySelector(".gc-envelope-wrapper"), "the real card opens at its envelope");
+  assert.equal(paused(), false, "opening the invitation is not an interruption");
+});
+
+test("step order: the guide drives the unchanged card through its own controls; a video end moves to the photos", async () => {
+  await openExperience();
+  const order = [step()];
+  await click($("experience-next"), 200); order.push(step());          // envelope
+  await click($("experience-next"), 300); order.push(step());          // reverse: the spin runs (reduced motion: one move)
+  const env = document.querySelector(".gc-envelope");
+  assert.match(env.style.transform, /rotateY\(180deg\)/, "turned over to the back (the seal side) by the envelope's own drag handler");
+  await click($("experience-next"), 500); order.push(step());          // cover: the seal was pressed
+  assert.ok(document.querySelector(".gc-cover-wrapper"), "the card opened at its cover");
+  await click($("experience-next"), 500); order.push(step());          // intro
+  assert.ok(document.querySelector(".gc-interior-spread"));
+  await click($("experience-next"), 500); order.push(step());          // video
+  assert.ok(document.querySelector(".gc-featured-spread"));
+  await wait(1700);                                                     // start delay + sound check
+  const v = cardVideo();
+  const started = plays.filter((p) => p.el === v);
+  assert.equal(started.length, 1, "the guide pressed the video's own Play once");
+  assert.equal(started[0].muted, true, "started muted, which every browser allows");
+  assert.equal(v.muted, false, "then given its sound (sound is on and the browser allowed it)");
+  await act(async () => { window.__endMedia(v); }); await wait(50);
+  order.push(step());                                                   // photos: the video ended
+  assert.ok(document.querySelector(".gc-photo-album:not(.gc-album-disabled)"), "the album unlocked by the player itself");
+  await click($("experience-next"), 500); order.push(step());          // finale
+  assert.ok(document.querySelector(".gc-finale-spread"));
+  await wait(50);
+  const qr = document.querySelector('.gc-finale-spread a[href*="sample=credit"]');
+  assert.ok(qr, "the finale shows the sample QR");
+  await click($("experience-next"), 100); order.push(step());          // claim: the sample QR was pressed
+  assert.ok($("sample-credit-reveal"), "the existing sample reveal");
+  assert.match($("sample-ribbon").textContent, /Sample — for demonstration only\. This credit can't be claimed\./);
+  await click($("experience-next"), 50); order.push(step());           // return
+  assert.ok($("experience-end"));
+  assert.deepEqual(order, ["invite", "envelope", "reverse", "cover", "intro", "video", "photos", "finale", "claim", "return"]);
+  assert.equal(document.querySelector('a[href*="claim-credit"]'), null, "never a real claim link");
+});
+
+test("pause on interaction (pointer, touch, key) with a visible Paused state; Resume; controls and Tab do not pause", async () => {
+  await openExperience();
+  await click($("experience-open-invite"), 100);
+  await click($("experience-next"), 100);
+  assert.equal(paused(), false, "the guide's own Next is not an interruption");
+  await key("Tab"); assert.equal(paused(), false, "Tab (reaching the controls) is not an interruption");
+  await pointer(document.querySelector(".gc-envelope"));
+  assert.equal(paused(), true, "a pointer on the card pauses");
+  assert.match($("experience-paused").textContent, /^Paused▶ Resume$/);
+  assert.ok($("experience-resume"), "Resume replaces Pause");
+  assert.equal($("experience-pause"), null);
+  await click($("experience-resume"));
+  assert.equal(paused(), false); assert.equal($("experience-paused"), null);
+  await act(async () => { document.querySelector(".gc-envelope").dispatchEvent(new window.Event("touchstart", { bubbles: true })); }); await wait(10);
+  assert.equal(paused(), true, "a touch pauses");
+  await click($("experience-resume-pill"));
+  assert.equal(paused(), false, "the pill's Resume works too");
+  await key("a"); assert.equal(paused(), true, "a key pauses");
+  await click($("experience-resume"));
+  await click($("experience-pause")); assert.equal(paused(), true, "Pause button");
+  await click($("experience-next"), 400);
+  assert.equal(paused(), true, "manual navigation keeps the visitor's pause");
+});
+
+test("the visitor's own card navigation is followed (tap the cover, arrow keys)", async () => {
+  await openExperience();
+  await click($("experience-open-invite"), 100);
+  await click($("experience-next"), 400);                      // reverse
+  await click(document.querySelector(".gc-wax-seal"), 500);    // the visitor opens the seal
+  assert.equal(step(), "cover");
+  await key("ArrowRight", document.body, 500);                 // the player's own keyboard navigation
+  assert.equal(step(), "intro"); assert.equal(paused(), true, "and their key paused the tour");
+  await key("ArrowLeft", document.body, 500);
+  assert.equal(step(), "cover");
+});
+
+test("manual Back: card screens turn back; the cover goes back to a fresh envelope; then to the invitation", async () => {
+  await openExperience();
+  await nextTo("intro");
+  await wait(300);
+  await click($("experience-back"), 500);
+  assert.equal(step(), "cover"); assert.ok(document.querySelector(".gc-cover-wrapper"));
+  await click($("experience-back"), 200);
+  assert.equal(step(), "reverse");
+  assert.ok(document.querySelector(".gc-envelope-wrapper"), "a fresh envelope (the player never turns back to it itself)");
+  await click($("experience-back"), 200);
+  assert.equal(step(), "envelope");
+  await click($("experience-back"), 100);
+  assert.equal(step(), "invite"); assert.equal(document.querySelector(".gc-container"), null);
+  assert.equal($("experience-back").disabled, true, "nothing before the invitation");
+});
+
+test("sound toggle mutes and unmutes everything the card plays, including the album music's own control", async () => {
+  await openExperience();
+  await nextTo("video");
+  await wait(1700);
+  const v = cardVideo();
+  await act(async () => { window.__endMedia(v); }); await wait(50);
+  assert.equal(step(), "photos");
+  const albumBtn = () => document.querySelector(".gc-album-mute-btn");
+  assert.equal(albumBtn().getAttribute("aria-label"), "Mute", "album music on");
+  const snd = $("experience-sound");
+  assert.equal(snd.getAttribute("aria-pressed"), "true");
+  await click(snd);
+  assert.equal(snd.getAttribute("aria-pressed"), "false");
+  assert.match(snd.getAttribute("aria-label"), /Sound is off/);
+  const media = [...document.querySelectorAll(".gc-container video, .gc-container audio")];
+  assert.ok(media.length >= 3, "video + the card's two cue sounds");
+  assert.ok(media.every((m) => m.muted), "all muted");
+  assert.equal(albumBtn().getAttribute("aria-label"), "Unmute", "album music muted through its own button");
+  assert.equal(paused(), false, "Sound is not an interruption");
+  await click(snd);
+  assert.ok(media.every((m) => !m.muted), "all unmuted");
+  assert.equal(albumBtn().getAttribute("aria-label"), "Mute");
+});
+
+test("browser refuses the video's sound: it keeps playing muted, a note says so, and Sound on (a tap) gives it sound", async () => {
+  await openExperience();
+  window.__blockUnmute = true;
+  await nextTo("video");
+  await wait(1700);
+  const v = cardVideo();
+  assert.equal(v.paused, false, "still playing");
+  assert.equal(v.muted, true, "muted again after the browser paused it for unmuting");
+  assert.match($("experience-note").textContent, /started the video without sound\. Press Sound on to hear it\./);
+  const snd = $("experience-sound");
+  assert.equal(snd.getAttribute("aria-pressed"), "false", "the control shows the sound that is actually off");
+  window.__blockUnmute = false; // the visitor's press is the tap the browser needs
+  await click(snd);
+  assert.equal(v.muted, false, "sound on");
+  assert.equal(snd.getAttribute("aria-pressed"), "true");
+  assert.equal($("experience-note"), null);
+  assert.equal(paused(), false, "Sound is not an interruption");
+});
+
+test("replay: back to the start of the experience, running", async () => {
+  await openExperience();
+  await nextTo("cover");
+  await click($("experience-pause"));
+  await click($("experience-replay"), 100);
+  assert.equal(step(), "invite");
+  assert.equal(paused(), false);
+  assert.equal(document.querySelector(".gc-container"), null);
+  await click($("experience-open-invite"), 100);
+  assert.ok(document.querySelector(".gc-envelope-wrapper"), "a fresh card from its envelope");
+});
+
+test("exit button: back to the landing; the intro video is started from 0:00 with sound", async () => {
+  await openExperience();
+  await nextTo("cover");
+  const iv = introVideo(); iv.currentTime = 7;
+  plays = [];
+  await click($("experience-exit"), 60);
+  assert.equal($("experience-overlay"), null, "the guide is closed");
+  assert.ok($("landing-page"));
+  const p = plays.filter((x) => x.isIntro);
+  assert.equal(p.length, 1, "play attempted once");
+  assert.equal(p[0].t, 0, "from the beginning"); assert.equal(p[0].muted, false, "with sound");
+  assert.ok($("landing-pause"), "it is playing: the bar offers Pause");
+  assert.equal($("landing-video-cover"), null);
+  assert.equal($("landing-autoplay-blocked"), null);
+  assert.equal(document.body.style.overflow, "", "page scroll restored");
+});
+
+test("Escape exits; when the browser refuses play(), the Play cover stays with a prompt and focus goes to Play", async () => {
+  await openExperience();
+  await nextTo("intro");
+  rejectIntro = true; plays = [];
+  await key("Escape", document.body, 60);
+  assert.equal($("experience-overlay"), null, "Escape exits");
+  assert.equal(plays.filter((x) => x.isIntro).length, 1, "play was attempted");
+  assert.ok($("landing-video-cover"), "the Play cover is shown again");
+  assert.match($("landing-autoplay-blocked").textContent, /Press Play to start the intro video\./);
+  assert.equal(document.activeElement, $("landing-big-play"), "keyboard focus on Play");
+  assert.equal($("landing-big-play").getAttribute("aria-label"), "Play intro video");
+  // The visitor's own tap then plays it.
+  rejectIntro = false;
+  await click($("landing-big-play"));
+  assert.ok($("landing-pause")); assert.equal($("landing-autoplay-blocked"), null);
+});
+
+test("the end screen's Back to Greet-Me returns to the landing too", async () => {
+  await openExperience();
+  await nextTo("return");
+  plays = [];
+  await click($("experience-back-to-landing"), 60);
+  assert.equal($("experience-overlay"), null);
+  assert.equal(plays.filter((x) => x.isIntro).length, 1);
+});
+
+test("no network: no fetch, XHR or beacon (so nothing to claim, payment or send endpoints); no greetme_ storage", async () => {
+  window.localStorage.clear(); window.sessionStorage.clear(); net = [];
+  await openExperience();
+  await nextTo("video");
+  await wait(1700);
+  await act(async () => { window.__endMedia(cardVideo()); }); await wait(50);
+  await nextTo("claim");
+  await click($("sample-claim-inert"));
+  assert.equal($("sample-inert-note").textContent, "In a real Greet-Me, this is where the recipient claims their $5 credit.");
+  await nextTo("return");
+  await click($("experience-back-to-landing"), 60);
+  assert.deepEqual(net, [], "no network request of any kind");
+  assert.equal(window.location.hash, "#/", "the inert claim and the sample QR never navigated");
+  const keys = [...Array(window.localStorage.length).keys()].map((i) => window.localStorage.key(i))
+    .concat([...Array(window.sessionStorage.length).keys()].map((i) => window.sessionStorage.key(i)));
+  assert.deepEqual(keys.filter((k) => /^greetme_/.test(k)), []);
+});
