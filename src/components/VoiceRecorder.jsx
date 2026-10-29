@@ -5,7 +5,11 @@ import { validateAudioFile } from '../utils/helpers';
 import { getErrorMessage } from '../utils/errorMessages';
 import Alert from './Alert';
 
-export default function VoiceRecorder({ onUpload, existingVoice }) {
+// LANE 3: `scriptText` and `uploadLabel` are optional. Omitted, the recorder is exactly as before;
+// scriptText={null} hides the voice-sample script (a free-form voice message has no script).
+const DEFAULT_SCRIPT = 'voice-sample-script'; // sentinel: renders the original script block unchanged
+
+export default function VoiceRecorder({ onUpload, existingVoice, scriptText = DEFAULT_SCRIPT, uploadLabel = 'Upload Voice' }) {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
@@ -148,13 +152,19 @@ export default function VoiceRecorder({ onUpload, existingVoice }) {
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
       {/* Recording Script */}
+      {scriptText === DEFAULT_SCRIPT ? (
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h4 className="font-medium text-blue-900 mb-2">Read this script clearly:</h4>
         <p className="text-sm text-blue-800 italic">
-          "Hello! This is my voice for Greet-Me. I'm recording this sample so my greetings can sound natural and personal. 
+          "Hello! This is my voice for Greet-Me. I'm recording this sample so my greetings can sound natural and personal.
           I hope this helps create wonderful messages for my friends and family. Thank you for using Greet-Me!"
         </p>
       </div>
+      ) : scriptText ? (
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <p className="text-sm text-blue-800">{scriptText}</p>
+      </div>
+      ) : null}
 
       {/* Recording Interface */}
       <div className="border border-gray-200 rounded-lg p-6">
@@ -227,7 +237,7 @@ export default function VoiceRecorder({ onUpload, existingVoice }) {
                 className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 flex items-center"
               >
                 <Upload size={18} className="mr-2" />
-                {uploading ? 'Uploading...' : 'Upload Voice'}
+                {uploading ? 'Uploading...' : uploadLabel}
               </button>
             </div>
           </div>

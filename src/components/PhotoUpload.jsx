@@ -5,7 +5,8 @@ import { validateFile } from '../utils/helpers';
 import { getErrorMessage } from '../utils/errorMessages';
 import Alert from './Alert';
 
-export default function PhotoUpload({ onUpload, existingPhoto, compact = false }) {
+// LANE 3: `uploadLabel` is optional; omitted, the button reads exactly as before.
+export default function PhotoUpload({ onUpload, existingPhoto, compact = false, uploadLabel = 'Upload Photo' }) {
   const [preview, setPreview] = useState(existingPhoto || null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -173,7 +174,7 @@ export default function PhotoUpload({ onUpload, existingPhoto, compact = false }
                 className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 flex items-center"
               >
                 <Upload size={18} className="mr-2" />
-                {uploading ? 'Uploading...' : 'Upload Photo'}
+                {uploading ? 'Uploading...' : uploadLabel}
               </button>
             </div>
           )}

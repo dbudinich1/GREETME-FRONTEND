@@ -38,7 +38,17 @@ export function featuredSpreadPresent(greeting) {
   return true; // personal always has the featured spread
 }
 
+// LANE 3 — a greeting built from the shared personalization controls carries `personalization`.
+// With neither featured media nor memory photos it omits the Featured Spread (Intro and Final
+// remain). Greetings without that field are unaffected.
+export function personalizationOmitsFeatured(greeting) {
+  return !!greeting && !!greeting.personalization && greeting.personalization.featuredPresent === false;
+}
+
 export function resolveScreenOrder(greeting) {
+  if (personalizationOmitsFeatured(greeting)) {
+    return [CARD_SCREENS.ENVELOPE, CARD_SCREENS.COVER, CARD_SCREENS.INTERIOR, CARD_SCREENS.FINALE];
+  }
   if (isCorporateGreeting(greeting) && greeting.featuredSpreadPresent === false) {
     return [CARD_SCREENS.ENVELOPE, CARD_SCREENS.COVER, CARD_SCREENS.INTERIOR, CARD_SCREENS.FINALE];
   }

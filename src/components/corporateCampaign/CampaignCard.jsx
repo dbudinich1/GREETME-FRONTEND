@@ -46,8 +46,8 @@ import {
 } from "./corporateDashboardModel.js";
 import { EXECUTION_DORMANT_REASON } from "../../api/corporateCampaigns.js";
 import { CategoryBubble, ChoiceBubble, BubbleGroup } from "./Bubbles.jsx";
-import CampaignFeaturedSpreadEditor from "../../corporateCampaign/CampaignFeaturedSpreadEditor.jsx";
-import { ANIMATION_IMAGE_SOURCE } from "../../corporateCampaign/constants.js";
+// LANE 3 — the shared personalization controls replace the Organization Default / Customize choice.
+import CampaignFeaturedMediaSection from "../../corporateCampaign/CampaignFeaturedMediaSection.jsx";
 import IndividualContactPicker from "./IndividualContactPicker.jsx";
 import { readinessOf } from "./contactManageModel.js";
 import SavedCardPanel from "./SavedCardPanel.jsx";
@@ -74,28 +74,9 @@ const CAMPAIGN_TABS = [
   { key: "schedule", label: "Schedule & Payment" },
 ];
 
-// TEAM 5 (2026-09-29) — "Saved Featured Spread" is removed: it had no backing functionality at
-// all (no picker, no list of saved spreads, nothing clickable — selecting it produced no further
-// UI), and the real backend contract (services/corporateCampaign/constants.js#ANIMATION_IMAGE_SOURCE
-// on the backend, mirrored at src/corporateCampaign/constants.js on this side) only recognizes two
-// source states — ORGANIZATION_DEFAULT and CAMPAIGN_OVERRIDE — with no third "saved spread" concept
-// anywhere in the model. Nothing depended on it, so it is removed rather than left as a dead-end.
-const SPREAD_SOURCES = [
-  { value: "organization_default", label: "Organization Default", note: "Use the organization’s standard look." },
-  { value: "customize", label: "Customize This Campaign", note: "Adjust the spread for this campaign only." },
-];
-
-// TEAM 5 — `spreadSource` used to always start at "organization_default" and never read the
-// campaign's actual persisted config, so reopening a campaign that already had a customized spread
-// saved (via updateFeaturedSpread) silently misrepresented it as using the org default. Derived
-// from the same two-value contract the backend and CampaignFeaturedSpreadEditor already use.
-function deriveSpreadSource(config) {
-  if (!config) return "organization_default";
-  const usesOverride =
-    config.animationImageSource === ANIMATION_IMAGE_SOURCE.CAMPAIGN_OVERRIDE ||
-    config.additionalImagesEnabled === true;
-  return usesOverride ? "customize" : "organization_default";
-}
+// LANE 3 (2026-10-28) — the "Organization Default" / "Customize This Campaign" choice is removed
+// (founder correction: no organization default, no inheritance). Each campaign makes its own
+// explicit featured-media choice in CampaignFeaturedMediaSection.
 
 // SLICE F1 — mirrors the server's founder-ratified cap. Used for `maxLength` and for the message
 // shown if a paste exceeds it; the SERVER remains the authority and refuses independently.
@@ -154,10 +135,6 @@ export default function CampaignCard({
   const persistedKey = draftFingerprint(persisted);
   const [draft, setDraft] = useState(persisted);
   const [syncedKey, setSyncedKey] = useState(persistedKey);
-  // TEAM 5 — initialized from the campaign's REAL persisted config, not a hardcoded default (see
-  // deriveSpreadSource above), and resynced on the same trigger as `draft` below so reopening a
-  // campaign that already has a customized spread saved reflects that truthfully.
-  const [spreadSource, setSpreadSource] = useState(() => deriveSpreadSource(campaign.featuredSpreadConfig));
 
   // Resync on VALUE, not on object identity. A refetch hands down a new campaign object every
   // time, so an identity check would wipe unsaved edits whenever anything else on the card
@@ -165,7 +142,6 @@ export default function CampaignCard({
   if (syncedKey !== persistedKey) {
     setDraft(persisted);
     setSyncedKey(persistedKey);
-    setSpreadSource(deriveSpreadSource(campaign.featuredSpreadConfig));
   }
 
   // Inline rename.
@@ -188,13 +164,6 @@ export default function CampaignCard({
   const [removing, setRemoving] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
 
-  // TEAM C - the Featured Spread editor's server-derived contract.
-  //
-  // CAPABILITY IS NOT ASSUMED AND NOT A CLIENT CONSTANT. It is read from the SAME readiness
-  // endpoint the rest of the surface already uses: a successful read means the capability is
-  // live, and a dormant 503 means it is not. That keeps the editor's own rule intact - capability
-  // comes from the server - without inventing a second capability source or a new endpoint.
-  const [spread, setSpread] = useState({ capabilityEnabled: false, readiness: null, message: null });
 
   // ── G3 — THE PUBLISHED GIFT-BOX CATALOG ────────────────────────────────────────────────────
   //
@@ -248,40 +217,10 @@ export default function CampaignCard({
       : (qrCashWrongSchedule ? "QR Cash is sent once, on one campaign date. Choose One Campaign Date to save this campaign."
         : (qrCashMissing ? "Enter a QR Cash amount from $5 to $100 to save this campaign." : null)));
 
-  useEffect(() => {
-    // Only when the reader is actually looking at this campaign's spread choices.
-    if (!expanded || spreadSource !== "customize") return undefined;
-    let alive = true;
-    (async () => {
-      try {
-        const res = await client.readReadiness(orgId, campaign.campaignId);
-        if (!alive) return;
-        if (res && res.ok === true) {
-          setSpread({ capabilityEnabled: true, readiness: (res.data && res.data.readiness) || res.data || {}, message: null });
-        } else {
-          // Truthful, and distinguishes dormancy from a plain failure.
-          setSpread({
-            capabilityEnabled: false, readiness: null,
-            message: res && res.dormant
-              ? "Featured Spread editing isn't active yet."
-              : "The Featured Spread settings couldn't be loaded.",
-          });
-        }
-      } catch {
-        if (alive) setSpread({ capabilityEnabled: false, readiness: null, message: "The Featured Spread settings couldn't be loaded." });
-      }
-    })();
-    return () => { alive = false; };
-  }, [expanded, spreadSource, orgId, campaign.campaignId, client]);
-
-  // Saves through the EXISTING featured-spread API. The canonical response replaces local state;
-  // a refusal is reported and nothing is optimistically kept.
-  const saveSpreadDraft = async (config) => {
-    await run("spread", async () => {
-      const res = await client.updateFeaturedSpread(orgId, campaign.campaignId, config);
-      return res;
-    });
-  };
+  // LANE 3 — saves the campaign's featured-media choice through the EXISTING featured-spread API.
+  // `body` is { featuredSpreadConfig } — the shape the server reads (the previous inline save sent
+  // the bare config, which the server read as an empty one). Refusals are reported by run().
+  const saveFeaturedSpread = (body) => run("spread", () => client.updateFeaturedSpread(orgId, campaign.campaignId, body));
   const [message, setMessage] = useState(null);
   const [pending, setPending] = useState(null);
 
@@ -1003,36 +942,18 @@ export default function CampaignCard({
                 <span className="gcd-wcard-icon" aria-hidden="true">{"\u{1F3A8}"}</span>
                 Featured Spread
               </h4>
-              <BubbleGroup label="How the card looks inside" role="radiogroup" testId={uid("spread")}>
-                {SPREAD_SOURCES.map((sp) => (
-                  <ChoiceBubble key={sp.value} id={uid(`spread-${sp.value}`)} name={uid("spread-group")} value={sp.value}
-                    label={sp.label} note={sp.note} checked={spreadSource === sp.value} disabled={locked}
-                    onChange={(v) => setSpreadSource(v)} />
-                ))}
-              </BubbleGroup>
-              {/* The two choices above stay visible while this secondary tool is in use. */}
-              {spreadSource === "customize" ? (
-                <div className="gcd-wcard-foot" data-testid={`card-spread-editor-${campaign.campaignId}`}>
-                  {/* TEAM C - the pre-existing INERT editor, corrected.
-                      It was mounted with orgId/campaignId/client, none of which it accepts, so its
-                      first line - `if (!capabilityEnabled) return null` - fired every single time
-                      and the editor rendered nothing at all. It now receives the real contract:
-                      server-derived capability and readiness, the campaign's persisted config, and
-                      a save that goes through the EXISTING updateFeaturedSpread API. No second
-                      editor, no second spread model, no modal, no route. */}
-                  <CampaignFeaturedSpreadEditor
-                    capabilityEnabled={spread.capabilityEnabled}
-                    campaignName={campaign.name || ""}
-                    initialConfig={campaign.featuredSpreadConfig}
-                    readiness={spread.readiness}
-                    onSaveDraft={saveSpreadDraft}
-                    showLifecycleActions={false}
-                  />
-                  {spread.message ? (
-                    <p className="gcd-reason" data-testid={`card-spread-msg-${campaign.campaignId}`}>{spread.message}</p>
-                  ) : null}
-                </div>
-              ) : null}
+              {/* LANE 3 — one clear featured-media choice (shared controls), Preview My Card, and a
+                  save through the existing featured-spread API. Only this campaign's audience is
+                  offered to the preview, so a recipient's memory photos stay with that recipient. */}
+              <CampaignFeaturedMediaSection
+                idPrefix={uid("spread")}
+                campaign={campaign}
+                recipients={(contacts || []).filter((c) => c && draftRefs.includes(c.id))}
+                occasionKey={draft.occasionType || "general"}
+                locked={locked}
+                saving={pending === "spread"}
+                onSave={saveFeaturedSpread}
+              />
             </section>
           </div>
 
