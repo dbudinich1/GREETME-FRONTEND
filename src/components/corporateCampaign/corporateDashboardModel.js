@@ -241,6 +241,19 @@ export function selectedProductId(product) {
 
 export const centsToDisplay = (cents) => `$${Math.round(Number(cents) || 0) / 100}`;
 
+/**
+ * LANE 4 (2026-10-28) — the ONE wording for a chosen gift box, shared by the campaign's Gift tab and its Overview
+ * (and matching the Send now review's "Gift box: <title> (<options>)"). No price: the server's quote is the
+ * authority for what is charged. A gift box with nothing chosen says what is still needed.
+ */
+export function giftBoxSelectionLabel(product, variants = []) {
+  const id = selectedProductId(product);
+  if (!id) return "Gift box — choose one from the Gift Place.";
+  const title = (typeof product.title === "string" && product.title.trim()) || id;
+  const opts = (Array.isArray(variants) ? variants : []).filter((v) => typeof v === "string" && v.trim() !== "");
+  return `Gift box: ${title}${opts.length ? ` (${opts.join(", ")})` : ""} — one for each person.`;
+}
+
 // ── G3 — THE GIFT BOX OPTION (Founder decision 2026-09-20) ───────────────────────────────────
 //
 // A provider-backed gift needs an entry point, and until now the corporate card had none: the four
@@ -430,6 +443,7 @@ export function selectorSummaries({ draft, recipientCount = 0, spreadLabel } = {
       icon: "\u{1F381}",
       value: d.giftType === "curated" ? `Greet-Me\u2122 selects, up to ${centsToDisplay(d.tierCents)}`
         : d.giftType === "qrcash" ? (isQrCashAmountCents(d.qrCashAmountCents) ? `QR Cash\u2122, ${centsToDisplay(d.qrCashAmountCents)} each` : "QR Cash\u2122, amount needed")
+        : isProviderFundableGiftType(d.giftType) ? giftBoxSelectionLabel(d.product, d.variants)
         : "No gift",
       hint: d.giftType === "curated" ? "A thoughtful gift within your limit."
         : d.giftType === "qrcash" ? "The same amount to everyone, sent once on the campaign date."
@@ -533,7 +547,11 @@ export function describeCampaignPlan({ draft, recipientCount = 0, orgName, enabl
       ? `Let Greet-Me\u2122 select, up to ${centsToDisplay(d.tierCents)} per person.`
       : d.giftType === "qrcash"
         ? (isQrCashAmountCents(d.qrCashAmountCents) ? `QR Cash\u2122, ${centsToDisplay(d.qrCashAmountCents)} to each person, plus the standard QR Cash fee.` : "QR Cash\u2122 — enter an amount from $5 to $100.")
-        : "No gift — the greeting on its own.",
+        // LANE 4 (2026-10-28): a gift box used to fall through to "No gift" here, so the Overview misreported a
+        // campaign that carries one. It now names the chosen box with the same words as the Gift tab.
+        : isProviderFundableGiftType(d.giftType)
+          ? giftBoxSelectionLabel(d.product, d.variants)
+          : "No gift — the greeting on its own.",
   });
 
   // The organization signs it, not the person who happened to set it up. Named here because it is
