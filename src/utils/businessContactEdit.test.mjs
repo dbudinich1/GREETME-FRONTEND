@@ -91,3 +91,20 @@ test("loading: the record by id from the management read; any failure, a missing
   assert.deepEqual(await loadBusinessContactForEdit({ listManaged: async () => { throw new Error("x"); } }, "org_1", "b1"), { ok: false });
   assert.deepEqual(await loadBusinessContactForEdit(client({ ok: true, contacts: [] }), null, "b1"), { ok: false });
 });
+
+test("founder 2026-10-29: hidden or untouched delivery fields are never sent; a form default is not a change (no-country address)", () => {
+  // A stored address WITHOUT a country key: the form fills country with its default 'United States'.
+  const noCountry = { ...STORED, shippingAddress: { line1: "1 Main St", city: "Town", state: "NJ", zip: "07000" } };
+  const f = untouched();
+  f.shippingAddress = { line1: "", line2: "", city: "", state: "", zip: "", country: "United States", ...businessRecordForForm(noCountry).shippingAddress };
+  assert.equal(f.shippingAddress.country, "United States", "the form default is in the form");
+  assert.deepEqual(businessContactPatch(noCountry, f), {}, "untouched: nothing sent, the stored address is kept as it is");
+  // Hidden names (empty in the record and in the form) and a stored delivery phone are never sent on their own.
+  const noNames = { ...STORED, firstName: undefined, lastName: undefined };
+  assert.deepEqual(businessContactPatch(noNames, { ...untouched(), firstName: "", lastName: "" }), {});
+  // A genuinely edited address is still sent whole, with the stored delivery phone.
+  const edited = { ...f, shippingAddress: { ...f.shippingAddress, city: "Newtown" } };
+  assert.deepEqual(businessContactPatch(noCountry, edited), { shippingAddress: { line1: "1 Main St", line2: "", city: "Newtown", state: "NJ", zip: "07000", country: "United States" }, deliveryPhone: "555-0199" });
+  // A country the owner actually changes on a record without one is a change.
+  assert.ok("shippingAddress" in businessContactPatch(noCountry, { ...f, shippingAddress: { ...f.shippingAddress, country: "Canada" } }));
+});

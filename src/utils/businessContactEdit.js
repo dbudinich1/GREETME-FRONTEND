@@ -66,6 +66,16 @@ const addressOf = (a) => {
 // No street, city, state or zip: no address (a country on its own is the form's default, not an address).
 const addressEmpty = (a) => ADDRESS_KEYS.filter((k) => k !== 'country').every((k) => !a[k]);
 const sameAddress = (a, b) => (addressEmpty(a) && addressEmpty(b)) || ADDRESS_KEYS.every((k) => a[k] === b[k]);
+// The defaults ContactForm puts into an address field the stored record does not have (getInitialFormData: country
+// 'United States'). Founder 2026-10-29: such a default is never a change, so an untouched save never sends the address of a
+// record stored without that key (it would replace the stored address and send a verified one back to review).
+const FORM_ADDRESS_DEFAULTS = Object.freeze({ country: 'United States' });
+const withoutFormDefaults = (stored, form) => {
+  const src = stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+  const out = { ...form };
+  for (const [k, v] of Object.entries(FORM_ADDRESS_DEFAULTS)) if (!str(src[k]) && form[k] === v) out[k] = '';
+  return out;
+};
 
 /**
  * The PATCH body for a business-contact edit: only what the owner changed against the stored `record`.
@@ -93,7 +103,9 @@ export function businessContactPatch(record, formData, { nameTyped = true } = {}
 
   const before = addressOf(r.shippingAddress);
   const after = addressOf(f.shippingAddress);
-  if (!sameAddress(before, after)) {
+  // Delivery names and address are sent ONLY when they differ from what is stored. They are often not on screen (they show
+  // inside a shipped gift's delivery block), and a hidden or untouched field is never sent; neither is the delivery phone.
+  if (!sameAddress(before, withoutFormDefaults(r.shippingAddress, after))) {
     // An emptied address is an explicit clear (null); a changed one replaces the stored one, keeping its delivery phone.
     patch.shippingAddress = addressEmpty(after) ? null : after;
     if (!addressEmpty(after) && str(r.deliveryPhone)) patch.deliveryPhone = str(r.deliveryPhone);
