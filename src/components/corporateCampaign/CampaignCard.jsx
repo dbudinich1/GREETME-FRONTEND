@@ -49,6 +49,9 @@ import { CategoryBubble, ChoiceBubble, BubbleGroup } from "./Bubbles.jsx";
 import CampaignFeaturedSpreadEditor from "../../corporateCampaign/CampaignFeaturedSpreadEditor.jsx";
 import { ANIMATION_IMAGE_SOURCE } from "../../corporateCampaign/constants.js";
 import IndividualContactPicker from "./IndividualContactPicker.jsx";
+// LANE 4 (2026-10-28) — the Gift Place, browsed from a campaign (additive).
+import CorporateGiftPlacePicker from "./CorporateGiftPlacePicker.jsx";
+import { giftPlaceChoicePatch } from "./corporateGiftPlaceModel.js";
 import { readinessOf } from "./contactManageModel.js";
 import SavedCardPanel from "./SavedCardPanel.jsx";
 import "./premiumDashboard.css";
@@ -177,6 +180,9 @@ export default function CampaignCard({
   // tab. It is now part of THIS modal (no second overlay) and stages into the draft below, never
   // writing to the server on its own.
   const [pickerOpen, setPickerOpen] = useState(false);
+  // LANE 4 — whether the Gift Place is showing inside the Gift tab. Presentation state only; like the contact
+  // picker it stages into the draft and never writes to the server on its own.
+  const [giftPlaceOpen, setGiftPlaceOpen] = useState(false);
   // SURFACE 8 (W25/W26): one category-scoped selector at a time ("employee" | "client" | "vendor" | null), and the discard question.
   const [catPicker, setCatPicker] = useState(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -493,7 +499,7 @@ export default function CampaignCard({
   //   * Edited: asks "Discard your unsaved changes?" first; Discard resets to the SAVED campaign and closes.
   // Because a close either happens on an untouched draft or discards it, reopening always shows the saved campaign.
   function closeNow() {
-    setPickerOpen(false); setCatPicker(null); setConfirmDiscard(false);
+    setPickerOpen(false); setCatPicker(null); setConfirmDiscard(false); setGiftPlaceOpen(false);
     if (onToggleExpanded) onToggleExpanded(campaign.campaignId);
   }
   function requestClose() {
@@ -506,7 +512,7 @@ export default function CampaignCard({
   }
   // Escape closes only the TOPMOST layer: the discard question, else an open contact selector, else the dialog.
   const escRef = useRef(null);
-  escRef.current = { confirmDiscard, pickerOpen, catPicker, requestClose };
+  escRef.current = { confirmDiscard, pickerOpen, catPicker, requestClose, giftPlaceOpen };
   useEffect(() => {
     if (!expanded) return undefined;
     const onKey = (e) => {
@@ -515,6 +521,8 @@ export default function CampaignCard({
       e.preventDefault();
       if (s.confirmDiscard) { setConfirmDiscard(false); return; }
       if (s.pickerOpen || s.catPicker) { setPickerOpen(false); setCatPicker(null); return; }
+      // LANE 4 — the Gift Place is a layer too: Escape leaves it (changing nothing) before it closes the dialog.
+      if (s.giftPlaceOpen) { setGiftPlaceOpen(false); return; }
       s.requestClose();
     };
     document.addEventListener("keydown", onKey);
@@ -562,6 +570,14 @@ export default function CampaignCard({
     : `Each contact's ${String(draft.occasionType || "occasion").replace(/-/g, " ")}`;
   const metaHasCeiling = (draft.giftType === "curated" || isProviderFundableGiftType(draft.giftType)) && Number.isInteger(draft.tierCents);
   const metaEstTotal = metaHasCeiling ? `Up to ${centsToDisplay(draft.tierCents * Math.max(draftRefs.length, 1))}` : "—";
+
+  // LANE 4 — ONE description of the draft, read by the Overview tab, the Gift tab's "Selected gift" line and the
+  // Gift Place's context strip, so the three can never disagree about what this campaign is set to.
+  const draftPlan = describeCampaignPlan({ draft, recipientCount: draftRefs.length, enabled });
+  const draftGiftLabel = (draftPlan.find((r) => r.key === "gift") || {}).value || "";
+  const giftPlaceContext = draftPlan
+    .filter((r) => r.key === "who" || r.key === "when" || r.key === "gift")
+    .map((r) => (r.key === "gift" ? { ...r, label: "Current gift" } : r));
 
   return (
     <article className={`gcd-card gcd-camprow${expanded ? " gcd-card--expanded" : ""}${dragging ? " gcd-card--dragging" : ""}`}
@@ -857,13 +873,41 @@ export default function CampaignCard({
               Previously the other two of three side-by-side ".gcd-workspace" cards; now they are
               this tab's whole content, stacked normally since only one tab shows at a time. */}
           <div hidden={activeTab !== "gift"} data-testid={`tab-gift-${campaign.campaignId}`}>
+            {/* ── LANE 4 — THE GIFT PLACE, browsed from this campaign. It opens in place of the Gift Options
+                below (which stay mounted, hidden), so the draft — audience, occasion, schedule and gift — is the
+                same object before, during and after. A choice is staged into the draft; Back changes nothing. */}
+            {giftPlaceOpen ? (
+              <CorporateGiftPlacePicker
+                campaignId={campaign.campaignId}
+                campaignName={campaignLabel}
+                context={giftPlaceContext}
+                items={giftCatalog.items}
+                draft={draft}
+                scheduleMode={draft.scheduleMode}
+                onCancel={() => setGiftPlaceOpen(false)}
+                onChoose={(choice) => { edit(giftPlaceChoicePatch(draft, choice)); setGiftPlaceOpen(false); }}
+              />
+            ) : null}
             {/* ── GIFT OPTIONS ─────────────────────────────────────────────────────────────── */}
             <section className="gcd-wcard gcd-wcard--gift" data-testid={`selector-gift-${campaign.campaignId}`}
-              aria-labelledby={uid("wc-gift")}>
+              aria-labelledby={uid("wc-gift")} hidden={giftPlaceOpen}>
               <h4 className="gcd-wcard-title" id={uid("wc-gift")}>
                 <span className="gcd-wcard-icon" aria-hidden="true">{"\u{1F381}"}</span>
                 Gift Options
               </h4>
+              {/* LANE 4 — the chosen gift, in the SAME words as the Overview's Gift row (one function), and the
+                  way into the Gift Place. Locked campaigns keep their gift: the entry is disabled with its reason. */}
+              <div className="gcd-wcard-foot gcd-wcard-foot--stack" data-testid={`card-gift-current-${campaign.campaignId}`}>
+                <span className="gcd-wcard-note">
+                  Selected gift: <strong data-testid={`card-gift-selected-${campaign.campaignId}`}>{draftGiftLabel}</strong>
+                </span>
+                <button type="button" className="gcd-btn" data-testid={`card-browse-gifts-${campaign.campaignId}`}
+                  disabled={locked} title={locked ? "Unlock the campaign to change its gift." : undefined}
+                  onClick={() => setGiftPlaceOpen(true)}>
+                  Browse the Gift Place
+                </button>
+                {locked ? <span className="gcd-reason" data-testid={`card-browse-gifts-reason-${campaign.campaignId}`}>Unlock the campaign to change its gift.</span> : null}
+              </div>
               {/* All four, always. A gift a campaign cannot run is shown DISABLED and KEPT on
                   screen under its real name - removing it would hide part of the offer. FINAL
                   POLISH: it no longer carries an explanatory sentence beneath it. Its state is
