@@ -133,3 +133,27 @@ export function takeDashboardHandoff(storage, { contactId, occasion }, now = Dat
     memoryPhotos: (Array.isArray(h.memoryPhotos) ? h.memoryPhotos : []).filter((p) => typeof p === 'string' && p).slice(0, HANDOFF_MAX_PHOTOS),
   };
 }
+
+// Home Send (Report 145, founder 2026-10-28): the Home Send click is the confirmation for a complete greeting with no gift.
+// It leaves ONE intent naming this recipient and occasion, with a random nonce that is also put in the URL (?intent=). The
+// send page takes it once (and removes it) and only then sends through its existing no-gift send. An ordinary URL, a
+// refresh, Back or a retry carries no matching stored intent, so nothing is sent automatically. Fresh for two minutes.
+export const HOME_SEND_INTENT_KEY = 'gm_home_send_intent_v1';
+const HOME_SEND_INTENT_MAX_AGE_MS = 2 * 60 * 1000;
+
+/** Records the intent; returns its nonce, or '' when storage is unavailable (the send page then sends nothing by itself). */
+export function writeHomeSendIntent(storage, { contactId, occasion }, now = Date.now(), mint = () => (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function' ? globalThis.crypto.randomUUID() : `${now.toString(36)}-${Math.random().toString(36).slice(2)}`)) {
+  const nonce = String(mint());
+  try { storage.setItem(HOME_SEND_INTENT_KEY, JSON.stringify({ nonce, contactId: String(contactId), occasion: String(occasion), at: now })); return nonce; } catch { return ''; }
+}
+
+/** Takes the intent once: true only for the same nonce, recipient and occasion while fresh. Always removes it. */
+export function takeHomeSendIntent(storage, { contactId, occasion, nonce }, now = Date.now()) {
+  let raw = null;
+  try { raw = storage.getItem(HOME_SEND_INTENT_KEY); storage.removeItem(HOME_SEND_INTENT_KEY); } catch { return false; }
+  if (!raw || !nonce) return false;
+  let h;
+  try { h = JSON.parse(raw); } catch { return false; }
+  if (!h || h.nonce !== String(nonce) || h.contactId !== String(contactId) || h.occasion !== String(occasion)) return false;
+  return typeof h.at === 'number' && now >= h.at && now - h.at <= HOME_SEND_INTENT_MAX_AGE_MS;
+}

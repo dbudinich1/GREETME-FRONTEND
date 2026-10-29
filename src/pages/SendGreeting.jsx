@@ -35,9 +35,20 @@
 //   displays no longer fall back to $25. The chooser's open paths are unchanged. Affected locked
 //   milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regression: an old ?giftType=qrcash link opens the
 //   chooser with no amount picked. Verification gate, payment amounts for a chosen amount, and send unchanged.
+// 2026-10-28 (Report 145 correction, founder-authorized; preview, not released): the dashboard's Home Send click is the
+//   confirmation for a complete greeting with no gift. Only an arrival that carries Home's one-time intent
+//   (?intent= matching gm_home_send_intent_v1, taken once) continues by itself: validate() passes and no gift →
+//   the existing handleReviewDirectSend → executeGreetingSend (same send key, voice/email checkpoints, server limits);
+//   something missing → validate() marks only that and focuses it; a gift (restored draft) → the existing review,
+//   quote, payment and consent. The sender-photo rule moves unchanged into utils/senderPhoto.js so Home uses the same
+//   rule. Affected locked milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regressions: a stale or
+//   replayed intent sending twice (guarded: the intent is removed when read, needs the URL nonce, expires in two
+//   minutes, and executeGreetingSend keeps its stable sendRequestId); an ordinary ?from=dashboard URL sending by itself
+//   (guarded: no intent → nothing). Verification gate, voice recovery, review, payment and send paths unchanged.
 
 import { useState, useEffect } from 'react';
-import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff, dashboardGiftPlaceEntry, markGiftPlaceEntryUsed, giftPlaceEntryUsed } from '../utils/dashboardSendHandoff';
+import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff, dashboardGiftPlaceEntry, markGiftPlaceEntryUsed, giftPlaceEntryUsed, takeHomeSendIntent } from '../utils/dashboardSendHandoff';
+import { senderPhotoUsable } from '../utils/senderPhoto';
 import { buildGreetingPayload, qrCashGiftForPayload } from '../utils/sendGreetingPayload';
 import { getPhotoSrc } from '../utils/getPhotoSrc';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -1288,17 +1299,8 @@ export default function SendGreeting() {
   // W03: a REAL profile photo URL (https://...) is required before the final send/checkout. Not a
   // data URL or a placeholder domain. Computed every render so the notice below the form appears
   // BEFORE the sender reaches "Done & Send", not as a surprise on the final click.
-  const senderPhotoMissing = (() => {
-    const photoUrl = user?.photoUrl || '';
-    return (
-      !photoUrl ||
-      photoUrl.startsWith('data:') ||
-      photoUrl.includes('placeholder.com') ||
-      photoUrl.includes('placehold.co') ||
-      photoUrl.includes('placekitten.com') ||
-      photoUrl.includes('dummyimage.com')
-    );
-  })();
+  // The rule itself lives in utils/senderPhoto.js (unchanged), shared with the dashboard's photo status.
+  const senderPhotoMissing = !senderPhotoUsable(user?.photoUrl);
 
   const validate = () => {
     const newErrors = {};
@@ -1558,6 +1560,35 @@ export default function SendGreeting() {
     // None / curated / marketplace-empty / (dead) merch: direct dispatch.
     await executeGreetingSend(greetingData);
   };
+
+  // Home Send (Report 145 correction, founder 2026-10-28). The Home Send click is the confirmation for a complete
+  // greeting with no gift; Home leaves a one-time intent for this recipient and occasion (utils/dashboardSendHandoff.js).
+  // Step 1 takes it once, after the account, the recipient list and the URL's recipient/occasion are in place. Step 2
+  // runs on the next render, so every restore that ran alongside (draft, Home's words and photos) is already applied:
+  // complete + no gift → the existing no-gift send; something missing → validate() marks only that and focuses it; a
+  // gift (a restored draft) → the existing review with its quote, payment and consent. No intent → nothing happens.
+  const homeSendTakenRef = useRef(false);
+  const [homeSendArmed, setHomeSendArmed] = useState(false);
+  useEffect(() => {
+    if (homeSendTakenRef.current || loading || !user?.id) return;
+    const params = new URLSearchParams(location.search);
+    const nonce = params.get('intent');
+    if (params.get('from') !== 'dashboard' || !nonce) return;
+    const contactId = params.get('contactId');
+    const occasion = matchSendOccasion(params.get('occasion'));
+    if (!contactId || !occasion || !contacts.some((c) => String(c.id) === contactId)) return;
+    if (String(formData.contactId) !== contactId || formData.occasionType !== occasion) return;
+    homeSendTakenRef.current = true;
+    if (takeHomeSendIntent(window.sessionStorage, { contactId, occasion, nonce })) setHomeSendArmed(true);
+  }, [location.search, loading, contacts, user?.id, formData.contactId, formData.occasionType]);
+  useEffect(() => {
+    if (!homeSendArmed) return;
+    setHomeSendArmed(false);
+    if (!validate()) return;
+    if (giftSettings.type && giftSettings.type !== 'none') { setIsPreSendReviewOpen(true); return; }
+    handleReviewDirectSend();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homeSendArmed]);
 
   // Flowers path. A DELIBERATE MIRROR of handleReviewQRCashFresh below: park the completed
   // greeting, open the payment step, and let the success handler dispatch the one send. The only
