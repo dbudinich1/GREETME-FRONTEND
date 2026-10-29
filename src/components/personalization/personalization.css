@@ -1,0 +1,157 @@
+/* personalization.css
+ * LANE 3 — shared personalization controls. Everything is scoped under .pm- so it cannot reach
+ * any other surface. Values mirror the For Business dashboard palette. */
+
+.pm-chooser {
+  --pm-ink: #141024;
+  --pm-muted: #4e4967;
+  --pm-faint: #635e7d;
+  --pm-line: rgba(24, 21, 44, 0.16);
+  --pm-purple: #5b48ea;
+  --pm-purple-deep: #3d3199;
+  --pm-lav: #ece8fd;
+  --pm-warn: #a1650a;
+  --pm-bad: #b42318;
+  color: var(--pm-ink);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.pm-visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0; margin: -1px;
+}
+
+.pm-controls { display: flex; flex-direction: column; gap: 12px; }
+
+.pm-control {
+  border: 1px solid var(--pm-line, rgba(24, 21, 44, .16));
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px;
+  min-width: 0;
+}
+
+.pm-control-title {
+  margin: 0 0 4px; font-size: .9rem; font-weight: 700;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+
+.pm-tag {
+  font-size: .7rem; font-weight: 700; letter-spacing: .02em; text-transform: uppercase;
+  color: var(--pm-faint, #635e7d); background: #f3f1f9; border-radius: 999px; padding: 2px 8px;
+}
+.pm-tag--req { color: var(--pm-purple-deep, #3d3199); background: var(--pm-lav, #ece8fd); }
+
+.pm-hint { margin: 0 0 10px; font-size: .82rem; color: var(--pm-muted, #4e4967); line-height: 1.4; }
+.pm-error { margin: 8px 0 0; font-size: .8rem; font-weight: 600; color: var(--pm-bad, #b42318); }
+.pm-count { margin: 4px 0 0; font-size: .74rem; color: var(--pm-faint, #635e7d); text-align: right; }
+.pm-file-name { margin: 6px 0; font-size: .8rem; color: var(--pm-muted, #4e4967); overflow-wrap: anywhere; }
+.pm-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.pm-btn {
+  font-size: .82rem; font-weight: 700; border-radius: 10px; padding: 9px 15px;
+  border: 1px solid rgba(24, 21, 44, .24); background: #fff; color: #141024; cursor: pointer;
+}
+.pm-btn:hover:not(:disabled) { border-color: rgba(109, 92, 240, .4); background: #ece8fd; }
+.pm-btn:disabled { opacity: .55; cursor: not-allowed; }
+.pm-btn:focus-visible { outline: 2px solid #5b48ea; outline-offset: 2px; }
+.pm-btn--primary { background: #5b48ea; border-color: #5b48ea; color: #fff; }
+.pm-btn--primary:hover:not(:disabled) { background: #3d3199; border-color: #3d3199; }
+.pm-btn--quiet { border-color: transparent; background: transparent; color: #3d3199; padding: 6px 8px; }
+
+.pm-textarea {
+  width: 100%; box-sizing: border-box; border: 1px solid rgba(24, 21, 44, .24); border-radius: 10px;
+  padding: 10px 12px; font: inherit; font-size: .88rem; resize: vertical; min-height: 72px;
+}
+.pm-textarea:focus { outline: 2px solid #5b48ea; outline-offset: 1px; }
+
+.pm-chosen { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pm-chosen-label { font-size: .82rem; color: var(--pm-muted, #4e4967); overflow-wrap: anywhere; min-width: 0; }
+.pm-thumb { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; display: block; }
+.pm-audio { max-width: 100%; height: 36px; }
+.pm-video-thumb { max-width: 100%; width: 260px; max-height: 160px; border-radius: 10px; background: #000; display: block; }
+
+.pm-library { margin-top: 10px; }
+.pm-library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; margin-top: 8px; }
+.pm-library-item { padding: 0; border: 2px solid transparent; border-radius: 10px; background: none; cursor: pointer; }
+.pm-library-item:hover, .pm-library-item:focus-visible { border-color: #5b48ea; outline: none; }
+.pm-library-item img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 8px; display: block; }
+
+/* ── Reused capture components (PhotoUpload, VoiceRecorder) ─────────────────────────────────
+ * They are written with utility class names this app does not ship a stylesheet for. Inside the
+ * shared controls only, the few they use get real rules so they read cleanly. */
+.pm-reuse .hidden { display: none !important; }
+.pm-reuse .space-y-4 > * + * { margin-top: 12px; }
+.pm-reuse .border-2 { border-width: 2px; border-style: solid; }
+.pm-reuse .border-dashed { border-style: dashed; }
+.pm-reuse .border { border: 1px solid; }
+.pm-reuse .border-gray-200, .pm-reuse .border-gray-300 { border-color: rgba(24, 21, 44, .2); }
+.pm-reuse .border-blue-200 { border-color: #d8d0fb; }
+.pm-reuse .rounded-lg { border-radius: 12px; }
+.pm-reuse .rounded-full { border-radius: 999px; }
+.pm-reuse .p-3 { padding: 12px; } .pm-reuse .p-4 { padding: 14px; } .pm-reuse .p-6 { padding: 16px; }
+.pm-reuse .text-center { text-align: center; }
+.pm-reuse .bg-blue-50 { background: #f6f3ff; }
+.pm-reuse .text-sm { font-size: .82rem; } .pm-reuse .text-xs { font-size: .74rem; }
+.pm-reuse .text-gray-400, .pm-reuse .text-gray-500, .pm-reuse .text-gray-600 { color: #635e7d; }
+.pm-reuse .text-blue-800, .pm-reuse .text-blue-900 { color: #3d3199; }
+.pm-reuse .italic { font-style: italic; }
+.pm-reuse .font-medium { font-weight: 600; }
+.pm-reuse .mx-auto { margin-left: auto; margin-right: auto; display: block; }
+.pm-reuse .mb-2 { margin-bottom: 6px; } .pm-reuse .mb-4 { margin-bottom: 10px; }
+.pm-reuse .mt-1 { margin-top: 4px; } .pm-reuse .mt-2 { margin-top: 6px; } .pm-reuse .mt-4 { margin-top: 10px; }
+.pm-reuse p, .pm-reuse h4 { margin: 0; }
+.pm-reuse svg { max-width: 100%; }
+.pm-reuse .relative { position: relative; }
+.pm-reuse .inline-block { display: inline-block; }
+.pm-reuse .absolute { position: absolute; }
+.pm-reuse .-top-2 { top: -8px; } .pm-reuse .-right-2 { right: -8px; }
+.pm-reuse .flex { display: flex; }
+.pm-reuse .flex-1 { flex: 1 1 auto; min-width: 0; }
+.pm-reuse .items-center { align-items: center; }
+.pm-reuse .justify-center { justify-content: center; }
+.pm-reuse .space-x-3 > * + *, .pm-reuse .space-x-4 > * + * { margin-left: 10px; }
+.pm-reuse .h-2 { height: 6px; } .pm-reuse .bg-gray-200 { background: #ebe8f3; } .pm-reuse .bg-blue-500 { background: #5b48ea; }
+.pm-reuse .w-8 { width: 28px; } .pm-reuse .h-8 { height: 28px; }
+.pm-reuse .w-16 { width: 52px; } .pm-reuse .h-16 { height: 52px; }
+.pm-reuse .w-24 { width: 72px; } .pm-reuse .h-24 { height: 72px; }
+.pm-reuse .text-2xl { font-size: 1.2rem; } .pm-reuse .font-bold { font-weight: 700; }
+.pm-reuse .text-red-500 { color: #b42318; }
+.pm-reuse .text-green-600 { color: #17835a; }
+.pm-reuse button {
+  font: inherit; font-size: .82rem; font-weight: 700; border-radius: 10px; padding: 8px 14px;
+  border: 1px solid rgba(24, 21, 44, .24); background: #fff; color: #141024; cursor: pointer;
+}
+.pm-reuse button.bg-red-500 { background: #d64545; border-color: #d64545; color: #fff; border-radius: 999px; padding: 0; display: flex; }
+.pm-reuse button.bg-blue-500, .pm-reuse button.bg-blue-600 { background: #5b48ea; border-color: #5b48ea; color: #fff; }
+.pm-reuse button.bg-blue-500 { border-radius: 999px; padding: 0; display: flex; }
+.pm-reuse button.text-blue-600 { color: #3d3199; }
+.pm-reuse button:disabled { opacity: .55; cursor: not-allowed; }
+.pm-reuse button:focus-visible { outline: 2px solid #5b48ea; outline-offset: 2px; }
+.pm-reuse [role="alert"], .pm-reuse .alert { font-size: .8rem; }
+
+/* ── Preview overlay ─────────────────────────────────────────────────────────────────────── */
+.pm-preview-overlay {
+  position: fixed; inset: 0; z-index: 1100; display: flex; flex-direction: column;
+  background: #10172a;
+}
+.pm-preview-bar {
+  display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap;
+  padding: 10px 16px; background: #fff; color: #141024; box-shadow: 0 2px 10px rgba(0, 0, 0, .25);
+  position: relative; z-index: 2;
+}
+.pm-preview-notice { font-size: .82rem; font-weight: 700; color: #3d3199; flex: 1 1 220px; min-width: 0; }
+.pm-preview-recipient { display: flex; align-items: center; gap: 6px; font-size: .82rem; font-weight: 600; min-width: 0; }
+.pm-preview-recipient select { font: inherit; font-size: .82rem; padding: 6px 8px; border-radius: 8px; border: 1px solid rgba(24, 21, 44, .24); max-width: 60vw; }
+.pm-preview-recipient-name { font-size: .82rem; font-weight: 600; }
+.pm-preview-stage { flex: 1 1 auto; min-height: 0; overflow: hidden; position: relative; }
+.pm-preview-stage .gc-container { min-height: 100%; max-height: 100%; height: 100%; }
+
+@media (max-width: 480px) {
+  .pm-control { padding: 12px; }
+  .pm-preview-bar { padding: 8px 12px; }
+  .pm-video-thumb { width: 100%; }
+}

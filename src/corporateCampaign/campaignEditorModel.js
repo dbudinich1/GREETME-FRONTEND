@@ -4,7 +4,7 @@
 // No React → unit-testable. The component consumes these; readiness is NEVER fabricated
 // here — it is passed in from the server-derived contract.
 
-import { FEATURED_SPREAD_READINESS as R, READY_STATES, APPROVAL_STATUS, LOCK_STATUS, ANIMATION_IMAGE_SOURCE } from "./constants.js";
+import { FEATURED_SPREAD_READINESS as R, READY_STATES, APPROVAL_STATUS, LOCK_STATUS } from "./constants.js";
 
 export const READINESS_LABELS = Object.freeze({
   [R.READY_ORG_DEFAULT]: { label: "Ready — Organization Default", kind: "ready" },
@@ -32,9 +32,8 @@ export function defaultStateNotice(config) {
   if (!anim && config.corporateVideoEnabled !== true && !images) {
     return "This campaign will use the Intro and Finale only. You can add a Featured Spread anytime.";
   }
-  if (anim && config.animationImageSource === ANIMATION_IMAGE_SOURCE.ORGANIZATION_DEFAULT) {
-    return "Using your organization's default photo and authorized voice.";
-  }
+  // LANE 3 (2026-10-28) — the "Using your organization's default photo and authorized voice."
+  // notice is removed: there is no organization default (founder correction).
   return "";
 }
 

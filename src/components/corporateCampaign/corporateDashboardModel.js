@@ -454,7 +454,7 @@ export function selectorSummaries({ draft, recipientCount = 0, spreadLabel } = {
       key: "spread",
       title: "Featured Spread",
       icon: "\u{1F3A8}",
-      value: spreadLabel || "Organization Default",
+      value: spreadLabel || "No featured media", // LANE 3: no organization default (founder correction 2026-10-28)
       hint: "How the card looks inside.",
       complete: true,
     },
