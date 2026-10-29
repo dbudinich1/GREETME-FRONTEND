@@ -31,9 +31,10 @@ export default function VideoFilePicker({ onUse, id = "pm-video", disabled = fal
         disabled={disabled} data-testid={`${id}-input`}
         onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) pick(f); }}
       />
+      {/* Founder 2026-10-29: the Personal Video CTA reads exactly "Choose Video". */}
       {!file ? (
-        <button type="button" className="pm-btn" disabled={disabled} onClick={() => inputRef.current && inputRef.current.click()}>
-          Choose a video
+        <button type="button" className="pm-btn" data-testid={`${id}-choose`} disabled={disabled} onClick={() => inputRef.current && inputRef.current.click()}>
+          Choose Video
         </button>
       ) : (
         <div className="pm-video-chosen">

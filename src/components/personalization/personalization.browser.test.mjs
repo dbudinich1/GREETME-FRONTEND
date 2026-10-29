@@ -174,6 +174,7 @@ test("the photo is captured through the EXISTING PhotoUpload, kept local, with n
 test("the video is chosen through VideoFilePicker and validated", async () => {
   let last = null;
   await mount(React.createElement(Host, { onSel: (s) => { last = s; }, initial: { ...emptySelection(), mode: "video" } }));
+  assert.equal(tid("t-video-choose").textContent.trim(), "Choose Video", "founder CTA wording (2026-10-29)");
   const input = tid("t-video-input");
   const bad = new window.File(["x"], "doc.pdf", { type: "application/pdf" });
   Object.defineProperty(input, "files", { value: [bad], configurable: true });
