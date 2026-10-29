@@ -64,7 +64,7 @@ before(async () => {
   writeFileSync(ENTRY, `export { default as CampaignCard } from "./CampaignCard.jsx";\n`);
   await esbuild.build({
     entryPoints: [ENTRY], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
-    jsx: "automatic", loader: { ".js": "jsx", ".jsx": "jsx", ".css": "empty", ".png": "empty", ".jpg": "empty" },
+    jsx: "automatic", loader: { ".js": "jsx", ".jsx": "jsx", ".css": "empty", ".png": "empty", ".jpg": "empty", ".jpeg": "empty", ".svg": "empty", ".webp": "empty" },
     external: ["react", "react-dom", "react-dom/client", "react-router-dom"],
     define: { "import.meta.env": "{}" },
   });

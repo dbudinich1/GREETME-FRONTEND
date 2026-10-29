@@ -10,11 +10,12 @@ import { dirname, join } from "node:path";
 
 const SRC = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "SendGreeting.jsx"), "utf8");
 
-const predicateSrc = SRC.match(/const senderPhotoMissing = \(\(\) => \{([\s\S]*?)\n  \}\)\(\);/);
+import { senderPhotoUsable } from "../utils/senderPhoto.js";
 
+// Report 145 correction (2026-10-28): the predicate moved, unchanged, into utils/senderPhoto.js so Home uses the same rule.
 test("senderPhotoMissing predicate: empty, data URL and placeholders are missing; real https is not", () => {
-  assert.ok(predicateSrc, "predicate present");
-  const mk = (user) => new Function("user", `${predicateSrc[1]}`)(user);
+  assert.match(SRC, /const senderPhotoMissing = !senderPhotoUsable\(user\?\.photoUrl\);/, "predicate present (shared rule)");
+  const mk = (user) => !senderPhotoUsable(user?.photoUrl);
   assert.equal(mk({ photoUrl: "" }), true);
   assert.equal(mk(null), true);
   assert.equal(mk({ photoUrl: "data:image/png;base64,AAA" }), true);
