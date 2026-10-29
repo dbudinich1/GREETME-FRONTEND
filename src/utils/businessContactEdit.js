@@ -11,6 +11,7 @@
 // So the editor is filled from the FULL stored record (the owner-only management read, listManaged), and the save
 // sends ONLY the fields that differ from that record. A field the owner did not change is never in the request,
 // so the server keeps its stored value. When the full record cannot be read, nothing is offered that could write.
+
 import { formatPersonName } from './formatPersonName.js';
 
 // The address fields the server stores (services/corporate/addressMeta.js ADDRESS_KEYS).
@@ -19,12 +20,14 @@ const str = (v) => (typeof v === 'string' ? v.trim() : '');
 
 /**
  * Read the stored record for one business contact. Never throws.
- * @returns {Promise<{ok:true, record:object}|{ok:false, notFound?:boolean}>}
+ * @returns {Promise<{ok:true, record:object}|{ok:false, notFound?:boolean, unauthorized?:boolean}>}
  */
 export async function loadBusinessContactForEdit(client, orgId, contactId) {
   if (!client || typeof client.listManaged !== 'function' || !orgId || !contactId) return { ok: false };
   let res;
   try { res = await client.listManaged(orgId); } catch { return { ok: false }; }
+  // 401/403: this viewer may not manage the organization's contacts (said plainly, not "try again").
+  if (res && res.unauthorized === true) return { ok: false, unauthorized: true };
   if (!res || res.ok !== true || !Array.isArray(res.contacts)) return { ok: false };
   const record = res.contacts.find((c) => c && String(c.id) === String(contactId));
   if (!record) return { ok: false, notFound: true };
@@ -69,14 +72,16 @@ const sameAddress = (a, b) => (addressEmpty(a) && addressEmpty(b)) || ADDRESS_KE
  * Fields the business record does not hold (relationship, gifts, photos, ...) are never sent.
  * An empty object means nothing changed.
  */
-export function businessContactPatch(record, formData) {
+export function businessContactPatch(record, formData, { nameTyped = true } = {}) {
   const r = record || {};
   const f = formData || {};
   const patch = {};
 
-  // The form tidies the capitalisation of a name when the field loses focus; that alone is not an edit.
+  // Any difference from the STORED name that the owner typed is sent, a capitalisation fix included (Team 5 S2). The one
+  // difference the owner did not type is the form's own capitalisation on blur (`nameTyped` false): that alone is not sent (S1).
   const name = str(f.name);
-  if (name !== str(r.name) && name !== formatPersonName(r.name || '')) patch.name = name;
+  const onlyTidiedOnBlur = !nameTyped && name === formatPersonName(r.name || '');
+  if (name !== str(r.name) && !onlyTidiedOnBlur) patch.name = name;
   if (str(f.email) !== str(r.email)) patch.email = str(f.email);
   if (str(f.firstName) !== str(r.firstName)) patch.firstName = str(f.firstName);
   if (str(f.lastName) !== str(r.lastName)) patch.lastName = str(f.lastName);
@@ -98,4 +103,5 @@ export function businessContactPatch(record, formData) {
 
 export const BUSINESS_EDIT_LOADING_TEXT = 'Loading this contact’s saved details…';
 export const BUSINESS_EDIT_FAILED_TEXT = 'We couldn’t load this contact’s saved details, so it can’t be edited right now. Nothing was changed. Close this and try again.';
+export const BUSINESS_EDIT_FORBIDDEN_TEXT = 'You don’t have access to edit this contact.';
 export const BUSINESS_EDIT_NOT_FOUND_TEXT = 'This contact is no longer in your business contacts. Nothing was changed.';

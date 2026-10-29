@@ -30,7 +30,7 @@ import { deterministicStructuredForContact } from '../import/completionModel.js'
 import { createCorporateContactsClient } from '../api/corporateContacts.js';
 import {
   loadBusinessContactForEdit, businessRecordForForm, businessContactPatch,
-  BUSINESS_EDIT_LOADING_TEXT, BUSINESS_EDIT_FAILED_TEXT, BUSINESS_EDIT_NOT_FOUND_TEXT,
+  BUSINESS_EDIT_LOADING_TEXT, BUSINESS_EDIT_FAILED_TEXT, BUSINESS_EDIT_NOT_FOUND_TEXT, BUSINESS_EDIT_FORBIDDEN_TEXT,
 } from '../utils/businessContactEdit.js';
 
 // Session storage key for preserving form data during gift selection navigation
@@ -112,13 +112,16 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
       let res;
       try { res = await loadBusinessContactForEdit(createCorporateContactsClient(), businessOrgId, contact.id); } catch { res = { ok: false }; }
       if (!alive) return;
-      setBusinessEdit(res && res.ok ? { state: 'ready', record: res.record } : { state: res && res.notFound ? 'notFound' : 'failed', record: null });
+      setBusinessEdit(res && res.ok ? { state: 'ready', record: res.record } : { state: res && res.notFound ? 'notFound' : res && res.unauthorized ? 'forbidden' : 'failed', record: null });
     })();
     return () => { alive = false; };
   }, [isBusinessEdit, businessOrgId, contact && contact.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // What the form is filled from: the contact as given, or (Business) the stored record once it has loaded.
   const businessFill = useMemo(() => (businessEdit.record ? businessRecordForForm(businessEdit.record) : null), [businessEdit.record]);
   const fillFrom = isBusinessEdit ? businessFill : contact;
+  // BIZ-EDIT-1: whether the owner typed in the Name field since the form was filled (see businessContactPatch).
+  const nameTypedRef = useRef(false);
+  useEffect(() => { nameTypedRef.current = false; }, [fillFrom]);
   const [formData, setFormData] = useState(getInitialFormData());
   const [selectedFaiths, setSelectedFaiths] = useState([]);
   const [errors, setErrors] = useState({});
@@ -390,6 +393,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'name') nameTypedRef.current = true; // BIZ-EDIT-1: typed by the owner, not only tidied on blur
     setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -610,15 +614,21 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
   // The one place a recipient is actually handed to the parent. `consents` is the W07 occasionGiftConsents array (empty otherwise).
   const commitSave = async (toSave, consents = [], sgTypes = []) => {
     // BIZ-EDIT-1: a Business contact is saved as only what changed against its stored record; nothing untouched is sent.
-    if (isBusinessEdit) await onSubmit(businessContactPatch(businessEdit.record, toSave));
-    else await onSubmit({
+    let result;
+    if (isBusinessEdit) result = await onSubmit(businessContactPatch(businessEdit.record, toSave, { nameTyped: nameTypedRef.current }));
+    else result = await onSubmit({
       ...toSave,
       occasionGiftSettings: normalizeGiftSettingsForSave(toSave.occasionGiftSettings),
       ...(consents.length > 0 ? { occasionGiftConsents: consents } : {}),
       ...(sgTypes.length > 0 ? { scheduledGiftConsents: scheduledGiftConsentsFor(sgTypes, toSave.occasionGiftSettings) } : {}),
     });
+    // A parent that reports a refused save by returning false (instead of throwing) gets no draft clear and no "Saved" toast.
+    if (result === false) return;
     // Clear draft on successful submission
     clearFormDraft();
+    // A Business contact's save is reported by the page itself ("Contact updated." or the error), and the page's handler does not
+    // tell this form which happened, so no "Saved ✓" toast here: it used to appear beside a refusal too (Team 5 S8).
+    if (isBusinessEdit) return;
     // Show saved toast — only now, after the save succeeded. A scheduled physical gift on Auto-Gift says what happens on its date.
     showManualToast('Saved ✓', scheduledGiftSavedConfirmations(toSave.occasionGiftSettings, sgDateLabel) || 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
   };
@@ -650,7 +660,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
           storedScheduledGiftConsents: contact && contact.scheduledGiftConsents,
           // LIVE-3: the record's stored QR Cash consents ({} when it holds none), so an older Auto-Gift QR Cash with no consent
           // covering its amount is asked for. A Business contact is left as before: its Auto-Gift settings are not saved by its route.
-          ...(isBusinessEdit ? {} : { storedQrCashConsents: (contact && contact.scheduledQrCashConsents) || {} }),
+          ...(isBusinessEdit ? {} : { storedQrCashConsents: (contact && contact.scheduledQrCashConsents) || {}, contactId: contact ? contact.id : undefined }),
           labelFor: (type) => (occasionTypes.find((o) => o.value === type) || {}).label,
           requiresDelivery: requiresDeliveryAddress,
         });
@@ -673,7 +683,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
       <div data-testid={waiting ? 'business-edit-loading' : 'business-edit-failed'} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {waiting
           ? <p role="status" style={{ margin: 0, color: 'var(--text-secondary)' }}>{BUSINESS_EDIT_LOADING_TEXT}</p>
-          : <Alert type="error" message={businessEdit.state === 'notFound' ? BUSINESS_EDIT_NOT_FOUND_TEXT : BUSINESS_EDIT_FAILED_TEXT} />}
+          : <Alert type="error" message={businessEdit.state === 'notFound' ? BUSINESS_EDIT_NOT_FOUND_TEXT : businessEdit.state === 'forbidden' ? BUSINESS_EDIT_FORBIDDEN_TEXT : BUSINESS_EDIT_FAILED_TEXT} />}
         {!waiting && onCancel ? (
           <div><button type="button" className="btn btn-secondary" data-testid="business-edit-close" onClick={onCancel}>Close</button></div>
         ) : null}

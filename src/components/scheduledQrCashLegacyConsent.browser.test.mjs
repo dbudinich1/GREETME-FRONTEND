@@ -103,6 +103,8 @@ test("LIVE-3: an unchanged legacy Auto-Gift QR Cash with NO stored consent and a
   assert.equal(all("consent-checkbox").length, 1, "one block, for the unconsented occasion only");
   assert.equal(tid("card-element"), null, "a good card is on file: no card entry");
   assert.match(tid("consent-block-birthday").textContent.replace(/\s+/g, " "), /charge my card \$27\.74 on November 14 for Birthday: my \$25\.00 QR Cash gift/);
+  assert.equal(tid("first-consent-note-birthday").textContent, "This Auto-Gift was set up before we started asking for payment authorization, so we need your OK before it can send automatically.", "the one explanatory line (PROPOSED copy)");
+  assert.equal(all("consent-text").length, 1, "the consent wording itself is unchanged and separate");
   assert.equal(submitted.length, 0, "nothing saved yet");
 });
 
@@ -146,6 +148,22 @@ test("a stored consent that does NOT cover the amount (lower amount, unknown wor
     assert.equal(all("consent-block-birthday").length, 1);
     assert.equal(submitted.length, 0);
   }
+});
+
+test("a CHANGED setting (new amount) gets the consent block WITHOUT the explanatory line", async () => {
+  await mount(contactWith(LEGACY));
+  if (tid("special-occasions-toggle").getAttribute("aria-expanded") !== "true") await click(tid("special-occasions-toggle"));
+  await act(async () => {
+    const hits = [...document.querySelectorAll("div")].filter((d) => d.textContent.includes("Birthday") && d.textContent.includes("Enable Auto-Gift"));
+    const card = hits.find((d) => !hits.some((o) => o !== d && d.contains(o)));
+    const sel = [...card.querySelectorAll("select")].pop();
+    Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value").set.call(sel, "50");
+    sel.dispatchEvent(new window.Event("change", { bubbles: true }));
+  });
+  await flush();
+  await save();
+  assert.ok(tid("consent-block-birthday"));
+  assert.equal(document.querySelector('[data-testid^="first-consent-note-"]'), null);
 });
 
 test("Auto-Gift off or a manual QR Cash gift: nothing to consent to, no modal (unchanged behaviour)", async () => {

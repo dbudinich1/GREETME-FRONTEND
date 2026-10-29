@@ -38,9 +38,12 @@ test("changing only the email sends only the email", () => {
   assert.deepEqual(businessContactPatch(STORED, { ...untouched(), email: " new@corp.test " }), { email: "new@corp.test" });
 });
 
-test("the form's own name capitalisation is not an edit; a real rename is", () => {
+test("the name is sent whenever it differs from the STORED name, a capitalisation fix included (Team 5 S2); an untouched tidy name is not", () => {
   const lower = { ...STORED, name: "erin employee" };
-  assert.deepEqual(businessContactPatch(lower, { ...untouched(), name: "Erin Employee" }), {}, "formatted on blur only");
+  assert.deepEqual(businessContactPatch(lower, { ...untouched(), name: "Erin Employee" }), { name: "Erin Employee" });
+  assert.deepEqual(businessContactPatch(STORED, { ...untouched(), name: " Erin Employee " }), {}, "same as stored");
+  assert.deepEqual(businessContactPatch(lower, { ...untouched(), name: "Erin Employee" }, { nameTyped: false }), {}, "only the form's blur tidy-up (Team 5 S1): not sent");
+  assert.deepEqual(businessContactPatch(lower, { ...untouched(), name: "Erin Smith" }, { nameTyped: false }), { name: "Erin Smith" }, "anything beyond the tidy-up is sent");
   assert.deepEqual(businessContactPatch(STORED, { ...untouched(), name: "Erin Smith" }), { name: "Erin Smith" });
 });
 
@@ -83,6 +86,7 @@ test("loading: the record by id from the management read; any failure, a missing
   assert.deepEqual(await loadBusinessContactForEdit(client({ ok: true, contacts: [STORED] }), "org_1", "b9"), { ok: false, notFound: true });
   assert.deepEqual(await loadBusinessContactForEdit(client({ ok: false, unavailable: true, status: 404 }), "org_1", "b1"), { ok: false });
   assert.deepEqual(await loadBusinessContactForEdit(client({ ok: false, dormant: true }), "org_1", "b1"), { ok: false });
+  assert.deepEqual(await loadBusinessContactForEdit(client({ ok: false, unauthorized: true, status: 403 }), "org_1", "b1"), { ok: false, unauthorized: true });
   assert.deepEqual(await loadBusinessContactForEdit(client({ ok: true, contacts: [{ id: "b1", name: "Erin" }] }), "org_1", "b1"), { ok: false }, "no email field: not a safe base");
   assert.deepEqual(await loadBusinessContactForEdit({ listManaged: async () => { throw new Error("x"); } }, "org_1", "b1"), { ok: false });
   assert.deepEqual(await loadBusinessContactForEdit(client({ ok: true, contacts: [] }), null, "b1"), { ok: false });

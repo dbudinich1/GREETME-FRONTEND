@@ -22,23 +22,65 @@ rmSync(OUT, { force: true });
 const LEGACY = { birthday: { type: "qrcash", amount: 25, autoGift: true } };
 const CARD = { present: true, expired: false, expMonth: 12, expYear: 2099 };
 const OCC = [{ type: "birthday", date: "2026-11-14" }];
-const snap = (amountCents, wordingVersion = SCHED_QRCASH_WORDING_VERSION) => ({ occasionType: "birthday", amountCents, wordingVersion, acceptedAt: "2026-10-01T00:00:00.000Z" });
-const plan = (over) => planAuthorization({ settings: LEGACY, initialSettings: LEGACY, occasions: OCC, card: CARD, formData: {}, labelFor: (k) => k, requiresDelivery: () => false, ...over });
+const snap = (amountCents, wordingVersion = SCHED_QRCASH_WORDING_VERSION, over = {}) => ({ contactId: "c1", occasionType: "birthday", amountCents, wordingVersion, acceptedAt: "2026-10-01T00:00:00.000Z", ...over });
+const plan = (over) => planAuthorization({ settings: LEGACY, initialSettings: LEGACY, occasions: OCC, card: CARD, formData: {}, labelFor: (k) => k, requiresDelivery: () => false, contactId: "c1", ...over });
+const ME = { contactId: "c1", occasionType: "birthday" };
 
-test("consentCovers: the stored snapshot, this build's wording, at least this amount; anything else is no consent", () => {
-  assert.equal(consentCovers(snap(2500), 2500), true);
-  assert.equal(consentCovers(snap(3000), 2500), true, "a lowered amount stays within what was agreed (the server shrinks the snapshot)");
-  assert.equal(consentCovers(snap(2000), 2500), false);
-  assert.equal(consentCovers(snap(2500, "w07-sched-qrcash-v0"), 2500), false);
-  assert.equal(consentCovers({ amountCents: "2500", wordingVersion: SCHED_QRCASH_WORDING_VERSION }, 2500), false);
-  for (const v of [undefined, null, [], "yes", true, {}]) assert.equal(consentCovers(v, 2500), false);
+test("consentCovers: this contact's and this occasion's snapshot, this build's wording, a valid acceptedAt, amounts in range, at least this amount", () => {
+  assert.equal(consentCovers(snap(2500), 2500, ME), true);
+  assert.equal(consentCovers(snap(3000), 2500, ME), true, "a lowered amount stays within what was agreed (the server shrinks the snapshot)");
+  assert.equal(consentCovers(snap(2000), 2500, ME), false);
+  assert.equal(consentCovers(snap(2500, "w07-sched-qrcash-v0"), 2500, ME), false);
+  assert.equal(consentCovers(snap(2500, undefined, { contactId: "c-other" }), 2500, ME), false, "another contact's snapshot");
+  assert.equal(consentCovers(snap(2500, undefined, { occasionType: "christmas" }), 2500, ME), false, "another occasion's snapshot");
+  assert.equal(consentCovers(snap(2500), 2500), false, "no contact id known: not covered (asked, never assumed)");
+  assert.equal(consentCovers(snap(2500, undefined, { acceptedAt: undefined }), 2500, ME), false);
+  assert.equal(consentCovers(snap(2500, undefined, { acceptedAt: "not-a-date" }), 2500, ME), false);
+  assert.equal(consentCovers(snap(99999999), 2500, ME), false, "snapshot above the maximum gift");
+  assert.equal(consentCovers(snap(400), 400, ME), false, "below the minimum gift");
+  assert.equal(consentCovers(snap(10000), 10100, ME), false, "a saved amount above the maximum is never chargeable");
+  assert.equal(consentCovers(snap("2500"), 2500, ME), false);
+  assert.equal(consentCovers(snap(2500.5), 2500, ME), false);
+  for (const v of [undefined, null, [], "yes", true, {}]) assert.equal(consentCovers(v, 2500, ME), false);
+});
+
+// Parity with the backend's own pre-charge rule, case by case (read-only import of pay-be; skipped if it is not on this machine).
+let BE = null;
+try { BE = await import(pathToFileURL("C:/1_GREET-ME/pay-be/services/scheduledQrCashConsent.js").href); } catch { BE = null; }
+test("parity: FE consentCovers === BE isScheduledQrCashChargeReady (pay-be services/scheduledQrCashConsent.js:181-193) on every case", { skip: !BE && "pay-be not available" }, () => {
+  const good = (over = {}) => ({ contactId: "c1", occasionType: "birthday", amountCents: 2500, feeCents: 0, totalCents: 0, maxTotalCents: 0, recurrence: "yearly", wordingVersion: SCHED_QRCASH_WORDING_VERSION, acceptedAt: "2026-10-01T00:00:00.000Z", ...over });
+  const q = (amount, extra = {}) => ({ type: "qrcash", amount, autoGift: true, ...extra });
+  const CASES = [
+    [q(25), good()], [q(20), good()], [q(30), good()], [q(0, { customAmount: 25 }), good()], [q(0, { customAmount: 40 }), good()], [q("25"), good()],
+    [q(25), good({ wordingVersion: "w07-sched-qrcash-v0" })], [q(25), good({ contactId: "c-other" })], [q(25), good({ occasionType: "christmas" })],
+    [q(25), good({ acceptedAt: undefined })], [q(25), good({ acceptedAt: "not-a-date" })], [q(25), good({ amountCents: "2500" })], [q(25), good({ amountCents: 2500.5 })],
+    [q(25), good({ amountCents: 99999999 })], [q(25), undefined], [q(25), []], [q(4), good({ amountCents: 400 })], [q(101), good({ amountCents: 10000 })], [q(100), good({ amountCents: 10000 })],
+  ];
+  const rows = [];
+  for (const [entry, sn] of CASES) {
+    const cents = Math.round((Number(entry.amount) === 0 ? Number(entry.customAmount) : Number(entry.amount)) * 100);
+    const fe = consentCovers(sn, cents, ME);
+    const be = BE.isScheduledQrCashChargeReady({ contact: { occasionGiftSettings: { birthday: entry }, scheduledQrCashConsents: sn === undefined ? {} : { birthday: sn } }, contactId: "c1", occasionType: "birthday" });
+    rows.push([JSON.stringify(entry), JSON.stringify(sn), fe, be]);
+  }
+  const mismatches = rows.filter((row) => row[2] !== row[3]);
+  assert.deepEqual(mismatches, [], "every case agrees");
+  assert.equal(rows.length, 19);
 });
 
 test("the Report 147 reproduction, fixed: an unchanged legacy entry with NO stored consent and a usable card now needs consent", () => {
   const p = plan({ storedQrCashConsents: {} });
   assert.equal(p.need.consent, true);
   assert.equal(p.need.card, false);
-  assert.deepEqual(p.items, [{ key: "birthday", label: "birthday", date: "2026-11-14", dateLabel: "November 14", amountCents: 2500 }]);
+  assert.deepEqual(p.items, [{ key: "birthday", label: "birthday", date: "2026-11-14", dateLabel: "November 14", amountCents: 2500, firstConsent: true }]);
+});
+
+test("firstConsent marks ONLY an unchanged setting asked for because it has no consent; a changed setting's item is as before", () => {
+  const changed = plan({ settings: { birthday: { ...LEGACY.birthday, amount: 30 } }, storedQrCashConsents: {} });
+  assert.deepEqual(changed.items, [{ key: "birthday", label: "birthday", date: "2026-11-14", dateLabel: "November 14", amountCents: 3000 }]);
+  const noCard = plan({ card: null, storedQrCashConsents: { birthday: snap(2500) } });
+  assert.equal(noCard.need.card, true);
+  assert.equal("firstConsent" in noCard.items[0], false, "a consented setting re-listed for a missing card is not a first consent");
 });
 
 test("an unchanged entry whose stored consent covers it needs nothing; one that does not cover it needs consent", () => {
@@ -62,7 +104,7 @@ test("Auto-Gift off, a manual QR Cash or a non-QR-Cash gift never asks for a QR 
 test("only unconsented occasions get a block; a consented one beside it stays silent", () => {
   const settings = { birthday: LEGACY.birthday, christmas: { type: "qrcash", amount: 50, autoGift: true } };
   const p = planAuthorization({ settings, initialSettings: settings, occasions: [...OCC, { type: "christmas", date: "2026-12-25" }], card: CARD, formData: {}, labelFor: (k) => k, requiresDelivery: () => false,
-    storedQrCashConsents: { christmas: { amountCents: 5000, wordingVersion: SCHED_QRCASH_WORDING_VERSION } } });
+    contactId: "c1", storedQrCashConsents: { christmas: snap(5000, undefined, { occasionType: "christmas" }) } });
   assert.deepEqual(p.items.map((i) => i.key), ["birthday"]);
 });
 
@@ -72,7 +114,7 @@ test("the other caller (saveGroupSchedules): a plan that needs consent is NOT sa
   const api = { updateContact: async (id, body) => { puts.push({ id, body }); return { ok: true }; } };
   const rowFor = () => ({ type: "birthday", date: "2026-11-14", gift: { type: "qrcash", amount: 25, autoGift: true } });
   const planWith = (stored) => async (p, toSave) => planAuthorization({ settings: toSave.occasionGiftSettings, initialSettings: p.occasionGiftSettings, occasions: toSave.occasions, card: CARD, formData: toSave,
-    labelFor: (k) => k, requiresDelivery: () => false, ...(stored ? { storedQrCashConsents: p.scheduledQrCashConsents || {} } : {}) }).need;
+    labelFor: (k) => k, requiresDelivery: () => false, ...(stored ? { storedQrCashConsents: p.scheduledQrCashConsents || {}, contactId: p.id } : {}) }).need;
   const withConsents = await saveGroupSchedules({ people: [person], rowFor, api, sanitize: (x) => x, plan: planWith(true) });
   assert.equal(withConsents[0].status, "needs_scheduler");
   assert.equal(withConsents[0].need.consent, true);

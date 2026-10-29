@@ -13,11 +13,14 @@
 //
 // WORDING: founder-approved text, version w07-sched-qrcash-v1 (FOUNDER_REPORTS/30_W07_consent_wording..., reward phrase dropped).
 // Changing a word here means a new version string, in step with the backend's accepted list.
-import { qrCashQuote, centsToDollarString } from './qrCashAmount.js';
+import { qrCashQuote, centsToDollarString, QR_CASH_MIN_DOLLARS, QR_CASH_MAX_DOLLARS } from './qrCashAmount.js';
 import { needsScheduledGiftConsent, backupCapCents } from './scheduledPhysicalGift.js';
 
 export const SCHED_QRCASH_WORDING_VERSION = 'w07-sched-qrcash-v1';
 export const CONSENT_TICK_LABEL = 'I agree';
+// LIVE-3 (PROPOSED copy, pending founder approval): shown above the consent text ONLY for an unchanged older Auto-Gift asked for
+// its first consent (planAuthorization item.firstConsent). It is not part of the consent wording version.
+export const FIRST_CONSENT_NOTE = 'This Auto-Gift was set up before we started asking for payment authorization, so we need your OK before it can send automatically.';
 export const PAYMENT_INFO_TEXT = 'Auto-Gift requires a valid form of payment on file. You will be prompted when you click Save.';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -87,16 +90,32 @@ export function addressMissing(formData, settings, requiresDelivery) {
   return !(ok(formData && formData.firstName) && ok(a.line1) && ok(a.city) && ok(a.state) && ok(a.zip));
 }
 
+// The backend's routes/giftRoutes.js MIN_GIFT_CENTS / MAX_GIFT_CENTS (500 / 10000), mirrored in qrCashAmount.js.
+const MIN_GIFT_CENTS = QR_CASH_MIN_DOLLARS * 100;
+const MAX_GIFT_CENTS = QR_CASH_MAX_DOLLARS * 100;
+
 /**
- * LIVE-3: does a stored consent snapshot cover this amount? The record's `scheduledQrCashConsents[occasionType]` (GET /api/contacts
- * returns the stored contact, backend services/scheduledQrCashConsent.js CONSENT_FIELD) under the wording this build shows, for at
- * least this amount: the worker's own pre-charge rule (isScheduledQrCashChargeReady). Anything else is "no consent". Read only:
- * nothing here ever records or assumes a consent.
+ * LIVE-3: will the occasion-date charge accept this stored consent? The record's `scheduledQrCashConsents[occasionType]` (GET
+ * /api/contacts returns the stored contact; backend CONSENT_FIELD) judged EXACTLY by the backend's pre-charge rule, pay-be f5297c8
+ * services/scheduledQrCashConsent.js isScheduledQrCashChargeReady (lines 181-193), which matches worker.js
+ * _resolveScheduledQrCashConsent (lines 301-312) with its caller's amount range check (lines 510-514):
+ *   185  the saved amount is a whole number of cents from MIN_GIFT_CENTS to MAX_GIFT_CENTS
+ *   187  the snapshot is a plain object
+ *   188  snap.contactId === this contact's id and snap.occasionType === this occasion
+ *   189  snap.wordingVersion is an accepted version (the backend accepts only w07-sched-qrcash-v1, this build's version)
+ *   190  snap.amountCents is a whole number of cents from MIN_GIFT_CENTS to MAX_GIFT_CENTS
+ *   191  snap.acceptedAt is a valid date
+ *   192  the saved amount is not more than snap.amountCents
+ * Anything else is "no consent", so the sender is asked. Read only: nothing here ever records or assumes a consent.
  */
-export function consentCovers(snapshot, amountCents) {
-  return Boolean(snapshot) && typeof snapshot === 'object' && !Array.isArray(snapshot)
-    && snapshot.wordingVersion === SCHED_QRCASH_WORDING_VERSION
-    && Number.isSafeInteger(snapshot.amountCents) && Number.isSafeInteger(amountCents) && amountCents <= snapshot.amountCents;
+export function consentCovers(snapshot, amountCents, { contactId, occasionType } = {}) {
+  if (!Number.isSafeInteger(amountCents) || amountCents < MIN_GIFT_CENTS || amountCents > MAX_GIFT_CENTS) return false;
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return false;
+  if (snapshot.contactId !== contactId || snapshot.occasionType !== occasionType) return false;
+  if (snapshot.wordingVersion !== SCHED_QRCASH_WORDING_VERSION) return false;
+  if (!Number.isSafeInteger(snapshot.amountCents) || snapshot.amountCents < MIN_GIFT_CENTS || snapshot.amountCents > MAX_GIFT_CENTS) return false;
+  if (!Number.isFinite(new Date(snapshot.acceptedAt).getTime())) return false;
+  return amountCents <= snapshot.amountCents;
 }
 
 /**
@@ -105,10 +124,12 @@ export function consentCovers(snapshot, amountCents) {
  * occasions and non-QR-Cash gifts never appear (the server refuses a consent for any other gift type).
  * LIVE-3: when the caller passes the record's stored consents (`storedQrCashConsents`, {} for none), an UNCHANGED QR Cash Auto-Gift
  * occasion with no stored consent covering its amount (an older setting saved before consent existed) is asked for too, so the
- * sender can make it automatic by agreeing. A caller that does not pass it (undefined) is planned exactly as before.
+ * sender can make it automatic by agreeing (such an item carries `firstConsent: true`, so the dialog can say why it is asked).
+ * `contactId` is the record's id, which a stored snapshot must name. A caller that does not pass stored consents is planned exactly
+ * as before.
  * @returns {{ items: Array<{key,label,date,dateLabel,amountCents}>, cardState: string, need: {card:boolean, consent:boolean, address:boolean} }}
  */
-export function planAuthorization({ settings, initialSettings, occasions, card, formData, labelFor, requiresDelivery, storedScheduledGiftConsents, storedQrCashConsents }) {
+export function planAuthorization({ settings, initialSettings, occasions, card, formData, labelFor, requiresDelivery, storedScheduledGiftConsents, storedQrCashConsents, contactId }) {
   const init = initialSettings && typeof initialSettings === 'object' ? initialSettings : {};
   const knownConsents = storedQrCashConsents !== undefined;
   const qrConsents = storedQrCashConsents && typeof storedQrCashConsents === 'object' ? storedQrCashConsents : {};
@@ -120,8 +141,11 @@ export function planAuthorization({ settings, initialSettings, occasions, card, 
     const occ = (occasions || []).find((o) => o && o.type === key) || {};
     const date = typeof occ.date === 'string' ? occ.date.slice(0, 10) : '';
     const amountCents = Math.round(dollars * 100);
-    const unconsented = knownConsents && !consentCovers(qrConsents[key], amountCents);
-    all.push({ key, label: (labelFor && labelFor(key)) || key, date, dateLabel: monthDay(date) || DATE_FALLBACK, amountCents, changed: !sameSetting(init[key], g) || unconsented });
+    const unconsented = knownConsents && !consentCovers(qrConsents[key], amountCents, { contactId, occasionType: key });
+    const settingChanged = !sameSetting(init[key], g);
+    // An UNCHANGED setting asked for only because it has no consent: an older Auto-Gift saved before consent was asked.
+    const firstConsent = unconsented && !settingChanged;
+    all.push({ key, label: (labelFor && labelFor(key)) || key, date, dateLabel: monthDay(date) || DATE_FALLBACK, amountCents, changed: settingChanged || unconsented, ...(firstConsent ? { firstConsent: true } : {}) });
   }
   // Scheduled physical gifts (Report 117 contract v1) on Auto-Gift: a consent item for each NEW or CHANGED selection (any
   // product/option/quantity/delivery change or a higher maximum; a lower maximum keeps the recorded consent), and the

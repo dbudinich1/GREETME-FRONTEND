@@ -49,7 +49,7 @@ before(async () => {
     export default new Proxy(impl, { get: (t, k) => (k in t ? t[k] : async () => { throw new Error("network is not available in this test: " + String(k)); }) });
   `);
   writeFileSync(AUTH, `export const useAuth = () => ({ user: { id: "u1", photoUrl: "https://example.test/me.jpg" } });\n`);
-  writeFileSync(NOTIFY, `export const showManualToast = () => {};\n`);
+  writeFileSync(NOTIFY, `export const showManualToast = (title, message) => { (globalThis.__toasts = globalThis.__toasts || []).push(title + " " + message); };\n`);
   writeFileSync(ENTRY, `export { default as Contacts } from "./Contacts.jsx";\nexport { MemoryRouter, Routes, Route } from "react-router-dom";\n`);
   await esbuild.build({
     entryPoints: [ENTRY], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser", jsx: "automatic", jsxImportSource: "react",
@@ -90,6 +90,7 @@ before(async () => {
     }
     if (/\/api\/corporate-contacts\/organizations\/org_1\/contacts\/b\d$/.test(u) && method === "PATCH") {
       globalThis.__patches.push({ id: u.split("/").pop(), body: JSON.parse(init.body) });
+      if (globalThis.__patchStatus) return json({ ok: false, error: "corporate_contacts_unavailable" }, globalThis.__patchStatus);
       return json({ ok: true, data: { contact: { id: u.split("/").pop() } } });
     }
     throw new Error("no network in this test: " + method + " " + u);
@@ -115,8 +116,8 @@ const setValue = async (el, value) => {
   await settle();
 };
 let root = null;
-async function open({ managed = MANAGED } = {}) {
-  globalThis.__contacts = CONTACTS; globalThis.__managed = managed;
+async function open({ managed = MANAGED, patchStatus = 0 } = {}) {
+  globalThis.__contacts = CONTACTS; globalThis.__managed = managed; globalThis.__patchStatus = patchStatus; globalThis.__toasts = [];
   globalThis.__puts = []; globalThis.__patches = []; globalThis.__fetches = [];
   try { window.sessionStorage.clear(); window.localStorage.clear(); } catch { /* ignore */ }
   document.body.innerHTML = "";
@@ -197,6 +198,51 @@ test("a contact missing from the stored records opens no form either, and says s
   assert.equal(globalThis.__patches.length, 0);
 });
 
+test("Team 5 S1: an untouched save after the form tidies a lower-case name on blur sends nothing", async () => {
+  await open({ managed: [{ ...MANAGED[0], name: "erin employee" }, MANAGED[1]] }); await toBusiness(); await editRow("b1");
+  const nameEl = document.querySelector('input[name="name"]');
+  assert.equal(nameEl.value, "erin employee");
+  await act(async () => { nameEl.focus(); nameEl.blur(); nameEl.dispatchEvent(new window.FocusEvent("focusout", { bubbles: true })); }); await settle();
+  assert.equal(nameEl.value, "Erin Employee", "the form's own tidy-up");
+  await saveForm();
+  assert.deepEqual(globalThis.__patches.map((p) => p.body), [{}]);
+});
+
+test("Team 5 S2: a deliberate capitalisation fix to the name is sent", async () => {
+  await open({ managed: [{ ...MANAGED[0], name: "erin employee" }, MANAGED[1]] }); await toBusiness(); await editRow("b1");
+  await setValue(document.querySelector('input[name="name"]'), "Erin Employee");
+  await saveForm();
+  assert.deepEqual(globalThis.__patches.map((p) => p.body), [{ name: "Erin Employee" }]);
+});
+
+test("Team 5 S8: a refused Business save shows the page's error and NO 'Saved ✓' toast; the form stays open", async () => {
+  await open({ patchStatus: 500 }); await toBusiness(); await editRow("b1");
+  await setValue(document.querySelector('input[name="email"]'), "erin.new@corp.test");
+  await saveForm();
+  assert.equal(globalThis.__patches.length, 1);
+  assert.match(txt(), /That didn’t go through. Please try again./);
+  assert.deepEqual(globalThis.__toasts, [], "no success toast beside the error");
+  assert.ok(document.querySelector('input[name="email"]'), "the form is still open");
+});
+
+test("a successful Business save: the page says 'Contact updated.' and the form adds no toast of its own", async () => {
+  await open(); await toBusiness(); await editRow("b1");
+  await saveForm();
+  assert.match(txt(), /Contact updated./);
+  assert.deepEqual(globalThis.__toasts, []);
+});
+
+test("401/403 on the management read: a distinct 'no access' message, no form", async () => {
+  for (const status of [401, 403]) {
+    await open({ managed: status }); await toBusiness(); await editRow("b1");
+    assert.ok(tid("business-edit-failed"));
+    assert.match(txt(), /You don’t have access to edit this contact./);
+    assert.doesNotMatch(txt(), /try again/);
+    assert.equal(document.querySelector('button[type="submit"]'), null);
+    if (root) { await act(async () => { root.unmount(); }); root = null; }
+  }
+});
+
 test("the personal Edit is unchanged: no corporate read, the same full PUT body as before", async () => {
   await open();
   const row = $$('[data-testid="cx-row"]').find((r) => r.dataset.contact === "c1");
@@ -212,4 +258,5 @@ test("the personal Edit is unchanged: no corporate read, the same full PUT body 
   assert.equal(body.name, "Avery Fixture");
   assert.deepEqual(body.occasions, [{ id: "o9", type: "birthday", date: "1990-11-14", autoSend: true }]);
   assert.ok("occasionGiftSettings" in body && "relationshipCategory" in body, "the whole form, as before");
+  assert.deepEqual(globalThis.__toasts, ["Saved ✓ Recipient settings have been saved."], "the personal 'Saved ✓' toast is unchanged");
 });
