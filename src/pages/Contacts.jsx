@@ -672,6 +672,7 @@ export default function Recipients() {
           contact={editingContact}
           focusOccasion={focusOccasion}
           addFocusOccasion={addFocusOccasion}
+          businessOrgId={isBusiness ? businessOrgId : null}
           onSubmit={handleEditRecipient}
           onCancel={() => {
             setShowEditModal(false);
