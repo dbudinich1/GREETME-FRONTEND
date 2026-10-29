@@ -88,13 +88,30 @@ export function addressMissing(formData, settings, requiresDelivery) {
 }
 
 /**
+ * LIVE-3: does a stored consent snapshot cover this amount? The record's `scheduledQrCashConsents[occasionType]` (GET /api/contacts
+ * returns the stored contact, backend services/scheduledQrCashConsent.js CONSENT_FIELD) under the wording this build shows, for at
+ * least this amount: the worker's own pre-charge rule (isScheduledQrCashChargeReady). Anything else is "no consent". Read only:
+ * nothing here ever records or assumes a consent.
+ */
+export function consentCovers(snapshot, amountCents) {
+  return Boolean(snapshot) && typeof snapshot === 'object' && !Array.isArray(snapshot)
+    && snapshot.wordingVersion === SCHED_QRCASH_WORDING_VERSION
+    && Number.isSafeInteger(snapshot.amountCents) && Number.isSafeInteger(amountCents) && amountCents <= snapshot.amountCents;
+}
+
+/**
  * What SAVE must ask for. One consent item per QR Cash Auto-Gift occasion that is NEW or CHANGED (gift, amount or Auto-Gift newly
  * on) or, when no usable card is on file, every QR Cash Auto-Gift occasion. Unchanged occasions with a good card, Auto-Gift-off
  * occasions and non-QR-Cash gifts never appear (the server refuses a consent for any other gift type).
+ * LIVE-3: when the caller passes the record's stored consents (`storedQrCashConsents`, {} for none), an UNCHANGED QR Cash Auto-Gift
+ * occasion with no stored consent covering its amount (an older setting saved before consent existed) is asked for too, so the
+ * sender can make it automatic by agreeing. A caller that does not pass it (undefined) is planned exactly as before.
  * @returns {{ items: Array<{key,label,date,dateLabel,amountCents}>, cardState: string, need: {card:boolean, consent:boolean, address:boolean} }}
  */
-export function planAuthorization({ settings, initialSettings, occasions, card, formData, labelFor, requiresDelivery, storedScheduledGiftConsents }) {
+export function planAuthorization({ settings, initialSettings, occasions, card, formData, labelFor, requiresDelivery, storedScheduledGiftConsents, storedQrCashConsents }) {
   const init = initialSettings && typeof initialSettings === 'object' ? initialSettings : {};
+  const knownConsents = storedQrCashConsents !== undefined;
+  const qrConsents = storedQrCashConsents && typeof storedQrCashConsents === 'object' ? storedQrCashConsents : {};
   const all = [];
   for (const [key, g] of Object.entries(settings || {})) {
     if (!g || g.type !== 'qrcash' || g.autoGift !== true) continue;
@@ -102,7 +119,9 @@ export function planAuthorization({ settings, initialSettings, occasions, card, 
     if (dollars === null) continue; // no amount: nothing to authorize (the server refuses it separately)
     const occ = (occasions || []).find((o) => o && o.type === key) || {};
     const date = typeof occ.date === 'string' ? occ.date.slice(0, 10) : '';
-    all.push({ key, label: (labelFor && labelFor(key)) || key, date, dateLabel: monthDay(date) || DATE_FALLBACK, amountCents: Math.round(dollars * 100), changed: !sameSetting(init[key], g) });
+    const amountCents = Math.round(dollars * 100);
+    const unconsented = knownConsents && !consentCovers(qrConsents[key], amountCents);
+    all.push({ key, label: (labelFor && labelFor(key)) || key, date, dateLabel: monthDay(date) || DATE_FALLBACK, amountCents, changed: !sameSetting(init[key], g) || unconsented });
   }
   // Scheduled physical gifts (Report 117 contract v1) on Auto-Gift: a consent item for each NEW or CHANGED selection (any
   // product/option/quantity/delivery change or a higher maximum; a lower maximum keeps the recorded consent), and the

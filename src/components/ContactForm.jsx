@@ -648,6 +648,9 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
         const plan = planAuthorization({
           settings, initialSettings: contact && contact.occasionGiftSettings, occasions: toSave.occasions, card, formData: toSave,
           storedScheduledGiftConsents: contact && contact.scheduledGiftConsents,
+          // LIVE-3: the record's stored QR Cash consents ({} when it holds none), so an older Auto-Gift QR Cash with no consent
+          // covering its amount is asked for. A Business contact is left as before: its Auto-Gift settings are not saved by its route.
+          ...(isBusinessEdit ? {} : { storedQrCashConsents: (contact && contact.scheduledQrCashConsents) || {} }),
           labelFor: (type) => (occasionTypes.find((o) => o.value === type) || {}).label,
           requiresDelivery: requiresDeliveryAddress,
         });
