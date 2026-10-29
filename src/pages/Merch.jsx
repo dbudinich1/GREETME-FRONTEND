@@ -324,7 +324,7 @@ export default function Merch() {
 
   // THE ONE PROJECTION. Whatever supplied the products, the grid below receives the same six fields
   // in the same shape. This is the line that makes Flowers and Americana the same page.
-  const cards = useMemo(() => (
+  const projectedCards = useMemo(() => (
     isCuratedSelection
       // A stored card is choosable only once the LIVE provider list confirms it (withLiveAvailability): while that list
       // loads, or when it failed, the card stays visible but cannot be chosen. Never fails open.
@@ -334,6 +334,8 @@ export default function Merch() {
       }), giftBasketsProviderProducts)
       : projectGiftCards(visibleProducts, fromCatalogProduct)
   ), [isCuratedSelection, visibleProducts, flowersLiveState, flowersProviderProducts, giftBasketsLiveState, giftBasketsProviderProducts]);
+  // REPORT 153E (switched off): with a logo applied, the Brandable Goods view shows only founder-designated products.
+  const cards = branding.enabled ? branding.assortmentCards(projectedCards, selectedCategory === BRANDABLE) : projectedCards;
 
   // Each card's category label (gallery cards): Branded Goods for the merch catalogue, otherwise the product's first
   // Gift Place category. Display only.

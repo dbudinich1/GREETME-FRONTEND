@@ -84,6 +84,22 @@ function SignInStep({ branding }) {
   );
 }
 
+/** 153E — nothing designated for customer logos yet: say so, and offer the business team (today's route). */
+function NoneEligibleStep({ branding }) {
+  const navigate = useNavigate();
+  const close = () => branding.setStep(null);
+  const contact = () => { branding.setStep(null); navigate('/business?contact=sales'); };
+  return (
+    <Dialog title={S.noneEligibleTitle} onClose={close} testId="branding-none-eligible">
+      <p style={{ margin: '0 0 1rem', fontSize: '0.9375rem', lineHeight: 1.5, color: '#4b4060' }}>{S.noneEligibleIntro}</p>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <button type="button" style={btnGhost} onClick={close}>{S.cancel}</button>
+        <button type="button" data-testid="branding-contact-business" style={btnPrimary} onClick={contact}>{S.contactBusinessTeam}</button>
+      </div>
+    </Dialog>
+  );
+}
+
 /** The local placement proposal: the product's print area (to scale) with the logo at its stored position. */
 export function PlacementProposal({ variantSpec, position, logoSrc, productKey }) {
   if (!position || !variantSpec) return null;
@@ -176,6 +192,7 @@ function PlacementOrApproval({ branding, products, mode }) {
 export default function MerchBrandingLayer({ branding, products }) {
   if (!branding || !branding.enabled || !branding.step) return null;
   if (branding.step.type === 'signin') return <SignInStep branding={branding} />;
+  if (branding.step.type === 'none-eligible') return <NoneEligibleStep branding={branding} />;
   if (branding.step.type === 'logo') return <LogoStep branding={branding} />;
   if (branding.step.type === 'preview') return <PlacementOrApproval key={`p-${branding.step.syncProductId}`} branding={branding} products={products} mode="preview" />;
   if (branding.step.type === 'approval') return <PlacementOrApproval key={`a-${branding.step.syncVariantId}`} branding={branding} products={products} mode="approval" />;

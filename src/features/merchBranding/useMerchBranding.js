@@ -12,6 +12,11 @@
 // only they can see, replace or clear it). A signed-out customer who presses "Brand for My Company" gets
 // a sign-in step instead of the upload; a sign-in that expires mid-session (any 401) drops the local
 // branding and shows the same step with an "expired" line. Nothing is uploaded while signed out.
+//
+// 153E — founder-designated products only. "Brand for My Company" asks the server which products the
+// founder has designated for customer logos. None (today) → a "not open yet" step pointing to the
+// business team; nothing is uploaded. Once a logo is applied, the Brandable Goods view shows ONLY the
+// designated products (assortmentCards); every other card, anywhere, stays exactly as it is today.
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { getBrandingApi } from './brandingApiProvider.js';
@@ -97,6 +102,19 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
     }
   }, [api, signInAgain]);
 
+  // 153E: which products the founder designated (fresh each time the step opens). Fail closed: any
+  // failure counts as "none".
+  const openBrandingStep = useCallback(async () => {
+    if (!enabled) return;
+    setError(null);
+    if (!signedIn) { setStep({ type: 'signin', expired: false }); return; }
+    let r = null;
+    try { r = api ? await api.getEligibility() : null; } catch { r = null; }
+    if (isAuthFailure(r)) { signInAgain(); return; }
+    const eligible = r && r.ok && Array.isArray(r.eligible) ? r.eligible : [];
+    setStep(eligible.length ? { type: 'logo' } : { type: 'none-eligible' });
+  }, [enabled, signedIn, api, signInAgain]);
+
   const clear = useCallback(async () => {
     if (!api || !session.logo) return;
     const id = session.logo.logoId;
@@ -111,7 +129,8 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
   const cardBranding = useCallback((card) => {
     if (!enabled || !state.logo || !card || card.source !== 'catalog') return null;
     const entry = catalogById[String(card.id)];
-    if (!entry || !entry.supported) return { label: S.cardUnsupported, tone: 'muted' };
+    if (!entry) return null; // 153E: not founder-designated — the card is exactly as it is today
+    if (!entry.supported) return { label: S.cardUnsupported, tone: 'muted' };
     const v0 = entry.variants.find((v) => v.supported) || null;
     if (!v0) return { label: S.cardUnsupported, tone: 'muted' };
     const open = () => setStep({ type: 'preview', syncProductId: entry.syncProductId, syncVariantId: v0.syncVariantId });
@@ -121,6 +140,15 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
     if (m && m.status === 'unavailable') return { label: S.cardUnavailable, tone: 'warn', onOpen: () => refreshMockups(state.logo.logoId) };
     return { label: S.cardPreparing, tone: 'pending', onOpen: open };
   }, [enabled, state.logo, state.mockups, catalogById, refreshMockups]);
+
+  /**
+   * 153E: while a logo is applied, the Brandable Goods view shows ONLY the founder-designated products
+   * (the ones in the branded catalog). Every other view, and every view with no logo, is unchanged.
+   */
+  const assortmentCards = useCallback((cards, inBrandableView) => {
+    if (!enabled || !state.logo || !inBrandableView || !Array.isArray(cards)) return cards;
+    return cards.filter((c) => c && c.source === 'catalog' && catalogById[String(c.id)]);
+  }, [enabled, state.logo, catalogById]);
 
   /**
    * Called before a catalog variant is added to the cart. With branding applied and the product
@@ -146,7 +174,8 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
     busy,
     error,
     setStep: enabled ? setStep : () => {},
-    openBrandingStep: () => { if (enabled) { setError(null); setStep(signedIn ? { type: 'logo' } : { type: 'signin', expired: false }); } },
+    openBrandingStep,
+    assortmentCards,
     applyFile,
     clear,
     cardBranding,

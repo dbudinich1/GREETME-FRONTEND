@@ -304,10 +304,12 @@ test("every Merch.jsx hunk of the feature is behind the switch; with it off the 
   assert.match(MERCH_CODE, /\{branding\.enabled && <MerchBrandingLayer /);
   assert.match(MERCH_CODE, /\{branding\.enabled && selectedCategory === BRANDABLE && <BrandingControls /);
   assert.match(MERCH_CODE, /brandingFor=\{branding\.enabled \? branding\.cardBranding : null\}/);
+  // 153E: while a logo is applied the Brandable Goods view shows only founder-designated products.
+  assert.match(MERCH_CODE, /const cards = branding\.enabled \? branding\.assortmentCards\(projectedCards, selectedCategory === BRANDABLE\) : projectedCards;/);
   assert.match(MERCH_CODE, /if \(branding\.enabled && branding\.interceptVariant\(product, variant\)\)/);
   // No other use of the feature's names in the page.
   const uses = (MERCH_CODE.match(/branding\.[a-zA-Z]+/g) || []).filter((u) => u !== "branding.enabled");
-  assert.deepEqual([...new Set(uses)].sort(), ["branding.cardBranding", "branding.interceptVariant", "branding.openBrandingStep"]);
+  assert.deepEqual([...new Set(uses)].sort(), ["branding.assortmentCards", "branding.cardBranding", "branding.interceptVariant", "branding.openBrandingStep"]);
 });
 
 test("no Shopify customer interaction is restored", () => {

@@ -36,6 +36,7 @@ export function createHttpBrandingApi() {
   return {
     kind: 'http',
     getConfig: () => call('/config'),
+    getEligibility: () => call('/eligibility'),
     uploadLogo: (file) => send('/logo', file),
     replaceLogo: (logoId, file) => send(`/logo/${encodeURIComponent(logoId)}/replace`, file),
     clearLogo: (logoId) => call(`/logo/${encodeURIComponent(logoId)}`, { method: 'DELETE' }),
@@ -53,9 +54,12 @@ const RIGHTS = Object.freeze({
 const SUBJECT = { notebook: 'This notebook', laptop_sleeve: 'This laptop sleeve', mug: 'This mug', canvas: 'This canvas' };
 const fmt = (n) => Number(n).toLocaleString('en-US');
 
-/** The branded catalog the server would return, computed from the shared golden specs. */
-export function catalogFromSpecs(logo, specs = GOLDEN.specs) {
-  return Object.entries(specs).map(([syncProductId, p]) => ({
+/**
+ * The branded catalog the server would return, computed from the shared golden specs.
+ * 153E: only founder-designated products (`eligible`, syncProductIds) appear — default none.
+ */
+export function catalogFromSpecs(logo, specs = GOLDEN.specs, eligible = []) {
+  return Object.entries(specs).filter(([syncProductId]) => eligible.map(Number).includes(Number(syncProductId))).map(([syncProductId, p]) => ({
     syncProductId: Number(syncProductId),
     supported: true,
     productKey: p.productKey,
@@ -86,7 +90,8 @@ export function catalogFromSpecs(logo, specs = GOLDEN.specs) {
  * `mockupFor(syncVariantId)` returns a mockup image URL or null ("preparing"); `failFor` lists
  * variants whose mockup is "unavailable".
  */
-export function createInMemoryBrandingApi({ measure, mockupFor = () => null, failFor = [], specs = GOLDEN.specs } = {}) {
+export function createInMemoryBrandingApi({ measure, mockupFor = () => null, failFor = [], specs = GOLDEN.specs, eligible = () => [] } = {}) {
+  const eligibleNow = () => (typeof eligible === 'function' ? eligible() : eligible) || [];
   const logos = new Map();
   const calls = [];
   let n = 0;
@@ -99,11 +104,12 @@ export function createInMemoryBrandingApi({ measure, mockupFor = () => null, fai
     n += 1;
     const logo = { logoId: `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`, type, ...dims, bytes: file.size };
     logos.set(logo.logoId, logo);
-    return { ok: true, status: 201, logo, catalog: catalogFromSpecs(logo, specs) };
+    return { ok: true, status: 201, logo, catalog: catalogFromSpecs(logo, specs, eligibleNow()) };
   };
   return {
     kind: 'memory',
     calls,
+    async getEligibility() { calls.push('getEligibility'); return { ok: true, eligible: eligibleNow().map(Number).filter((id) => specs[String(id)]) }; },
     async getConfig() { calls.push('getConfig'); return { ok: true, acceptedTypes: ['image/png', 'image/jpeg'], maxBytes: 10 * 1024 * 1024, rightsWording: RIGHTS }; },
     async uploadLogo(file) { calls.push('uploadLogo'); return accept(file); },
     async replaceLogo(logoId, file) {
@@ -116,7 +122,7 @@ export function createInMemoryBrandingApi({ measure, mockupFor = () => null, fai
     async getMockups(logoId) {
       calls.push('getMockups');
       if (!logos.has(logoId)) return { ok: false, status: 404 };
-      const ids = Object.values(specs).flatMap((p) => Object.keys(p.variants)).map(Number);
+      const ids = Object.entries(specs).filter(([pid]) => eligibleNow().map(Number).includes(Number(pid))).flatMap(([, p]) => Object.keys(p.variants)).map(Number);
       return { ok: true, mockups: ids.map((id) => (failFor.includes(id) ? { syncVariantId: id, status: 'unavailable' } : mockupFor(id) ? { syncVariantId: id, status: 'ready', mockupUrl: mockupFor(id) } : { syncVariantId: id, status: 'preparing' })) };
     },
     async approve() { calls.push('approve'); return { ok: false, status: 409, code: 'BRANDING_PLACEMENT_NOT_APPROVED', error: 'This product’s logo placement hasn’t been approved yet.' }; },

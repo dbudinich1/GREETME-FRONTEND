@@ -67,7 +67,7 @@ before(async () => {
   writeFileSync(T("api.js"),
     "const merch = " + JSON.stringify(MERCH_PRODUCTS) + ";\n"
     + "async function request(url = '') { if (String(url).includes('/api/merch/products')) return { products: merch }; return {}; }\n"
-    + "async function getGiftCatalog() { return { ok: true, products: [] }; }\nasync function getSmartCardTiles() { return { ok: false }; }\n"
+    + "async function getGiftCatalog() { return { ok: true, products: [{ id: 'am-1', title: 'Liberty Flag Mug', description: 'Founder-designed Americana.', priceCents: 2500, currency: 'USD', greetMeCategories: ['americana'], images: [{ url: 'https://example.test/am.jpg' }], source: 'printful' }] }; }\nasync function getSmartCardTiles() { return { ok: false }; }\n"
     + "const noop = async () => ({ data: {} });\nexport default { request, getGiftCatalog, getSmartCardTiles, get: noop, post: noop, put: noop, delete: noop };\n");
   writeFileSync(T("cart.js"),
     "export const __calls = [];\nexport default { getCart: () => [], addItem: (i) => { __calls.push(i); return []; }, removeItem: () => [], updateItem: () => [], getTotal: () => 0, getCount: () => 0, clear() {}, hasItem: () => false, hasMerch: () => false, hasNonMerch: () => false, clearMerch() {} };\n");
@@ -80,7 +80,8 @@ before(async () => {
   writeFileSync(T("apiProviderOn.js"),
     `import { createInMemoryBrandingApi } from ${JSON.stringify(join(HERE, "brandingApi.js").replace(/\\/g, "/"))};\n`
     + "export const __api = createInMemoryBrandingApi({ measure: async (f) => (f.name.startsWith('small') ? { widthPx: 300, heightPx: 300 } : { widthPx: 4000, heightPx: 4000 }),\n"
-    + "  mockupFor: (id) => (id === 5298267871 ? 'https://example.test/mockup-mug.jpg' : null) });\n"
+    + "  mockupFor: (id) => (id === 5298267871 ? 'https://example.test/mockup-mug.jpg' : null),\n"
+    + "  eligible: () => (globalThis.__TEST_ELIGIBLE || [431624815, 431623973, 431622804, 431621330]) });\n"
     + "export function getBrandingApi() { return __api; }\n");
   writeFileSync(T("entry.jsx"),
     'export { default as Merch } from "./Merch.jsx";\nexport { MemoryRouter, Routes, Route } from "react-router-dom";\n'
@@ -195,7 +196,7 @@ test("ON: after upload every card is branded — mockup when ready, preparing ot
     assert.match(q(m.host, "gift-card-image-431622804").style.backgroundImage, /mockup-mug\.jpg/, "the Printful mockup replaces the stock photo");
     assert.equal(text(q(m.host, "gift-card-branding-431623973")), "Preparing branded preview");
     assert.match(q(m.host, "gift-card-image-431623973").style.backgroundImage, /sleeve\.jpg/, "no logo is pasted on the stock photo");
-    assert.equal(text(q(m.host, "gift-card-branding-999000111")), "Not available with your logo");
+    assert.ok(!q(m.host, "gift-card-999000111"), "153E: a product the founder has not designated is not in the Brand for My Company assortment");
   } finally { await m.unmount(); }
 });
 
@@ -250,10 +251,12 @@ test("ON: adding a branded product opens the artwork approval in the purchase jo
     assert.equal(q(dlg, "branding-approve").disabled, true, "approval stays disabled: checkout not connected (Q1 open)");
     assert.ok(q(dlg, "branding-not-open"));
     assert.equal(ON.cartCalls.length, 0);
-    // an unsupported product still adds through the normal path
+    // a product that is not designated keeps its normal path (after Clear branding it is back, unbranded)
     await click([...dlg.querySelectorAll("button")].find((b) => /Back to products/.test(text(b))));
+    await click(q(m.host, "branding-clear"));
     await click(q(m.host, "gift-card-action-999000111"));
     assert.equal(ON.cartCalls.length, 1);
+    assert.equal(ON.cartCalls[0].printfulSyncVariantId, 999000112);
   } finally { await m.unmount(); }
 });
 
@@ -308,4 +311,63 @@ test("ON: an upload answered 401 shows the sign-in step instead of a generic upl
     assert.ok(q(win.document.body, "branding-signin-expired"));
     assert.ok(!q(win.document.body, "branding-error"), "the server's raw message is not shown");
   } finally { ON.__api.uploadLogo = real; await m.unmount(); }
+});
+
+// ── 153E: founder-designated products only ──────────────────────────────────────────────────
+const chip = (host, label) => [...host.querySelectorAll("button")].find((b) => text(b) === label);
+
+test("ON, nothing designated (today's state): no upload, a 'not open yet' step, and Contact goes to the business team", async () => {
+  ON.__resetBrandingSession();
+  globalThis.__TEST_ELIGIBLE = [];
+  const m = await mount(ON);
+  try {
+    const before = ON.__api.calls.filter((c) => c === "uploadLogo").length;
+    await click(brandButton(m.host));
+    const dlg = q(win.document.body, "branding-none-eligible");
+    assert.ok(dlg, "the not-open step");
+    assert.equal(text(dlg.querySelector("h2")), "Logo branding isn’t open yet");
+    assert.equal(win.document.querySelectorAll('input[type="file"]').length, 0, "no file chooser");
+    assert.equal(ON.__api.calls.filter((c) => c === "uploadLogo").length, before);
+    assert.equal(m.host.querySelectorAll('[data-testid^="gift-card-branding-"]').length, 0, "no card changes");
+    await click(q(dlg, "branding-contact-business"));
+    assert.ok(q(m.host, "business-page"), "today's contact-sales route");
+  } finally { globalThis.__TEST_ELIGIBLE = undefined; await m.unmount(); }
+});
+
+test("ON, one designated product (EXAMPLE: the mug): only it is in the branded assortment; Clear brings the rest back unchanged", async () => {
+  ON.__resetBrandingSession();
+  globalThis.__TEST_ELIGIBLE = [431622804];
+  const m = await mount(ON);
+  try {
+    const cardsBefore = [...m.host.querySelectorAll('[data-testid^="gift-card-"][data-testid$="1"], [data-testid^="gift-card-4"], [data-testid^="gift-card-9"]')].length;
+    await click(brandButton(m.host));
+    await chooseFile(m.host, "logo.png");
+    await tick(); await tick();
+    assert.equal(text(q(m.host, "gift-card-branding-431622804")), "Your logo");
+    assert.ok(!q(m.host, "gift-card-431623973"), "laptop sleeve: not designated, not shown in the assortment");
+    assert.ok(!q(m.host, "gift-card-999000111"));
+    await click(q(m.host, "branding-clear"));
+    assert.ok(q(m.host, "gift-card-431623973") && q(m.host, "gift-card-999000111"), "the collection is back");
+    assert.equal(m.host.querySelectorAll('[data-testid^="gift-card-branding-"]').length, 0, "unbranded");
+    assert.ok(cardsBefore > 0);
+  } finally { globalThis.__TEST_ELIGIBLE = undefined; await m.unmount(); }
+});
+
+test("ON, logo applied: an Americana product (founder design) is exactly as before — no label, no mockup, same card", async () => {
+  ON.__resetBrandingSession();
+  globalThis.__TEST_ELIGIBLE = [431622804];
+  const m = await mount(ON);
+  try {
+    await click(chip(m.host, "Americana"));
+    const card = q(m.host, "gift-card-am-1");
+    assert.ok(card, "the Americana card renders");
+    const htmlBefore = card.outerHTML;
+    await click(chip(m.host, "Branded Goods") || chip(m.host, "Brandable Goods"));
+    await click(brandButton(m.host));
+    await chooseFile(m.host, "logo.png");
+    await click(chip(m.host, "Americana"));
+    const after = q(m.host, "gift-card-am-1");
+    assert.equal(after.outerHTML, htmlBefore, "identical markup with a logo applied");
+    assert.equal(m.host.querySelectorAll('[data-testid^="gift-card-branding-"]').length, 0);
+  } finally { globalThis.__TEST_ELIGIBLE = undefined; await m.unmount(); }
 });

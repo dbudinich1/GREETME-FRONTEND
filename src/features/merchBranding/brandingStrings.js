@@ -14,6 +14,11 @@ export const BRANDING_STRINGS = Object.freeze({
   cancel: 'Cancel',
   uploadFailed: 'We couldn’t upload your logo just now. Please try again.',
 
+  // Nothing designated yet (153E) — PROPOSED copy
+  noneEligibleTitle: 'Logo branding isn’t open yet',
+  noneEligibleIntro: 'No products are open for your company logo yet. Our business team can help with a branded order in the meantime.',
+  contactBusinessTeam: 'Contact our business team',
+
   // Signed out (153C)
   signInTitle: 'Sign in to brand with your logo',
   signInIntro: 'Your logo is kept in your Greet-Me account, so only you can see it, replace it or clear it.',
