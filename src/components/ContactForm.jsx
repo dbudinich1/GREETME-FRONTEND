@@ -86,6 +86,16 @@ const getInitialFormData = () => ({
   },
 });
 
+// Is the form's address still exactly what the form filled in from the stored record (the stored address over the form's
+// defaults, as the fill effect below builds it)? Then the sender did not edit it.
+export function storedAddressUntouched(contact, formAddress) {
+  const stored = contact && contact.shippingAddress;
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored) || !formAddress || typeof formAddress !== 'object') return false;
+  const filled = { ...getInitialFormData().shippingAddress, ...stored };
+  const keys = new Set([...Object.keys(filled), ...Object.keys(formAddress)]);
+  return [...keys].every((k) => (filled[k] ?? '') === (formAddress[k] ?? ''));
+}
+
 // "Cinematic" gift mark: the existing lucide Gift in a brand-gradient disc with a soft glow.
 function CinematicGiftIcon() {
   return (
@@ -618,6 +628,10 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
     if (isBusinessEdit) result = await onSubmit(businessContactPatch(businessEdit.record, toSave, { nameTyped: nameTypedRef.current }));
     else result = await onSubmit({
       ...toSave,
+      // Founder 2026-10-29: saved delivery details are preserved even when their fields aren't visible. An address the
+      // sender did not edit is sent back EXACTLY as stored, so the form's defaults (country 'United States', empty line2)
+      // are never written into a stored record that lacks them. An edited address is sent as before.
+      ...(storedAddressUntouched(contact, toSave.shippingAddress) ? { shippingAddress: contact.shippingAddress } : {}),
       occasionGiftSettings: normalizeGiftSettingsForSave(toSave.occasionGiftSettings),
       ...(consents.length > 0 ? { occasionGiftConsents: consents } : {}),
       ...(sgTypes.length > 0 ? { scheduledGiftConsents: scheduledGiftConsentsFor(sgTypes, toSave.occasionGiftSettings) } : {}),
