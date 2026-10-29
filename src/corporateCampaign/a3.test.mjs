@@ -33,7 +33,7 @@ test("FE reducer: animation/video mutually exclusive; video refuses to enable", 
 
 // Editor model: labels, notice, action availability.
 test("FE editor model: readiness labels + default notice + action availability", () => {
-  assert.equal(readinessLabel(R.READY_ORG_DEFAULT).label, "Ready — Organization Default");
+  assert.equal(readinessLabel(R.READY_ORG_DEFAULT).label, "Ready", "no organization-default wording (founder 2026-10-28)");
   assert.equal(readinessLabel(R.NEEDS_IMAGES).kind, "blocker");
   assert.match(defaultStateNotice(cfg({ animatedMessageEnabled: false, additionalImagesEnabled: false })), /Intro and Finale only/);
   // LANE 3 (2026-10-28): no organization-default notice any more (founder correction).

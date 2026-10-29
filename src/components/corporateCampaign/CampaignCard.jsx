@@ -11,6 +11,7 @@
 // corporateDashboardModel.js, which reads persisted backend state only.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SquarePlay } from "lucide-react";
 import {
   CONTACT_CATEGORIES,
   corporateGiftOptions,
@@ -991,7 +992,7 @@ export default function CampaignCard({
             <section className="gcd-wcard" data-testid={`selector-spread-${campaign.campaignId}`}
               aria-labelledby={uid("wc-spread")}>
               <h4 className="gcd-wcard-title" id={uid("wc-spread")}>
-                <span className="gcd-wcard-icon" aria-hidden="true">{"\u{1F3A8}"}</span>
+                <span className="gcd-wcard-icon" aria-hidden="true"><SquarePlay size={18} strokeWidth={2} /></span>
                 Featured Spread
               </h4>
               {/* LANE 3 — one clear featured-media choice (shared controls), Preview My Card, and a

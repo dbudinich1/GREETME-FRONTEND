@@ -26,12 +26,15 @@ export const MEDIA_MODES = Object.freeze({
 
 const MODE_VALUES = Object.values(MEDIA_MODES);
 
-// Short, plain instructions. One line each.
+// Founder copy (2026-10-29, verbatim). The three main choices; "No featured media" stays available as a quieter option
+// (quiet: true — the chooser shows it below the three, smaller).
+export const FEATURED_SPREAD_TITLE = "Featured Spread";
+export const FEATURED_SPREAD_INTRO = "Make it unmistakably yours. Bring your photo to life with your voice, share a favorite image or upload a personal video. Add cherished memories and a heartfelt message to make their Greet-Me even more meaningful.";
 export const MEDIA_CHOICES = Object.freeze([
-  { value: MEDIA_MODES.ANIMATE, label: "Animate a photo", note: "Your photo comes to life and speaks in your voice." },
-  { value: MEDIA_MODES.STATIC, label: "Static photo", note: "Your photo, with an optional voice message over it." },
-  { value: MEDIA_MODES.VIDEO, label: "Personal video", note: "A greeting video you recorded, played as is." },
-  { value: MEDIA_MODES.NONE, label: "No featured media", note: "The card keeps its Intro and Final pages." },
+  { value: MEDIA_MODES.ANIMATE, label: "Greet-Me Animation", note: "Bring your photo to life with your voice." },
+  { value: MEDIA_MODES.STATIC, label: "Still Photo", note: "Let a meaningful image speak\u2014or add your voice." },
+  { value: MEDIA_MODES.VIDEO, label: "Personal Video", note: "Share a greeting recorded your way." },
+  { value: MEDIA_MODES.NONE, label: "No featured media", note: "The card keeps its Intro and Final pages.", quiet: true },
 ]);
 
 // Which controls each choice reveals. Nothing else is shown.

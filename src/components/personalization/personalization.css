@@ -155,3 +155,13 @@
   .pm-preview-bar { padding: 8px 12px; }
   .pm-video-thumb { width: 100%; }
 }
+
+/* Founder 2026-10-29: the Featured Spread supporting copy, and No featured media as a quieter choice beneath the three. */
+.pm-chooser .pm-intro { margin: 0 0 12px; font-size: .86rem; line-height: 1.5; color: var(--pm-muted); }
+.pm-chooser .pm-quiet-choice {
+  grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px;
+  margin-top: 2px; padding: 6px 4px; font-size: .82rem; color: var(--pm-faint); cursor: pointer;
+}
+.pm-chooser .pm-quiet-choice input { margin: 0; width: auto; min-height: 0; accent-color: var(--pm-purple); }
+.pm-chooser .pm-quiet-label { font-weight: 600; color: var(--pm-muted); }
+.pm-chooser .pm-quiet-note { flex-basis: 100%; padding-left: 22px; font-size: .78rem; color: var(--pm-faint); }

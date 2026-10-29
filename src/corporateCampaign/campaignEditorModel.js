@@ -7,10 +7,10 @@
 import { FEATURED_SPREAD_READINESS as R, READY_STATES, APPROVAL_STATUS, LOCK_STATUS } from "./constants.js";
 
 export const READINESS_LABELS = Object.freeze({
-  [R.READY_ORG_DEFAULT]: { label: "Ready — Organization Default", kind: "ready" },
+  [R.READY_ORG_DEFAULT]: { label: "Ready", kind: "ready" }, // no organization default (founder 2026-10-28)
   [R.READY_CUSTOMIZED]: { label: "Ready — Customized", kind: "ready" },
   [R.READY_INTRO_FINALE_ONLY]: { label: "Ready — Intro and Finale Only", kind: "ready" },
-  [R.NEEDS_DEFAULT_PHOTO]: { label: "Needs Default Photo", kind: "blocker" },
+  [R.NEEDS_DEFAULT_PHOTO]: { label: "Needs Photo", kind: "blocker" },
   [R.NEEDS_AUTHORIZED_VOICE]: { label: "Needs Authorized Voice", kind: "blocker" },
   [R.NEEDS_IMAGE]: { label: "Needs Image", kind: "blocker" },
   [R.NEEDS_IMAGES]: { label: "Needs Images", kind: "blocker" },

@@ -17,7 +17,7 @@ import VideoFilePicker from "./VideoFilePicker";
 import { ChoiceBubble, BubbleGroup } from "../corporateCampaign/Bubbles.jsx";
 import { readSenderLibraryPhotos } from "./libraryPhotos";
 import {
-  MEDIA_CHOICES, MEDIA_MODES, CONTROL_INSTRUCTIONS, MESSAGE_MAX, VALIDATION_TEXT,
+  MEDIA_CHOICES, FEATURED_SPREAD_INTRO, MEDIA_MODES, CONTROL_INSTRUCTIONS, MESSAGE_MAX, VALIDATION_TEXT,
   controlsFor, setMode, setAsset, setMessage, validateSelection, emptySelection,
 } from "./featuredMediaModel";
 import "./personalization.css";
@@ -42,6 +42,7 @@ export default function FeaturedMediaChooser({
   savedVoice = null, // optional { url, label } — e.g. the signed-in person's saved voice
   showMessage = true,
   title = "Featured media",
+  showIntro = true, // the founder's supporting copy (FEATURED_SPREAD_INTRO) above the choices
 }) {
   const sel = selection || emptySelection();
   const id = (s) => `${idPrefix}-${s}`;
@@ -75,11 +76,22 @@ export default function FeaturedMediaChooser({
 
   return (
     <div className="pm-chooser" data-testid={id("chooser")} data-mode={sel.mode}>
+      {showIntro ? <p className="pm-intro" data-testid={id("intro")}>{FEATURED_SPREAD_INTRO}</p> : null}
       <BubbleGroup label={title} role="radiogroup" testId={id("modes")}>
-        {MEDIA_CHOICES.map((c) => (
+        {MEDIA_CHOICES.filter((c) => !c.quiet).map((c) => (
           <ChoiceBubble key={c.value} id={id(`mode-${c.value}`)} name={id("mode-group")} value={c.value}
             label={c.label} note={c.note} checked={sel.mode === c.value} disabled={disabled}
             onChange={(v) => emit(setMode(sel, v))} />
+        ))}
+        {/* Founder 2026-10-29: "No featured media" stays a choice in the same group, shown quieter than the three. */}
+        {MEDIA_CHOICES.filter((c) => c.quiet).map((c) => (
+          <label key={c.value} className="pm-quiet-choice" htmlFor={id(`mode-${c.value}`)} data-testid={`bubble-${id(`mode-${c.value}`)}`}>
+            <input id={id(`mode-${c.value}`)} type="radio" name={id("mode-group")} value={c.value}
+              checked={sel.mode === c.value} disabled={disabled} aria-describedby={id(`mode-${c.value}-desc`)}
+              onChange={() => emit(setMode(sel, c.value))} />
+            <span className="pm-quiet-label">{c.label}</span>
+            <span className="pm-quiet-note" id={id(`mode-${c.value}-desc`)}>{c.note}</span>
+          </label>
         ))}
       </BubbleGroup>
 

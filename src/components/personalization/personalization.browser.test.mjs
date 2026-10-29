@@ -118,6 +118,20 @@ test("each of the four choices reveals only its own controls", async () => {
   assert.ok(tid("t-control-message"), "the optional message is always available");
 });
 
+test("founder copy 2026-10-29: supporting text, three main choices, and No featured media as a quieter choice in the same group", async () => {
+  await mount(React.createElement(Host));
+  assert.equal(tid("t-intro").textContent, "Make it unmistakably yours. Bring your photo to life with your voice, share a favorite image or upload a personal video. Add cherished memories and a heartfelt message to make their Greet-Me even more meaningful.");
+  const main = qa(".gcd-bubble").map((b) => [b.querySelector(".gcd-bubble-label").textContent, b.querySelector(".gcd-bubble-note").textContent]);
+  assert.deepEqual(main, [["Greet-Me Animation", "Bring your photo to life with your voice."], ["Still Photo", "Let a meaningful image speak—or add your voice."], ["Personal Video", "Share a greeting recorded your way."]]);
+  const quiet = q(".pm-quiet-choice");
+  assert.ok(quiet, "No featured media is shown as the quieter option");
+  assert.match(quiet.textContent, /No featured media/);
+  const radios = qa('input[type="radio"]');
+  assert.equal(new Set(radios.map((r) => r.name)).size, 1, "one radio group for all four");
+  await pick("t", "none");
+  assert.equal(q("#t-mode-none").checked, true);
+});
+
 test("animate requires a voice: the error shows until a voice is chosen", async () => {
   const photo = { url: "https://x/p.jpg", source: "upload" };
   await mount(React.createElement(Host, { initial: { ...emptySelection(), mode: "animate", photo } }));

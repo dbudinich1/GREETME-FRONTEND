@@ -17,7 +17,10 @@ const sel = (mode, extra = {}) => ({ ...emptySelection(), mode, ...extra });
 
 test("exactly four choices, in the founder's order and words", () => {
   assert.deepEqual(MEDIA_CHOICES.map((c) => c.value), ["animate", "static", "video", "none"]);
-  assert.deepEqual(MEDIA_CHOICES.map((c) => c.label), ["Animate a photo", "Static photo", "Personal video", "No featured media"]);
+  assert.deepEqual(MEDIA_CHOICES.map((c) => c.label), ["Greet-Me Animation", "Still Photo", "Personal Video", "No featured media"]);
+  // Founder copy 2026-10-29, verbatim (em dash in "speak\u2014or").
+  assert.deepEqual(MEDIA_CHOICES.map((c) => c.note).slice(0, 3), ["Bring your photo to life with your voice.", "Let a meaningful image speak\u2014or add your voice.", "Share a greeting recorded your way."]);
+  assert.deepEqual(MEDIA_CHOICES.filter((c) => c.quiet).map((c) => c.value), ["none"], "No featured media is the quieter option");
   for (const c of MEDIA_CHOICES) assert.ok(c.note.length > 0 && c.note.length <= 60, `short note for ${c.value}`);
 });
 
