@@ -211,7 +211,7 @@ test("missing voice (server answer): the existing voice checkpoint opens, one at
 // ── Team 5 F2 / F6 (Report 146) ─────────────────────────────────────────────────────────────────────────────────────
 const bodyText = () => (globalThis.__toasts || []).map((t) => `${t.title} ${t.body}`).join(" | ");
 
-test("F6: an intent seen again (refresh/Back after the Home Send) sends nothing and says it was already started", async () => {
+test("F6: an intent seen again (refresh/Back after the Home Send) sends nothing and says it was already opened", async () => {
   const url = homeSend();
   let m = await mountAt(url);
   await m.unmount();
@@ -219,8 +219,8 @@ test("F6: an intent seen again (refresh/Back after the Home Send) sends nothing 
   m = await mountAt(url);
   try {
     assert.equal(mod.__sends.length, 1, "no second send");
-    assert.match(bodyText(), /Already started from Home/);
-    assert.match(bodyText(), /This Greet-Me was already started from Home\. Check Sent before sending it again\./);
+    assert.match(bodyText(), /Already opened from Home/);
+    assert.match(bodyText(), /This Greet-Me was already opened from Home\. Check Sent before sending it again\./);
   } finally { await m.unmount(); }
 });
 

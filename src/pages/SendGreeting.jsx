@@ -65,7 +65,7 @@
 // 2026-10-29 (Team 5 F2/F6 fixes, Report 146; preview, not released): a Home Send for a different recipient/occasion than the
 //   one that last held the send key drops that key first (claimHomeSendKey + clearSendRequestId), so it is not refused
 //   409 while the first job is still in flight; the same greeting keeps its key. An arrival whose intent cannot be taken
-//   now says why (toast): already started from Home (used nonce, gm_home_send_used_v1), or not sent automatically.
+//   now says why (toast): already opened from Home (used nonce, gm_home_send_used_v1), or not sent automatically.
 //   Affected locked milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regression: two different Home Sends
 //   whose first reply was lost each get their own key (correct: they are different greetings). Verification gate, voice
 //   recovery, review, payment and send unchanged.
@@ -1238,7 +1238,9 @@ export default function SendGreeting() {
     // Team 5 N2: only while the recovery panel is showing (it shows on confirmedGiftPayload && errors.submit); after
     // "Let's try once more" clears the form the guard no longer applies. Leaving is safe either way: the kept greeting
     // never carries the payload (below).
-    if (confirmedGiftPayload && errors.submit) {
+    // Team 5 (0907a44 note 1): also while a PAID gift box is held awaiting its order (giftBoxHeldNotice), whose own retry
+    // lives on this page.
+    if (confirmedGiftPayload && (errors.submit || giftBoxHeldNotice)) {
       showManualToast('Finish this greeting first', 'Its gift is already paid for. Send this greeting from here, then add a new recipient.', COMMS_CATEGORIES.SYSTEM);
       return;
     }
@@ -1625,7 +1627,7 @@ export default function SendGreeting() {
     // Team 5 F6: say why nothing happened. Seen again (refresh/Back) → it was already started, so a second send is not
     // invited; never arrived or expired → nothing was sent, and Done & Send sends it.
     if (homeSendIntentUsed(window.sessionStorage, nonce)) {
-      showManualToast('Already started from Home', 'This Greet-Me was already started from Home. Check Sent before sending it again.', COMMS_CATEGORIES.SYSTEM);
+      showManualToast('Already opened from Home', 'This Greet-Me was already opened from Home. Check Sent before sending it again.', COMMS_CATEGORIES.SYSTEM);
     } else {
       showManualToast('Not sent automatically', 'Nothing was sent. Review this Greet-Me and press Done & Send to send it.', COMMS_CATEGORIES.SYSTEM);
     }
