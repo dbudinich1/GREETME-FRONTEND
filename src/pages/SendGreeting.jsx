@@ -62,9 +62,16 @@
 //   recovery auto-retry, and it is MERGED into the existing sendGreetingState so sendRequestId and pendingGiftLink
 //   survive. Affected locked milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regression: Add Recipient is
 //   unavailable during that recovery (by design). Verification gate, voice recovery, review, payment and send unchanged.
+// 2026-10-29 (Team 5 F2/F6 fixes, Report 146; preview, not released): a Home Send for a different recipient/occasion than the
+//   one that last held the send key drops that key first (claimHomeSendKey + clearSendRequestId), so it is not refused
+//   409 while the first job is still in flight; the same greeting keeps its key. An arrival whose intent cannot be taken
+//   now says why (toast): already started from Home (used nonce, gm_home_send_used_v1), or not sent automatically.
+//   Affected locked milestones: 4c29ace8, 01d93f5f, 1c43a750, f98ffdb5. Potential regression: two different Home Sends
+//   whose first reply was lost each get their own key (correct: they are different greetings). Verification gate, voice
+//   recovery, review, payment and send unchanged.
 
 import { useState, useEffect } from 'react';
-import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff, dashboardGiftPlaceEntry, markGiftPlaceEntryUsed, giftPlaceEntryUsed, takeHomeSendIntent } from '../utils/dashboardSendHandoff';
+import { SEND_OCCASION_OPTIONS, matchSendOccasion, takeDashboardHandoff, dashboardGiftPlaceEntry, markGiftPlaceEntryUsed, giftPlaceEntryUsed, takeHomeSendIntent, markHomeSendIntentUsed, homeSendIntentUsed, claimHomeSendKey } from '../utils/dashboardSendHandoff';
 import { senderPhotoUsable } from '../utils/senderPhoto';
 import { buildGreetingPayload, qrCashGiftForPayload } from '../utils/sendGreetingPayload';
 import { getPhotoSrc } from '../utils/getPhotoSrc';
@@ -1228,7 +1235,10 @@ export default function SendGreeting() {
     // Team 5 F1 (Report 146): a gift already charged and waiting for its greeting (the recovery panel) stays here. Leaving
     // would carry that recovery into ?returnTo=send, whose restore auto-retries the greeting with no click — to the OLD
     // recipient. The recovery belongs to this recipient, so it is finished first; nothing here sends or charges.
-    if (confirmedGiftPayload) {
+    // Team 5 N2: only while the recovery panel is showing (it shows on confirmedGiftPayload && errors.submit); after
+    // "Let's try once more" clears the form the guard no longer applies. Leaving is safe either way: the kept greeting
+    // never carries the payload (below).
+    if (confirmedGiftPayload && errors.submit) {
       showManualToast('Finish this greeting first', 'Its gift is already paid for. Send this greeting from here, then add a new recipient.', COMMS_CATEGORIES.SYSTEM);
       return;
     }
@@ -1607,12 +1617,26 @@ export default function SendGreeting() {
     if (!contactId || !occasion || !contacts.some((c) => String(c.id) === contactId)) return;
     if (String(formData.contactId) !== contactId || formData.occasionType !== occasion) return;
     homeSendTakenRef.current = true;
-    if (takeHomeSendIntent(window.sessionStorage, { contactId, occasion, nonce })) setHomeSendArmed(true);
+    if (takeHomeSendIntent(window.sessionStorage, { contactId, occasion, nonce })) {
+      markHomeSendIntentUsed(window.sessionStorage, nonce);
+      setHomeSendArmed(true);
+      return;
+    }
+    // Team 5 F6: say why nothing happened. Seen again (refresh/Back) → it was already started, so a second send is not
+    // invited; never arrived or expired → nothing was sent, and Done & Send sends it.
+    if (homeSendIntentUsed(window.sessionStorage, nonce)) {
+      showManualToast('Already started from Home', 'This Greet-Me was already started from Home. Check Sent before sending it again.', COMMS_CATEGORIES.SYSTEM);
+    } else {
+      showManualToast('Not sent automatically', 'Nothing was sent. Review this Greet-Me and press Done & Send to send it.', COMMS_CATEGORIES.SYSTEM);
+    }
   }, [location.search, loading, contacts, user?.id, formData.contactId, formData.occasionType]);
   useEffect(() => {
     if (!homeSendArmed) return;
     setHomeSendArmed(false);
     if (!validate()) return;
+    // Team 5 F2: a send key kept from a DIFFERENT recipient/occasion (an earlier Home Send still in flight) is dropped so
+    // this greeting gets its own; the same greeting keeps its key (retry converges on one send).
+    if (claimHomeSendKey(window.sessionStorage, { contactId: String(formData.contactId), occasion: formData.occasionType })) clearSendRequestId();
     if (giftSettings.type && giftSettings.type !== 'none') { setIsPreSendReviewOpen(true); return; }
     handleReviewDirectSend();
     // eslint-disable-next-line react-hooks/exhaustive-deps

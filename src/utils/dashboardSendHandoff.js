@@ -157,3 +157,31 @@ export function takeHomeSendIntent(storage, { contactId, occasion, nonce }, now 
   if (!h || h.nonce !== String(nonce) || h.contactId !== String(contactId) || h.occasion !== String(occasion)) return false;
   return typeof h.at === 'number' && now >= h.at && now - h.at <= HOME_SEND_INTENT_MAX_AGE_MS;
 }
+
+// Team 5 F6 (Report 146): a Home intent seen again (refresh, Back) is told apart from one that never arrived, so the send
+// page can say which. Used nonces are kept apart from the intent (this tab only; the last 20).
+export const HOME_SEND_USED_KEY = 'gm_home_send_used_v1';
+export function markHomeSendIntentUsed(storage, nonce) {
+  if (!storage || !nonce) return;
+  try {
+    const cur = JSON.parse(storage.getItem(HOME_SEND_USED_KEY) || '[]');
+    const list = (Array.isArray(cur) ? cur : []).filter((n) => n !== String(nonce));
+    storage.setItem(HOME_SEND_USED_KEY, JSON.stringify([...list, String(nonce)].slice(-20)));
+  } catch { /* storage unavailable: the page then says only that nothing was sent */ }
+}
+export function homeSendIntentUsed(storage, nonce) {
+  if (!storage || !nonce) return false;
+  try { const cur = JSON.parse(storage.getItem(HOME_SEND_USED_KEY) || '[]'); return Array.isArray(cur) && cur.includes(String(nonce)); } catch { return false; }
+}
+
+// Team 5 F2 (Report 146): the send key belongs to ONE greeting. A Home Send for a different recipient or occasion than
+// the one that last used the kept key must start a fresh key (a reused key with different facts is refused 409); the
+// same greeting again (retry after a lost reply) keeps it, so the server can converge on one send.
+export const HOME_SEND_KEY_FOR_KEY = 'gm_home_send_key_for_v1';
+/** Records who the send key is now for; returns true when it was for a DIFFERENT recipient/occasion (drop the key). */
+export function claimHomeSendKey(storage, { contactId, occasion }) {
+  const forWhom = `${String(contactId)}|${String(occasion)}`;
+  let prev = null;
+  try { prev = storage.getItem(HOME_SEND_KEY_FOR_KEY); storage.setItem(HOME_SEND_KEY_FOR_KEY, forWhom); } catch { return false; }
+  return Boolean(prev) && prev !== forWhom;
+}

@@ -28,10 +28,11 @@ const ENTRY = join(__dirname, `.__hsa.${PID}.entry.jsx`);
 const AUTH_STUB = join(__dirname, `.__hsa.${PID}.auth.js`);
 const API_STUB = join(__dirname, `.__hsa.${PID}.api.js`);
 const PROVIDER_STUB = join(__dirname, `.__hsa.${PID}.provider.js`);
-const TEMP = [BUNDLE, ENTRY, AUTH_STUB, API_STUB, PROVIDER_STUB];
+const NOTIFY_STUB = join(__dirname, `.__hsa.${PID}.notify.js`);
+const TEMP = [BUNDLE, ENTRY, AUTH_STUB, API_STUB, PROVIDER_STUB, NOTIFY_STUB];
 
 let React, createRoot, act, mod, window;
-const CONTACTS = [{ id: "c1", name: "Samantha Cole", email: "samantha@example.com" }];
+const CONTACTS = [{ id: "c1", name: "Samantha Cole", email: "samantha@example.com" }, { id: "c2", name: "Jordan Lee", email: "jordan@example.com" }];
 
 before(async () => {
   // The signed-in sender is set per test through globalThis.__user (photo URL varies).
@@ -64,6 +65,12 @@ before(async () => {
     + "export async function retryGiftLink() { throw new Error('no test may retry a gift link'); }\n"
     + "export async function prepareCheckout() { throw new Error('no test may prepare a checkout'); }\n"
     + "export async function submitCheckout() { throw new Error('no test may submit a checkout'); }\n");
+  // Toasts are RECORDED (the real toast queue keeps module state across tests); every other export is a no-op.
+  writeFileSync(NOTIFY_STUB,
+    "export const showManualToast = (title, body) => { (globalThis.__toasts = globalThis.__toasts || []).push({ title, body }); };\n"
+    + "export const pushInApp = () => {}; export const getNotifications = () => []; export const getUnreadCount = () => 0;\n"
+    + "export const subscribeToNotifications = () => () => {}; export const markRead = () => {}; export const markAllRead = () => {};\n"
+    + "export const clearAll = () => {}; export const deleteNotification = () => {};\n");
   writeFileSync(ENTRY,
     'export { default as SendGreeting } from "./SendGreeting.jsx";\n'
     + 'export { MemoryRouter, Routes, Route } from "react-router-dom";\n'
@@ -78,6 +85,7 @@ before(async () => {
         ["../context/AuthContext", AUTH_STUB], ["../../context/AuthContext", AUTH_STUB],
         ["../api/api", API_STUB], ["../../api/api", API_STUB],
         ["../api/providerCheckout", PROVIDER_STUB], ["../../api/providerCheckout", PROVIDER_STUB],
+        ["../utils/notify", NOTIFY_STUB], ["../../utils/notify", NOTIFY_STUB],
       ]);
       build.onResolve({ filter: /.*/ }, (args) => { const hit = STUBS.get(args.path); return hit ? { path: hit } : undefined; });
     } }],
@@ -112,6 +120,7 @@ beforeEach(() => {
   mod.__sends.length = 0; window.document.body.innerHTML = "";
   globalThis.__user = { ...SENDER, photoUrl: "https://example.test/sender.jpg" };
   globalThis.__sendAnswer = null;
+  globalThis.__toasts = [];
 });
 
 const text = (el) => (el?.textContent || "").replace(/\s+/g, " ").trim();
@@ -130,10 +139,10 @@ async function mountAt(url) {
   return { host, unmount: () => act(() => root.unmount()) };
 }
 /** Exactly what Home's Send click leaves behind (DashboardHome goSendFlow with sendNow). */
-function homeSend({ words = "Thank you for everything, Sam." } = {}) {
-  window.sessionStorage.setItem("gm_dashboard_send_handoff_v1", JSON.stringify({ contactId: "c1", occasion: "Thank You", words, memoryPhotos: [], at: Date.now() }));
-  const nonce = mod.writeHomeSendIntent(window.sessionStorage, { contactId: "c1", occasion: "Thank You" });
-  return `/dashboard/send?contactId=c1&occasion=Thank+You&from=dashboard&intent=${nonce}`;
+function homeSend({ words = "Thank you for everything, Sam.", contactId = "c1" } = {}) {
+  window.sessionStorage.setItem("gm_dashboard_send_handoff_v1", JSON.stringify({ contactId, occasion: "Thank You", words, memoryPhotos: [], at: Date.now() }));
+  const nonce = mod.writeHomeSendIntent(window.sessionStorage, { contactId, occasion: "Thank You" });
+  return `/dashboard/send?contactId=${contactId}&occasion=Thank+You&from=dashboard&intent=${nonce}`;
 }
 
 test("complete, no gift: the Home Send click sends exactly once through the existing send, with Home's words, a send key and no gift or address", async () => {
@@ -197,4 +206,43 @@ test("missing voice (server answer): the existing voice checkpoint opens, one at
     assert.match(text(m.host), /voice/i, "the voice checkpoint is shown");
     assert.equal(m.host.querySelector('textarea[name="customMessage"]').value, "Thank you for everything, Sam.");
   } finally { await m.unmount(); }
+});
+
+// ── Team 5 F2 / F6 (Report 146) ─────────────────────────────────────────────────────────────────────────────────────
+const bodyText = () => (globalThis.__toasts || []).map((t) => `${t.title} ${t.body}`).join(" | ");
+
+test("F6: an intent seen again (refresh/Back after the Home Send) sends nothing and says it was already started", async () => {
+  const url = homeSend();
+  let m = await mountAt(url);
+  await m.unmount();
+  assert.equal(mod.__sends.length, 1);
+  m = await mountAt(url);
+  try {
+    assert.equal(mod.__sends.length, 1, "no second send");
+    assert.match(bodyText(), /Already started from Home/);
+    assert.match(bodyText(), /This Greet-Me was already started from Home\. Check Sent before sending it again\./);
+  } finally { await m.unmount(); }
+});
+
+test("F6: an intent that never arrived (or expired) sends nothing and says so", async () => {
+  const m = await mountAt("/dashboard/send?contactId=c1&occasion=Thank+You&from=dashboard&intent=never-stored");
+  try {
+    assert.equal(mod.__sends.length, 0);
+    assert.match(bodyText(), /Not sent automatically/);
+    assert.match(bodyText(), /Nothing was sent\. Review this Greet-Me and press Done & Send to send it\./);
+  } finally { await m.unmount(); }
+});
+
+test("F2: back-to-back Home Sends to DIFFERENT people (first still in flight) get their own send keys; the same greeting again keeps its key", async () => {
+  let m = await mountAt(homeSend({ contactId: "c1" }));
+  await m.unmount();
+  m = await mountAt(homeSend({ contactId: "c2", words: "Thanks, Jordan." }));
+  await m.unmount();
+  m = await mountAt(homeSend({ contactId: "c2", words: "Thanks, Jordan." }));
+  await m.unmount();
+  assert.equal(mod.__sends.length, 3);
+  const [a, b, c] = mod.__sends;
+  assert.equal(a.recipientEmail, "samantha@example.com"); assert.equal(b.recipientEmail, "jordan@example.com");
+  assert.notEqual(b.sendRequestId, a.sendRequestId, "a different person gets a fresh key (no 409)");
+  assert.equal(c.sendRequestId, b.sendRequestId, "the same greeting again keeps its key (server converges on one send)");
 });
