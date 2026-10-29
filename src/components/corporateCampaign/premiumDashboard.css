@@ -909,6 +909,9 @@
 .gcd-modal-foot {
   position: sticky; bottom: 0; background: #fff; border-top: 1px solid var(--gcd-line);
   padding: 14px 22px; display: flex; align-items: center; gap: 10px;
+  /* Report 146 (320px): wrap, so the full-row notices (.gcd-dirty / .gcd-reason, flex-basis 100%) take their own row
+     instead of being squeezed beside the buttons and pushing the reason past the screen edge. */
+  flex-wrap: wrap;
 }
 .gcd-btn--danger { color: #a3241a; border-color: rgba(214, 69, 69, .35); }
 .gcd-btn--danger:hover:not(:disabled) { background: rgba(214, 69, 69, .08); }
