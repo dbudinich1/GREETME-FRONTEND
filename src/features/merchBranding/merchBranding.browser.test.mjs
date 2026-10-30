@@ -450,6 +450,8 @@ test("ON: Remember my logo is OFF by default; opted in, the saved logo is offere
     await tick(); await tick();
     const savedBox = q(win.document.body, "branding-saved-logo");
     assert.ok(savedBox, "the saved logo is offered");
+    assert.equal(text(q(savedBox, "branding-use-saved")), "Use my saved logo");
+    assert.equal(text(q(savedBox, "branding-delete-saved")), "Delete my saved logo");
     await click(q(savedBox, "branding-use-saved"));
     assert.ok(!q(win.document.body, "branding-logo-step"));
     assert.equal(text(q(m.host, "gift-card-branding-431622804")), "Your logo", "branded again without a new upload");
