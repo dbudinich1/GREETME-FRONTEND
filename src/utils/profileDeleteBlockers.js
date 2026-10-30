@@ -21,23 +21,17 @@ const OCCASION_WORDS = {
   work_anniversary: 'work anniversary',
 };
 
-// M1 (founder 2026-10-29): a LOCKED, ENABLED campaign that repeats every year still references the asset from its lock
+// M1 (founder-approved copy 2026-10-29): a LOCKED, ENABLED campaign that repeats every year still references the asset from its lock
 // snapshot (server marks the blocker `recurring: true`). Its later dates have no schedule yet, so "after it has been sent"
 // is never true. These sentences are IDENTICAL to the server's (BE services/profileAssets/profileAssetDelete.js).
-// PROPOSED copy — pending founder's exact approved text
-export const M1_RECURRING_IN_USE_NAMED = (thing, campaignName) =>
-  `Your corporate campaign "${campaignName}" repeats every year and still uses ${thing} for its future greetings. Switch that campaign off with its on/off switch in For Business → Corporate Campaign Dashboard, then try again.`;
-// PROPOSED copy — pending founder's exact approved text
-export const M1_RECURRING_IN_USE_UNNAMED = (thing) =>
-  `A corporate campaign that repeats every year still uses ${thing} for its future greetings. It must be switched off with its on/off switch in For Business → Corporate Campaign Dashboard before ${thing} can be deleted.`;
-
-// PROPOSED copy — pending founder's exact approved text (T5 W6: the campaign could not be read, so it may already be off)
-export const M1_RECURRING_IN_USE_UNCONFIRMED = (thing) =>
-  `A corporate campaign that repeats every year may still use ${thing} for its future greetings. We couldn't check it just now, so nothing was deleted. Please try again shortly, or switch that campaign off with its on/off switch in For Business → Corporate Campaign Dashboard first.`;
+// APPROVED (founder 2026-10-29), verbatim, for every recurring-campaign refusal (named, unnamed, unconfirmed).
+export const M1_RECURRING_IN_USE = "This photo or voice is used by an active recurring campaign. Turn off the listed campaign before deleting it.";
+// The campaign is LISTED by its name only, in quotes, after the approved sentence (no added words).
+export const M1_LISTED_CAMPAIGN = (campaignName) => `"${campaignName}"`;
 
 // T5 W5: N counts the FULL list (the server sends `blockerCount`, before its cap of 5) and the wording is neutral when any
 // of the others is a campaign (`moreIncludeCampaigns`). Identical to the server's MORE_BLOCKERS_SUFFIX.
-// PROPOSED copy — pending founder's exact approved text
+// Unchanged existing wording; whether it stays beside the approved sentence is the founder's call.
 export const MORE_BLOCKERS_SUFFIX = (more, includesCampaign) => (includesCampaign
   ? `(${more} more scheduled greeting${more === 1 ? '' : 's'} or campaign${more === 1 ? '' : 's'} also use${more === 1 ? 's' : ''} it.)`
   : `(${more} more scheduled greeting${more === 1 ? '' : 's'} also use${more === 1 ? 's' : ''} it.)`);
@@ -50,8 +44,7 @@ function sentenceFor(b, thing) {
     return `${what}${when ? ` scheduled for ${when}` : ''} is about to send with ${thing}. Try again after it has been sent, or turn off that occasion's automatic send first.`;
   }
   if (b && b.kind === 'corporate_campaign' && b.recurring === true) {
-    if (b.unconfirmed === true) return M1_RECURRING_IN_USE_UNCONFIRMED(thing);
-    return b.campaignName ? M1_RECURRING_IN_USE_NAMED(thing, b.campaignName) : M1_RECURRING_IN_USE_UNNAMED(thing);
+    return b.campaignName && b.unconfirmed !== true ? `${M1_RECURRING_IN_USE} ${M1_LISTED_CAMPAIGN(b.campaignName)}` : M1_RECURRING_IN_USE;
   }
   if (b && b.kind === 'corporate_campaign') {
     // Release 2b assembly (T5 D2): a greeting already on its way (`status: 'queued'`) cannot be stopped by switching the
