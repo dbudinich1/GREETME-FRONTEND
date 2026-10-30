@@ -125,8 +125,13 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
 
   // "Remember my logo": the saved logo offered in the logo step (null = none / not loaded).
   const [saved, setSaved] = useState(null);
+  // 153J C7: the delete outcome lines belong to one visit of the logo step; reopening it starts clean.
+  const [savedError, setSavedError] = useState(null);
+  const [savedNotice, setSavedNotice] = useState(null);
   const loadSavedLogo = useCallback(async () => {
     if (!api || typeof api.getSavedLogo !== 'function') return;
+    setSavedError(null);
+    setSavedNotice(null);
     let r = null;
     try { r = await api.getSavedLogo(); } catch { r = null; }
     if (isAuthFailure(r)) { signInAgain(); return; }
@@ -140,15 +145,19 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
     setStep(null);
   }, [api, saved]);
   // N2: hidden only after the server confirms; on any other answer it stays shown with an error line.
-  const [savedError, setSavedError] = useState(null);
+  // 153J C7: when an ORDER prevents deletion (server: retainedForOrder) the order-dependency line is shown instead
+  // of the temporary-failure line. ok + retainedForOrder = no longer offered as saved, but kept for the order.
   const deleteSavedLogo = useCallback(async () => {
     if (!saved || !api) return;
     const id = saved.logo.logoId;
     setSavedError(null);
+    setSavedNotice(null);
     let r = null;
     try { r = await api.clearLogo(id, { forget: true }); } catch { r = null; }
     if (isAuthFailure(r)) { signInAgain(); return; }
+    if (r && r.retainedForOrder === true && !r.ok) { setSavedNotice(S.deleteSavedNeededForOrder); return; }
     if (!r || !r.ok) { setSavedError(S.deleteSavedFailed); return; }
+    if (r.retainedForOrder === true) setSavedNotice(S.deleteSavedNeededForOrder);
     setSaved(null);
     if (session.logo && session.logo.logoId === id) setSession(initial());
   }, [api, saved, signInAgain]);
@@ -260,6 +269,7 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
     clear,
     saved,
     savedError,
+    savedNotice,
     loadSavedLogo,
     applySavedLogo,
     deleteSavedLogo,

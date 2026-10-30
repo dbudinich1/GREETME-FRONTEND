@@ -82,7 +82,7 @@ export function catalogFromSpecs(logo, specs = GOLDEN.specs, eligible = []) {
             : code,
         })),
         specConfirmed: v.confirmed === true,
-        placementApproved: false,
+        placementApproved: p.productKey === 'mug', // mirrors the server: 153J C1 approved the mug only
       };
     }),
   }));
@@ -93,7 +93,8 @@ export function catalogFromSpecs(logo, specs = GOLDEN.specs, eligible = []) {
  * `mockupFor(syncVariantId)` returns a mockup image URL or null ("preparing"); `failFor` lists
  * variants whose mockup is "unavailable".
  */
-export function createInMemoryBrandingApi({ measure, mockupFor = () => null, failFor = [], specs = GOLDEN.specs, eligible = () => [], approveOk = false, savedPreviewUrl = null } = {}) {
+// `retainedForOrder(logoId)` (153J C7): true for a logo an order needs — mirrors the server's DELETE reply.
+export function createInMemoryBrandingApi({ measure, mockupFor = () => null, failFor = [], specs = GOLDEN.specs, eligible = () => [], approveOk = false, savedPreviewUrl = null, retainedForOrder = () => false } = {}) {
   const eligibleNow = () => (typeof eligible === 'function' ? eligible() : eligible) || [];
   const logos = new Map();
   const calls = [];
@@ -125,6 +126,11 @@ export function createInMemoryBrandingApi({ measure, mockupFor = () => null, fai
       calls.push(opts.forget ? 'deleteSavedLogo' : 'clearLogo');
       const l = logos.get(logoId);
       if (!l) return { ok: false, status: 404 };
+      if (retainedForOrder(logoId)) {
+        // Server (routes/merchBrandingRoutes.js): never deleted; "Delete my saved logo" stops offering it.
+        if (opts.forget && l.remembered) { logos.set(logoId, { ...l, remembered: false }); return { ok: true, cleared: true, retainedForOrder: true, forgotten: true }; }
+        return { ok: true, cleared: true, retainedForOrder: true };
+      }
       if (l.remembered && !opts.forget) return { ok: true, cleared: true, remembered: true };
       logos.delete(logoId);
       return { ok: true, cleared: true };

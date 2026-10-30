@@ -488,3 +488,46 @@ test("N2: 'Delete my saved logo' hides it only after the server confirms; a refu
     assert.ok(!q(win.document.body, "branding-saved-logo"), "hidden once the server confirms");
   } finally { ON.__api.clearLogo = real; await m.unmount(); }
 });
+
+test("153J C7: when an order needs the logo, the order-dependency line is shown — never the temporary-failure line", async () => {
+  ON.__resetBrandingSession();
+  let m = await mount(ON);
+  try {
+    await click(brandButton(m.host));
+    await act(async () => { q(win.document.body, "branding-remember").click(); });
+    await chooseFile(m.host, "logo.png");
+  } finally { await m.unmount(); }
+  ON.__resetBrandingSession();
+  m = await mount(ON);
+  const real = ON.__api.clearLogo;
+  const NEEDED = "We can’t delete this logo because it’s needed for one of your orders.";
+  try {
+    // (a) the delete was refused because an order took the logo meanwhile (409 retainedForOrder): row stays.
+    ON.__api.clearLogo = async () => ({ ok: false, status: 409, code: "LOGO_IN_USE", retainedForOrder: true });
+    await click(brandButton(m.host));
+    await tick(); await tick();
+    await click(q(win.document.body, "branding-delete-saved"));
+    assert.ok(q(win.document.body, "branding-saved-logo"), "still shown");
+    assert.equal(text(q(win.document.body, "branding-saved-retained")), NEEDED);
+    assert.ok(!q(win.document.body, "branding-saved-error"), "no temporary-failure line");
+    // (b) the server stopped offering it but kept it for the order (ok + retainedForOrder): row gone, line shown.
+    ON.__api.clearLogo = async () => ({ ok: true, cleared: true, retainedForOrder: true, forgotten: true });
+    await click(q(win.document.body, "branding-delete-saved"));
+    assert.ok(!q(win.document.body, "branding-saved-logo"), "no longer offered");
+    assert.equal(text(q(win.document.body, "branding-saved-retained")), NEEDED);
+    assert.ok(!q(win.document.body, "branding-saved-error"));
+    // (c) a temporary failure still shows only the approved temporary-failure line.
+    ON.__api.clearLogo = real;
+  } finally { ON.__api.clearLogo = real; await m.unmount(); }
+  ON.__resetBrandingSession();
+  m = await mount(ON);
+  try {
+    ON.__api.clearLogo = async () => ({ ok: false, status: 409, code: "LOGO_CHANGED" });
+    await click(brandButton(m.host));
+    await tick(); await tick();
+    assert.ok(!q(win.document.body, "branding-saved-retained"), "a reopened step starts clean");
+    await click(q(win.document.body, "branding-delete-saved"));
+    assert.equal(text(q(win.document.body, "branding-saved-error")), "We couldn’t delete your saved logo. Please try again.");
+    assert.ok(!q(win.document.body, "branding-saved-retained"), "no order-dependency claim on a temporary failure");
+  } finally { ON.__api.clearLogo = real; await m.unmount(); }
+});

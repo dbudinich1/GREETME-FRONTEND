@@ -60,7 +60,12 @@ function LogoStep({ branding }) {
           </div>
           <button type="button" data-testid="branding-use-saved" style={btnPrimary} onClick={branding.applySavedLogo}>{S.useSavedLogo}</button>
           {branding.savedError ? <p role="alert" data-testid="branding-saved-error" style={{ flex: '1 1 100%', margin: 0, color: '#b4232f', fontSize: '0.8125rem', fontWeight: 600 }}>{branding.savedError}</p> : null}
+          {branding.savedNotice ? <p role="status" data-testid="branding-saved-retained" style={{ flex: '1 1 100%', margin: 0, color: '#4b4060', fontSize: '0.8125rem', fontWeight: 600 }}>{branding.savedNotice}</p> : null}
         </div>
+      ) : null}
+      {/* 153J C7: "Delete my saved logo" while an order needs it — no longer offered, kept for the order. */}
+      {!saved && branding.savedNotice ? (
+        <p role="status" data-testid="branding-saved-retained" style={{ margin: '0 0 0.75rem', border: '1px solid #e7e0f0', borderRadius: '0.875rem', padding: '0.75rem 0.875rem', background: '#faf8fd', color: '#4b4060', fontSize: '0.8125rem', fontWeight: 600, lineHeight: 1.45 }}>{branding.savedNotice}</p>
       ) : null}
       {saved ? <p style={{ margin: '0 0 0.5rem', fontSize: '0.8125rem', fontWeight: 600, color: '#6B6079' }}>{S.orUploadNew}</p> : null}
       <label data-testid="branding-file-drop" style={{ display: 'block', border: '2px dashed #cfc3e2', borderRadius: '0.875rem', padding: '1.25rem', textAlign: 'center', cursor: 'pointer', background: '#faf8fd' }}>

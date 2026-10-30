@@ -19,7 +19,10 @@ export const BRANDING_STRINGS = Object.freeze({
   useSavedLogo: 'Use my saved logo',
   deleteSavedLogo: 'Delete my saved logo',
   orUploadNew: 'Or upload a different logo',
-  deleteSavedFailed: 'We couldn’t delete your saved logo. Please try again.', // PROPOSED copy
+  // APPROVED (founder 153J C7, 2026-10-30) — temporary failures only; never shown when an order needs the logo.
+  deleteSavedFailed: 'We couldn’t delete your saved logo. Please try again.',
+  // 153J C7 — when an order prevents deletion. PROPOSED copy (awaiting founder approval).
+  deleteSavedNeededForOrder: 'We can’t delete this logo because it’s needed for one of your orders.',
 
   // Nothing designated yet (153E) — PROPOSED copy
   noneEligibleTitle: 'Logo branding isn’t open yet',
