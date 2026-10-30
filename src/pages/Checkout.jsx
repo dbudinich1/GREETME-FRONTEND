@@ -312,7 +312,9 @@ export default function Checkout() {
       try {
         const items = cartItems
           .filter((i) => i.printfulSyncVariantId)
-          .map((i) => ({ syncVariantId: i.printfulSyncVariantId }));
+          // REPORT 153I: a branded line (customer logo; only ever present while that feature is on) sends
+          // its signed artwork approval; the server re-verifies it. Every other line is unchanged.
+          .map((i) => ({ syncVariantId: i.printfulSyncVariantId, ...(i.branding ? { branding: { approvalToken: i.branding.approvalToken, logoId: i.branding.logoId } } : {}) }));
         const data = await api.post('/api/payments/create-checkout', {
           purchaseType: 'merch',
           items,

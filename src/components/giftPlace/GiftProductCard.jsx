@@ -49,9 +49,9 @@ const IMAGE_FIT = {
   backgroundColor: 'var(--bg-secondary, #f8fafc)',
 };
 
-export function GiftProductCard({ card, actionLabel, onAction, selected = false, isNarrow = false, disabled: disabledProp = false, onRetryAvailability = null, variant = 'standard', chip = '', priceNote = '' }) {
+export function GiftProductCard({ card, actionLabel, onAction, selected = false, isNarrow = false, disabled: disabledProp = false, onRetryAvailability = null, variant = 'standard', chip = '', priceNote = '', branding = null }) {
   if (!card) return null;
-  if (variant === 'gallery') return <GalleryCard card={card} actionLabel={actionLabel} onAction={onAction} selected={selected} isNarrow={isNarrow} disabled={disabledProp || Boolean(card.unavailableNote)} onRetryAvailability={onRetryAvailability} chip={chip} priceNote={priceNote} />;
+  if (variant === 'gallery') return <GalleryCard card={card} actionLabel={actionLabel} onAction={onAction} selected={selected} isNarrow={isNarrow} disabled={disabledProp || Boolean(card.unavailableNote)} onRetryAvailability={onRetryAvailability} chip={chip} priceNote={priceNote} branding={branding} />;
   // A card that cannot be chosen here (e.g. a gift box whose provider requires options) says why and cannot be acted on.
   const disabled = disabledProp || Boolean(card.unavailableNote);
   const isSelect = actionLabel === 'Select Gift';
@@ -204,8 +204,12 @@ export function GiftProductCard({ card, actionLabel, onAction, selected = false,
 // on one line, a two-line description, and one full-width action. Same test hooks and the same behaviour as the
 // standard card (which the scheduled-gift picker keeps); only the arrangement differs.
 const GALLERY_IMAGE_HEIGHT = { narrow: 128, wide: 148 };
-function GalleryCard({ card, actionLabel, onAction, selected, isNarrow, disabled, onRetryAvailability, chip, priceNote }) {
+// REPORT 153 — `branding` (only ever non-null while the switched-off branded catalog is on and a logo is applied):
+// { label, tone, imageUrl?, onOpen? }. imageUrl is Printful's own branded mockup (never the logo pasted on this photo).
+const BRAND_TONES = { brand: ['#2C1D46', '#fff'], pending: ['rgba(255,255,255,.94)', '#2C1D46'], warn: ['#fff7ed', '#b45309'], muted: ['rgba(241,238,245,.96)', '#6B6079'] };
+function GalleryCard({ card, actionLabel, onAction, selected, isNarrow, disabled, onRetryAvailability, chip, priceNote, branding = null }) {
   const isSelect = actionLabel === 'Select Gift';
+  const imageUrl = branding && branding.imageUrl ? branding.imageUrl : card.imageUrl;
   return (
     <div data-testid={`gift-card-${card.id}`} data-gift-source={card.source} style={{
       background: '#fff', border: selected ? '2px solid #2C1D46' : '1px solid #e7e0f0', borderRadius: '0.875rem', overflow: 'hidden',
@@ -214,10 +218,17 @@ function GalleryCard({ card, actionLabel, onAction, selected, isNarrow, disabled
       <div data-testid={`gift-card-image-${card.id}`} style={{
         position: 'relative', width: '100%', height: isNarrow ? GALLERY_IMAGE_HEIGHT.narrow : GALLERY_IMAGE_HEIGHT.wide, flexShrink: 0,
         padding: '0.375rem', boxSizing: 'border-box',
-        ...(card.imageUrl ? { backgroundImage: `url(${card.imageUrl})`, ...IMAGE_FIT } : { background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' }),
+        ...(imageUrl ? { backgroundImage: `url(${imageUrl})`, ...IMAGE_FIT } : { background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' }),
         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isNarrow ? '2.25rem' : '3rem',
       }}>
-        {!card.imageUrl && '🎁'}
+        {!imageUrl && '🎁'}
+        {branding ? (() => {
+          const [bg, fg] = BRAND_TONES[branding.tone] || BRAND_TONES.pending;
+          const st = { position: 'absolute', left: '0.5rem', bottom: '0.5rem', maxWidth: 'calc(100% - 1rem)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', background: bg, color: fg, border: 'none', fontFamily: 'inherit', fontSize: '0.6875rem', fontWeight: 700, lineHeight: 1.2, padding: '0.25rem 0.5rem', minHeight: 0, borderRadius: '9999px', boxShadow: '0 1px 2px rgba(44,29,70,.18)', cursor: branding.onOpen ? 'pointer' : 'default' };
+          return branding.onOpen
+            ? <button type="button" data-testid={`gift-card-branding-${card.id}`} data-branding-tone={branding.tone} style={st} onClick={(e) => { e.stopPropagation(); branding.onOpen(); }}>{branding.label}</button>
+            : <span data-testid={`gift-card-branding-${card.id}`} data-branding-tone={branding.tone} style={st}>{branding.label}</span>;
+        })() : null}
         {chip ? (
           <span data-testid={`gift-card-chip-${card.id}`} style={{ position: 'absolute', top: '0.5rem', left: '0.5rem', maxWidth: 'calc(100% - 1rem)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             background: 'rgba(255,255,255,.94)', color: '#2C1D46', fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
@@ -266,7 +277,7 @@ function GalleryCard({ card, actionLabel, onAction, selected, isNarrow, disabled
 export function GiftProductGrid({
   cards, state, actionLabel, onAction, onRetry,
   selectedId = null, isNarrow = false, emptyLabel = 'This collection', onRetryAvailability = null,
-  variant = 'standard', chipFor = null, priceNoteFor = null,
+  variant = 'standard', chipFor = null, priceNoteFor = null, brandingFor = null,
 }) {
   if (state === 'loading') {
     // Skeletons in the real grid, at the real card size, so the layout does not jump when they
@@ -338,6 +349,7 @@ export function GiftProductGrid({
           variant={variant}
           chip={chipFor ? chipFor(card) || '' : ''}
           priceNote={priceNoteFor ? priceNoteFor(card) || '' : ''}
+          branding={brandingFor ? brandingFor(card) : null}
         />
       ))}
     </div>

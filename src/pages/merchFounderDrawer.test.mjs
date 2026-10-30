@@ -13,7 +13,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -246,12 +246,72 @@ test("occasion filtering is absent from the customer marketplace and the founder
   }
 });
 
-test("logo upload and preview remain absent", () => {
-  for (const [name, code] of [["Merch.jsx", MERCH_CODE], ["modal", MODAL_CODE], ["picker", PICKER_CODE], ["client", CLIENT_CODE]]) {
-    for (const banned of ["logoPreview", "LogoPreview", "logoUpload", "FileReader", "createObjectURL"]) {
+// REWRITTEN 2026-10-29 (founder decision D5, Report 153): "The old exclusion of logo upload is superseded only for
+// this isolated customization feature. Update its tests to protect the new boundary." The 2026-09-05 rule
+// (no logo upload or preview in the catalog/marketplace) still holds EVERYWHERE except one place: the isolated
+// feature folder src/features/merchBranding/, which is switched off and reachable only through Merch.jsx's gated
+// hunks. These four tests are that boundary. Never delete them; tighten them if the boundary moves.
+const FEATURE_DIR = join(HERE, "../features/merchBranding");
+const FEATURE_FLAGS = read("../features/merchBranding/merchBrandingFlags.js");
+const CARD_CODE = stripComments(read("../components/giftPlace/GiftProductCard.jsx"));
+const LOGO_TOKENS = ["logoPreview", "LogoPreview", "logoUpload", "FileReader", "createObjectURL"];
+
+function walk(dir, out = []) {
+  for (const name of readdirSync(dir)) {
+    if (name === "node_modules" || name.startsWith(".")) continue;
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) walk(full, out);
+    else if (/\.(jsx?|mjs)$/.test(name) && !/\.test\.(mjs|js)$/.test(name)) out.push(full);
+  }
+  return out;
+}
+
+test("logo upload and preview remain absent from the marketplace page, the founder catalog and the shared card", () => {
+  for (const [name, code] of [["Merch.jsx", MERCH_CODE], ["modal", MODAL_CODE], ["picker", PICKER_CODE], ["client", CLIENT_CODE], ["GiftProductCard.jsx", CARD_CODE]]) {
+    for (const banned of LOGO_TOKENS) {
       assert.ok(!code.includes(banned), `"${banned}" must stay absent from ${name}`);
     }
+    assert.ok(!/type=["']file["']/.test(code), `no file input in ${name}`);
   }
+});
+
+test("logo upload exists ONLY inside the isolated feature folder, and only it talks to the branding API", () => {
+  const SRC = join(HERE, "..");
+  const outside = walk(SRC).filter((f) => !f.startsWith(FEATURE_DIR));
+  for (const f of outside) {
+    const code = stripComments(readFileSync(f, "utf8"));
+    for (const banned of ["logoUpload", "logoPreview", "LogoPreview", "/api/merch/branding", "merch/branding"]) {
+      assert.ok(!code.includes(banned), `"${banned}" appears outside src/features/merchBranding in ${f}`);
+    }
+  }
+  const featureCode = walk(FEATURE_DIR).map((f) => readFileSync(f, "utf8")).join("\n");
+  assert.match(featureCode, /type="file"/, "the upload control lives in the feature");
+  assert.match(featureCode, /\/api\/merch\/branding/, "the branding API client lives in the feature");
+  // Only Merch.jsx imports the feature.
+  const importers = outside.filter((f) => /features\/merchBranding/.test(readFileSync(f, "utf8")));
+  assert.deepEqual(importers.map((f) => f.slice(SRC.length + 1).replace(/\\/g, "/")), ["pages/Merch.jsx"]);
+});
+
+test("the isolated feature is switched off: literal false, no env override", () => {
+  assert.match(FEATURE_FLAGS, /^const MERCH_BRANDING_ENABLED = false;$/m);
+  assert.doesNotMatch(stripComments(FEATURE_FLAGS), /import\.meta\.env|process\.env|localStorage|sessionStorage|location/);
+});
+
+test("every Merch.jsx hunk of the feature is behind the switch; with it off the button keeps its contact-sales route", () => {
+  // 153C: the page also tells the feature whether the customer is signed in (inert while the switch is off).
+  assert.match(MERCH_CODE, /const branding = useMerchBranding\(\{ enabled: merchBrandingEnabled\(\), signedIn: Boolean\(user\) \}\);/);
+  assert.match(MERCH_CODE, /onClick=\{branding\.enabled \? branding\.openBrandingStep : \(\) => navigate\('\/business\?contact=sales'\)\}/);
+  assert.match(MERCH_CODE, /\{branding\.enabled && <MerchBrandingLayer /);
+  assert.match(MERCH_CODE, /\{branding\.enabled && selectedCategory === BRANDABLE && <BrandingControls /);
+  assert.match(MERCH_CODE, /brandingFor=\{branding\.enabled \? branding\.cardBranding : null\}/);
+  // 153E: while a logo is applied the Brandable Goods view shows only founder-designated products.
+  assert.match(MERCH_CODE, /const cards = branding\.enabled \? branding\.assortmentCards\(projectedCards, selectedCategory === BRANDABLE\) : projectedCards;/);
+  assert.match(MERCH_CODE, /if \(branding\.enabled && branding\.interceptVariant\(product, variant\)\)/);
+  // 153I: an approved branded line carries its approval through the EXISTING add-to-cart (inert while off).
+  assert.match(MERCH_CODE, /const brandedLine = branding\.enabled \? branding\.cartFields\(product, variant\) : null;/);
+  // No other use of the feature's names in the page.
+  const uses = (MERCH_CODE.match(/branding\.[a-zA-Z]+/g) || []).filter((u) => u !== "branding.enabled");
+  assert.deepEqual([...new Set(uses)].sort(), ["branding.assortmentCards", "branding.cardBranding", "branding.cartFields", "branding.interceptVariant", "branding.openBrandingStep"]);
 });
 
 test("no Shopify customer interaction is restored", () => {
