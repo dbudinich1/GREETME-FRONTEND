@@ -59,6 +59,7 @@ function LogoStep({ branding }) {
             <button type="button" data-testid="branding-delete-saved" style={link} onClick={branding.deleteSavedLogo}>{S.deleteSavedLogo}</button>
           </div>
           <button type="button" data-testid="branding-use-saved" style={btnPrimary} onClick={branding.applySavedLogo}>{S.useSavedLogo}</button>
+          {branding.savedError ? <p role="alert" data-testid="branding-saved-error" style={{ flex: '1 1 100%', margin: 0, color: '#b4232f', fontSize: '0.8125rem', fontWeight: 600 }}>{branding.savedError}</p> : null}
         </div>
       ) : null}
       {saved ? <p style={{ margin: '0 0 0.5rem', fontSize: '0.8125rem', fontWeight: 600, color: '#6B6079' }}>{S.orUploadNew}</p> : null}

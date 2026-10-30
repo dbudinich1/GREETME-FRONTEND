@@ -19,6 +19,7 @@ export const BRANDING_STRINGS = Object.freeze({
   useSavedLogo: 'Use my saved logo',
   deleteSavedLogo: 'Delete my saved logo',
   orUploadNew: 'Or upload a different logo',
+  deleteSavedFailed: 'We couldn’t delete your saved logo. Please try again.', // PROPOSED copy
 
   // Nothing designated yet (153E) — PROPOSED copy
   noneEligibleTitle: 'Logo branding isn’t open yet',

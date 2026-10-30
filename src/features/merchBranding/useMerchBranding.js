@@ -139,13 +139,19 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
     setSession({ logo: saved.logo, previewSrc: saved.previewUrl || null, catalog: saved.catalog || [], mockups: {}, approvals: {}, config: cfg && cfg.ok ? cfg : session.config });
     setStep(null);
   }, [api, saved]);
+  // N2: hidden only after the server confirms; on any other answer it stays shown with an error line.
+  const [savedError, setSavedError] = useState(null);
   const deleteSavedLogo = useCallback(async () => {
     if (!saved || !api) return;
     const id = saved.logo.logoId;
+    setSavedError(null);
+    let r = null;
+    try { r = await api.clearLogo(id, { forget: true }); } catch { r = null; }
+    if (isAuthFailure(r)) { signInAgain(); return; }
+    if (!r || !r.ok) { setSavedError(S.deleteSavedFailed); return; }
     setSaved(null);
     if (session.logo && session.logo.logoId === id) setSession(initial());
-    await api.clearLogo(id, { forget: true });
-  }, [api, saved]);
+  }, [api, saved, signInAgain]);
 
   const clear = useCallback(async () => {
     if (!api || !session.logo) return;
@@ -253,6 +259,7 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
     applyFile,
     clear,
     saved,
+    savedError,
     loadSavedLogo,
     applySavedLogo,
     deleteSavedLogo,

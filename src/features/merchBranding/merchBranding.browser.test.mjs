@@ -464,3 +464,27 @@ test("ON: Remember my logo is OFF by default; opted in, the saved logo is offere
     assert.ok(ON.__api.calls.includes("deleteSavedLogo"));
   } finally { await m.unmount(); }
 });
+
+test("N2: 'Delete my saved logo' hides it only after the server confirms; a refusal keeps it shown with an error line", async () => {
+  ON.__resetBrandingSession();
+  let m = await mount(ON);
+  try {
+    await click(brandButton(m.host));
+    await act(async () => { q(win.document.body, "branding-remember").click(); });
+    await chooseFile(m.host, "logo.png");
+  } finally { await m.unmount(); }
+  ON.__resetBrandingSession();
+  m = await mount(ON);
+  const real = ON.__api.clearLogo;
+  try {
+    ON.__api.clearLogo = async () => ({ ok: false, status: 409, code: "LOGO_CHANGED" });
+    await click(brandButton(m.host));
+    await tick(); await tick();
+    await click(q(win.document.body, "branding-delete-saved"));
+    assert.ok(q(win.document.body, "branding-saved-logo"), "still shown after a refusal");
+    assert.equal(text(q(win.document.body, "branding-saved-error")), "We couldn’t delete your saved logo. Please try again.");
+    ON.__api.clearLogo = real;
+    await click(q(win.document.body, "branding-delete-saved"));
+    assert.ok(!q(win.document.body, "branding-saved-logo"), "hidden once the server confirms");
+  } finally { ON.__api.clearLogo = real; await m.unmount(); }
+});
