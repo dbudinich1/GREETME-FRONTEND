@@ -488,37 +488,3 @@ test("opening the Printful tab and viewing tiles never calls stageMerch, merchLi
   assert.equal(client.calls.merchLifecycle.length, 0);
   assert.equal(client.calls.patchMerch.length, 0);
 });
-
-// ── REPORT 153E: customer-logo eligibility on the live Manage Catalog tile ─────────────────────
-
-test("153E · today (branding feature off) a Printful tile shows no logo-eligibility control", async () => {
-  const s = await mountCatalogExpanded(fakeModalClient());
-  const tileId = "printful-431624815";
-  await click(s.tid(`expand-${tileId}`));
-  await flush();
-  assert.ok(s.tid(`expanded-${tileId}`));
-  assert.ok(!s.tid(`logo-eligibility-${tileId}`), "no control while the server does not offer it");
-  assert.doesNotMatch(s.tid(`catalog-tile-${tileId}`).textContent, /company logo/);
-});
-
-test("153E · with the feature on, the founder designates explicitly (default off); the patch carries only that field", async () => {
-  const MUG = CURATED_ITEM({ syncProductId: 431622804, vendorAuthoritative: { ...CURATED_ITEM().vendorAuthoritative, name: "White Glossy Mug" },
-    curation: { ...CURATED_ITEM().curation, brandable: true, greetMeCategories: [], customerLogoEligible: false }, logoPrintSpecReady: true });
-  const client = fakeModalClient({
-    listMerch: async () => ({ ok: true, brandingEligibilityEditable: true, items: [MUG] }),
-    patchMerch: async (id, patch, etag) => { client.calls.patchMerch.push([id, patch, etag]); return { ok: true, item: { ...MUG, curation: { ...MUG.curation, ...patch } } }; },
-  });
-  const s = await mountCatalogExpanded(client);
-  const tileId = "printful-431622804";
-  await click(s.tid(`expand-${tileId}`));
-  await flush();
-  const box = s.tid(`logo-eligible-${tileId}`);
-  assert.ok(box, "control shown");
-  assert.equal(box.checked, false, "default off, although the product is in Brandable Goods and has a print area");
-  assert.equal(s.tid(`logo-spec-${tileId}`).textContent, "ready");
-  await act(async () => { box.click(); });
-  await flush();
-  assert.deepEqual(client.calls.patchMerch.at(-1).slice(0, 2), [431622804, { customerLogoEligible: true }], "no price, category or collection in the patch");
-  assert.equal(s.tid(`logo-eligible-${tileId}`).checked, true);
-  assert.match(s.tid(`tile-price-${tileId}`).textContent, /\$24\.00/, "price display unchanged");
-});

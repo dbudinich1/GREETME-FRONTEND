@@ -58,11 +58,6 @@ import { useProviderCatalogue } from '../components/giftPlace/useProviderCatalog
 import ProviderCheckoutModal from '../components/providerCheckout/ProviderCheckoutModal';
 // A gift box's own checkout: Greet-Me is the merchant of record and places the order server-side.
 import GiftBoxCheckoutModal from '../components/providerCheckout/GiftBoxCheckoutModal';
-// REPORT 153 — Printful branded catalog, SWITCHED OFF (merchBrandingEnabled() is a literal false). While off, every
-// hunk below is inert: the button keeps its contact-sales route and nothing else renders.
-import { merchBrandingEnabled } from '../features/merchBranding/merchBrandingFlags';
-import { useMerchBranding } from '../features/merchBranding/useMerchBranding';
-import MerchBrandingLayer, { BrandingControls } from '../features/merchBranding/MerchBrandingLayer';
 
 export default function Merch() {
   const navigate = useNavigate();
@@ -70,7 +65,6 @@ export default function Merch() {
   // CHECKPOINT 2 — founder drawer state. Nothing about the customer surface depends on this.
   const { user } = useAuth();
   const founder = isFounder(user);
-  const branding = useMerchBranding({ enabled: merchBrandingEnabled(), signedIn: Boolean(user) });
   const [catalogOpen, setCatalogOpen] = useState(false);
   // GIFT CARDS — Manage Catalog Publish/Unpublish is the checkout authority (Team C, 2026-09-22).
   // "Coming later" is the honest DEFAULT, not a hardcoded permanent state: this asks the server —
@@ -324,7 +318,7 @@ export default function Merch() {
 
   // THE ONE PROJECTION. Whatever supplied the products, the grid below receives the same six fields
   // in the same shape. This is the line that makes Flowers and Americana the same page.
-  const projectedCards = useMemo(() => (
+  const cards = useMemo(() => (
     isCuratedSelection
       // A stored card is choosable only once the LIVE provider list confirms it (withLiveAvailability): while that list
       // loads, or when it failed, the card stays visible but cannot be chosen. Never fails open.
@@ -334,8 +328,6 @@ export default function Merch() {
       }), giftBasketsProviderProducts)
       : projectGiftCards(visibleProducts, fromCatalogProduct)
   ), [isCuratedSelection, visibleProducts, flowersLiveState, flowersProviderProducts, giftBasketsLiveState, giftBasketsProviderProducts]);
-  // REPORT 153E (switched off): with a logo applied, the Brandable Goods view shows only founder-designated products.
-  const cards = branding.enabled ? branding.assortmentCards(projectedCards, selectedCategory === BRANDABLE) : projectedCards;
 
   // Each card's category label (gallery cards): Branded Goods for the merch catalogue, otherwise the product's first
   // Gift Place category. Display only.
@@ -545,10 +537,6 @@ export default function Merch() {
   };
 
   const addVariantToCart = (product, variant) => {
-    // REPORT 153 — with a logo applied, a supported product goes to the artwork-approval step instead (inert while off).
-    if (branding.enabled && branding.interceptVariant(product, variant)) { setShowCartModal(false); setPickerProduct(null); return; }
-    // REPORT 153I — an approved branded line carries its approval (inert while off).
-    const brandedLine = branding.enabled ? branding.cartFields(product, variant) : null;
     try {
       cartService.addItem({
         printfulSyncProductId: product.syncProductId,
@@ -565,7 +553,6 @@ export default function Merch() {
         // storefront visit never sets cameFromSendGreeting, so standalone
         // merchandise stays untagged and independent.
         ...(cameFromSendGreeting && { sendContext: 'greeting-flow' }),
-        ...(brandedLine ? brandedLine.item : {}),
       });
       // E01: inside a send, the pick decides the greeting's gift type, exactly as a provider pick
       // does above. `marketplace` is the type the review screen opens the cart checkout for.
@@ -587,11 +574,11 @@ export default function Merch() {
       setStandaloneFlower(null);
       setLastAddedItem({
         syncProductId: product.syncProductId,
-        name: brandedLine ? brandedLine.confirmationName : `${product.name} — ${variant.label}`,
+        name: `${product.name} — ${variant.label}`,
         price: variant.priceCents / 100,
         // The same picture the card was shown with. The confirmation renders it when it is there, so
         // every category confirms the same way.
-        imageUrl: (brandedLine && brandedLine.imageUrl) || product.imageUrl || null,
+        imageUrl: product.imageUrl || null,
         // Which return this confirmation belongs to. Merch returns to the greeting as merch.
         giftType: 'merch',
       });
@@ -985,7 +972,7 @@ export default function Merch() {
                 {BRANDABLE_TAGLINE}
               </p>
               <button
-                onClick={branding.enabled ? branding.openBrandingStep : () => navigate('/business?contact=sales')}
+                onClick={() => navigate('/business?contact=sales')}
                 style={{
                   flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem',
                   padding: '0.3125rem 0.75rem', background: 'white', color: '#1e3a8a', border: 'none',
@@ -997,7 +984,6 @@ export default function Merch() {
               </button>
             </div>
           )}
-          {branding.enabled && selectedCategory === BRANDABLE && <BrandingControls branding={branding} isNarrow={isNarrow} />}
         </div>
       )}
 
@@ -1181,7 +1167,6 @@ export default function Merch() {
           variant="gallery"
           chipFor={chipFor}
           priceNoteFor={priceNoteFor}
-          brandingFor={branding.enabled ? branding.cardBranding : null}
         />
       )}
       </div>
@@ -1262,8 +1247,6 @@ export default function Merch() {
           customer={user}
         />
       )}
-
-      {branding.enabled && <MerchBrandingLayer branding={branding} products={products} onApproved={addVariantToCart} />}
 
       {/* CHECKPOINT 2 — the modal renders OVER this page. No route change, no second page. */}
       {founder && (

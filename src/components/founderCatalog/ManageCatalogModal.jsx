@@ -89,11 +89,6 @@ function normalizeMerchItem(m) {
     lifecycle: { state: m?.curation?.state, displayEnabled: m?.curation?.displayEnabled === true },
     display: { title: m?.vendorAuthoritative?.name },
     etag: m?.etag ?? null,
-    // REPORT 153E — customer-logo eligibility. The server sends `curation.customerLogoEligible` ONLY while
-    // the branding feature is on (a literal false today), so today this is null and the tile is unchanged.
-    logoBranding: m?.curation && 'customerLogoEligible' in m.curation
-      ? { eligible: m.curation.customerLogoEligible === true, printSpecReady: m?.logoPrintSpecReady === true }
-      : null,
   };
 }
 
@@ -365,22 +360,6 @@ function CatalogTile({ item, client, onRemoved, onSaved }) {
                 <RefreshCw size={12} className={refreshing ? 'gm-spin' : undefined} />
                 Refresh from provider
               </button>
-            )}
-            {isPrintful && local.logoBranding && (
-              <div data-testid={`logo-eligibility-${local.id}`}
-                style={{ padding: '0.5rem 0.625rem', border: '1px dashed var(--border)', borderRadius: '0.5rem' }}>
-                <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  <input type="checkbox" data-testid={`logo-eligible-${local.id}`}
-                    checked={local.logoBranding.eligible} disabled={saving} aria-checked={local.logoBranding.eligible}
-                    onChange={(e) => runPatch({ customerLogoEligible: e.target.checked })}
-                    style={{ width: 16, height: 16, minHeight: 0, padding: 0, flex: 'none' }} />
-                  Customers may add their company logo
-                </label>
-                <div style={{ margin: '0.25rem 0 0 1.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', lineHeight: 1.4 }}>
-                  Off unless you turn it on. Separate from categories, collections and price.
-                  {' '}Print area: <strong data-testid={`logo-spec-${local.id}`}>{local.logoBranding.printSpecReady ? 'ready' : 'not set up yet, so customers can’t add a logo'}</strong>.
-                </div>
-              </div>
             )}
             {isPrintful && (
               <div data-testid={`printful-variants-${local.id}`} style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
