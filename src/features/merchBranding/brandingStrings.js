@@ -13,6 +13,12 @@ export const BRANDING_STRINGS = Object.freeze({
   uploading: 'Uploading…',
   cancel: 'Cancel',
   uploadFailed: 'We couldn’t upload your logo just now. Please try again.',
+  // "Remember my logo" (approved: opt-in, with a delete control)
+  rememberLogo: 'Remember my logo for next time',
+  savedLogoTitle: 'Your saved logo',
+  useSavedLogo: 'Use my saved logo',
+  deleteSavedLogo: 'Delete my saved logo',
+  orUploadNew: 'Or upload a different logo',
 
   // Nothing designated yet (153E) — PROPOSED copy
   noneEligibleTitle: 'Logo branding isn’t open yet',

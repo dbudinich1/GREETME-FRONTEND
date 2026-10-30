@@ -28,27 +28,30 @@ async function call(path, init = {}) {
 }
 
 export function createHttpBrandingApi() {
-  const send = (path, file) => {
+  const send = (path, file, opts = {}) => {
     const fd = new FormData();
     fd.append('logo', file);
+    if (opts.remember === true) fd.append('remember', '1'); // "Remember my logo" — opt-in only
     return call(path, { method: 'POST', body: fd }); // no Content-Type: the browser sets the boundary
   };
   return {
     kind: 'http',
     getConfig: () => call('/config'),
     getEligibility: () => call('/eligibility'),
-    uploadLogo: (file) => send('/logo', file),
-    replaceLogo: (logoId, file) => send(`/logo/${encodeURIComponent(logoId)}/replace`, file),
-    clearLogo: (logoId) => call(`/logo/${encodeURIComponent(logoId)}`, { method: 'DELETE' }),
+    uploadLogo: (file, opts) => send('/logo', file, opts),
+    replaceLogo: (logoId, file, opts) => send(`/logo/${encodeURIComponent(logoId)}/replace`, file, opts),
+    clearLogo: (logoId, opts = {}) => call(`/logo/${encodeURIComponent(logoId)}${opts.forget ? '?forget=1' : ''}`, { method: 'DELETE' }),
+    getSavedLogo: () => call('/logo/saved'),
     getMockups: (logoId) => call(`/logo/${encodeURIComponent(logoId)}/mockups`),
     approve: (body) => call('/approvals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
   };
 }
 
+// Q2 — APPROVED wording (founder, 2026-10-29/30), mirrored from the server's RIGHTS_WORDING.
 const RIGHTS = Object.freeze({
-  version: 'proposed-2026-10-29',
-  approved: false,
-  text: 'I confirm I own this logo or have permission to use it on these products, and that it doesn’t infringe anyone’s trademark or other rights. Greet-Me may cancel and refund an order whose artwork breaches this.',
+  version: 'approved-2026-10-30',
+  approved: true,
+  text: 'I confirm I own this artwork or have permission to use it on these products.',
 });
 
 const SUBJECT = { notebook: 'This notebook', laptop_sleeve: 'This laptop sleeve', mug: 'This mug', canvas: 'This canvas' };
@@ -90,19 +93,19 @@ export function catalogFromSpecs(logo, specs = GOLDEN.specs, eligible = []) {
  * `mockupFor(syncVariantId)` returns a mockup image URL or null ("preparing"); `failFor` lists
  * variants whose mockup is "unavailable".
  */
-export function createInMemoryBrandingApi({ measure, mockupFor = () => null, failFor = [], specs = GOLDEN.specs, eligible = () => [], approveOk = false } = {}) {
+export function createInMemoryBrandingApi({ measure, mockupFor = () => null, failFor = [], specs = GOLDEN.specs, eligible = () => [], approveOk = false, savedPreviewUrl = null } = {}) {
   const eligibleNow = () => (typeof eligible === 'function' ? eligible() : eligible) || [];
   const logos = new Map();
   const calls = [];
   let n = 0;
-  const accept = async (file) => {
+  const accept = async (file, opts = {}) => {
     const type = file && file.type;
     if (type === 'image/svg+xml') return { ok: false, status: 400, code: 'LOGO_SVG_NOT_ACCEPTED', error: 'SVG logos aren’t accepted yet. Upload a PNG or JPG version of your logo.' };
     if (type !== 'image/png' && type !== 'image/jpeg') return { ok: false, status: 400, code: 'LOGO_WRONG_TYPE', error: 'Upload your logo as a PNG or JPG file.' };
     if (file.size > 10 * 1024 * 1024) return { ok: false, status: 400, code: 'LOGO_TOO_LARGE', error: 'This file is larger than 10 MB. Upload a smaller PNG or JPG.' };
     const dims = measure ? await measure(file) : { widthPx: 1000, heightPx: 1000 };
     n += 1;
-    const logo = { logoId: `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`, type, ...dims, bytes: file.size };
+    const logo = { logoId: `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`, type, ...dims, bytes: file.size, remembered: opts.remember === true };
     logos.set(logo.logoId, logo);
     return { ok: true, status: 201, logo, catalog: catalogFromSpecs(logo, specs, eligibleNow()) };
   };
@@ -111,14 +114,26 @@ export function createInMemoryBrandingApi({ measure, mockupFor = () => null, fai
     calls,
     async getEligibility() { calls.push('getEligibility'); return { ok: true, eligible: eligibleNow().map(Number).filter((id) => specs[String(id)]) }; },
     async getConfig() { calls.push('getConfig'); return { ok: true, acceptedTypes: ['image/png', 'image/jpeg'], maxBytes: 10 * 1024 * 1024, rightsWording: RIGHTS }; },
-    async uploadLogo(file) { calls.push('uploadLogo'); return accept(file); },
-    async replaceLogo(logoId, file) {
+    async uploadLogo(file, opts) { calls.push('uploadLogo'); return accept(file, opts); },
+    async replaceLogo(logoId, file, opts) {
       calls.push('replaceLogo');
-      const r = await accept(file);
-      if (r.ok) logos.delete(logoId);
+      const r = await accept(file, opts);
+      if (r.ok && !(logos.get(logoId) || {}).remembered) logos.delete(logoId);
       return r.ok ? { ...r, replaced: logoId } : r;
     },
-    async clearLogo(logoId) { calls.push('clearLogo'); const had = logos.delete(logoId); return had ? { ok: true, cleared: true } : { ok: false, status: 404 }; },
+    async clearLogo(logoId, opts = {}) {
+      calls.push(opts.forget ? 'deleteSavedLogo' : 'clearLogo');
+      const l = logos.get(logoId);
+      if (!l) return { ok: false, status: 404 };
+      if (l.remembered && !opts.forget) return { ok: true, cleared: true, remembered: true };
+      logos.delete(logoId);
+      return { ok: true, cleared: true };
+    },
+    async getSavedLogo() {
+      calls.push('getSavedLogo');
+      const saved = [...logos.values()].filter((l) => l.remembered).pop() || null;
+      return saved ? { ok: true, logo: saved, previewUrl: savedPreviewUrl, catalog: catalogFromSpecs(saved, specs, eligibleNow()) } : { ok: true, logo: null };
+    },
     async getMockups(logoId) {
       calls.push('getMockups');
       if (!logos.has(logoId)) return { ok: false, status: 404 };

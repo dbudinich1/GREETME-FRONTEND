@@ -587,7 +587,7 @@ export default function Merch() {
       setStandaloneFlower(null);
       setLastAddedItem({
         syncProductId: product.syncProductId,
-        name: brandedLine ? brandedLine.item.name : `${product.name} — ${variant.label}`,
+        name: brandedLine ? brandedLine.confirmationName : `${product.name} — ${variant.label}`,
         price: variant.priceCents / 100,
         // The same picture the card was shown with. The confirmation renders it when it is there, so
         // every category confirms the same way.

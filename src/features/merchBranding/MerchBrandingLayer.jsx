@@ -42,21 +42,41 @@ function Dialog({ title, onClose, children, testId }) {
 function LogoStep({ branding }) {
   const input = useRef(null);
   const [file, setFile] = useState(null);
+  const [remember, setRemember] = useState(false); // opt-in: off by default
   const close = () => branding.setStep(null);
+  const { loadSavedLogo } = branding;
+  useEffect(() => { if (loadSavedLogo) loadSavedLogo(); }, [loadSavedLogo]);
+  const saved = branding.saved && branding.saved.logo ? branding.saved : null;
+  const link = { border: 'none', background: 'none', padding: 0, minHeight: 0, color: '#1e3a8a', fontWeight: 700, fontSize: '0.8125rem', fontFamily: 'inherit', textDecoration: 'underline', cursor: 'pointer' };
   return (
     <Dialog title={S.stepTitle} onClose={close} testId="branding-logo-step">
       <p style={{ margin: '0 0 1rem', fontSize: '0.9375rem', lineHeight: 1.5, color: '#4b4060' }}>{S.stepIntro}</p>
+      {saved ? (
+        <div data-testid="branding-saved-logo" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', border: '1px solid #e7e0f0', borderRadius: '0.875rem', padding: '0.75rem 0.875rem', marginBottom: '0.75rem', background: '#fff' }}>
+          {saved.previewUrl ? <img src={saved.previewUrl} alt="" style={{ width: 44, height: 44, objectFit: 'contain', borderRadius: 6, background: '#fff', border: '1px solid #e7e0f0' }} /> : null}
+          <div style={{ flex: '1 1 140px', minWidth: 0 }}>
+            <span style={{ display: 'block', fontWeight: 700, fontSize: '0.875rem' }}>{S.savedLogoTitle}</span>
+            <button type="button" data-testid="branding-delete-saved" style={link} onClick={branding.deleteSavedLogo}>{S.deleteSavedLogo}</button>
+          </div>
+          <button type="button" data-testid="branding-use-saved" style={btnPrimary} onClick={branding.applySavedLogo}>{S.applySavedLogo}</button>
+        </div>
+      ) : null}
+      {saved ? <p style={{ margin: '0 0 0.5rem', fontSize: '0.8125rem', fontWeight: 600, color: '#6B6079' }}>{S.orUploadNew}</p> : null}
       <label data-testid="branding-file-drop" style={{ display: 'block', border: '2px dashed #cfc3e2', borderRadius: '0.875rem', padding: '1.25rem', textAlign: 'center', cursor: 'pointer', background: '#faf8fd' }}>
         <input ref={input} data-testid="branding-file-input" type="file" accept="image/png,image/jpeg" style={{ display: 'none' }}
           onChange={(e) => setFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} />
         <span style={{ display: 'block', fontWeight: 700, fontSize: '0.9375rem' }}>{file ? file.name : S.chooseFile}</span>
         <span style={{ display: 'block', marginTop: '0.25rem', fontSize: '0.8125rem', color: '#6B6079' }}>{S.fileHint}</span>
       </label>
+      <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.75rem', fontSize: '0.8125rem', color: '#4b4060' }}>
+        <input type="checkbox" data-testid="branding-remember" checked={remember} onChange={(e) => setRemember(e.target.checked)} style={{ width: 16, height: 16, minHeight: 0, flex: 'none', padding: 0 }} />
+        <span>{S.rememberLogo}</span>
+      </label>
       {branding.error ? <p role="alert" data-testid="branding-error" style={{ margin: '0.75rem 0 0', color: '#b4232f', fontSize: '0.875rem', fontWeight: 600 }}>{branding.error}</p> : null}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
         <button type="button" style={btnGhost} onClick={close}>{S.cancel}</button>
         <button type="button" data-testid="branding-apply" style={{ ...btnPrimary, opacity: file && !branding.busy ? 1 : 0.5, cursor: file && !branding.busy ? 'pointer' : 'not-allowed' }}
-          disabled={!file || branding.busy} onClick={() => branding.applyFile(file)}>{branding.busy ? S.uploading : S.applyLogo}</button>
+          disabled={!file || branding.busy} onClick={() => branding.applyFile(file, { remember })}>{branding.busy ? S.uploading : S.applyLogo}</button>
       </div>
     </Dialog>
   );

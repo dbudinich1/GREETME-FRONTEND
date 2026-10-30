@@ -400,7 +400,8 @@ test("ON: ONE logo upload brands every designated product; approving a variant a
     assert.equal(line.priceCents, 1400, "the existing price, unchanged");
     assert.match(line.branding.approvalToken, /^memory-approval\..+\.5298267871$/);
     assert.equal(line.branding.logoId, line.branding.approvalToken.split(".")[1]);
-    assert.match(line.name, /— 11 oz · with your logo$/);
+    assert.equal(line.name, "White Glossy Mug — 11 oz", "the existing cart name, unchanged (a longer name clips the phone cart row)");
+    assert.equal(line.category, "Merch · with your logo", "branding shown on the existing category line");
     assert.equal(ON.__api.calls.filter((c) => c === "uploadLogo").length - before, 1, "no second upload");
   } finally { globalThis.__TEST_APPROVE_OK = false; await m.unmount(); }
 });
@@ -427,5 +428,37 @@ test("ON: switching variant in the placement view keeps the logo and updates pre
     assert.notEqual(text(q(dlg, "branding-printed-size")), size11, "printed size recomputed for the 20 oz area");
     assert.ok(q(dlg, "branding-mockup-pending"), "20 oz: its own preview (preparing), never the 11 oz image");
     assert.ok(dlg.querySelector('[data-testid="branding-placement-proposal"] image, [data-testid="branding-placement-proposal"] rect[opacity="0.15"]'), "the same logo is placed (jsdom has no blob URLs, so the logo box stands in)");
+  } finally { await m.unmount(); }
+});
+
+// ── "Remember my logo" (approved: opt-in, with a delete control) ──────────────────────────────
+test("ON: Remember my logo is OFF by default; opted in, the saved logo is offered next visit, re-brands in one click, and can be deleted", async () => {
+  ON.__resetBrandingSession();
+  let m = await mount(ON);
+  try {
+    await click(brandButton(m.host));
+    assert.equal(q(win.document.body, "branding-remember").checked, false, "opt-in");
+    assert.ok(!q(win.document.body, "branding-saved-logo"), "nothing saved yet");
+    await act(async () => { q(win.document.body, "branding-remember").click(); });
+    await chooseFile(m.host, "logo.png");
+    assert.ok(q(m.host, "gift-card-branding-431622804"));
+  } finally { await m.unmount(); }
+  ON.__resetBrandingSession(); // a later visit
+  m = await mount(ON);
+  try {
+    await click(brandButton(m.host));
+    await tick(); await tick();
+    const savedBox = q(win.document.body, "branding-saved-logo");
+    assert.ok(savedBox, "the saved logo is offered");
+    await click(q(savedBox, "branding-use-saved"));
+    assert.ok(!q(win.document.body, "branding-logo-step"));
+    assert.equal(text(q(m.host, "gift-card-branding-431622804")), "Your logo", "branded again without a new upload");
+    await click(q(m.host, "branding-clear"));
+    await click(brandButton(m.host));
+    await tick(); await tick();
+    assert.ok(q(win.document.body, "branding-saved-logo"), "Clear branding keeps the saved logo");
+    await click(q(win.document.body, "branding-delete-saved"));
+    assert.ok(!q(win.document.body, "branding-saved-logo"), "deleted");
+    assert.ok(ON.__api.calls.includes("deleteSavedLogo"));
   } finally { await m.unmount(); }
 });

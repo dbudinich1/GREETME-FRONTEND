@@ -91,12 +91,13 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
     return () => clearTimeout(t);
   }, [enabled, state.logo, state.mockups, refreshMockups]);
 
-  const applyFile = useCallback(async (file) => {
+  const applyFile = useCallback(async (file, opts = {}) => {
     if (!api) return { ok: false };
     setBusy(true); setError(null);
     try {
       const current = session.logo;
-      const r = current ? await api.replaceLogo(current.logoId, file) : await api.uploadLogo(file);
+      const remember = { remember: opts.remember === true };
+      const r = current ? await api.replaceLogo(current.logoId, file, remember) : await api.uploadLogo(file, remember);
       if (isAuthFailure(r)) { signInAgain(); return { ok: false }; }
       if (!r || !r.ok) { setError((r && r.error) || S.uploadFailed); return { ok: false }; }
       const cfg = session.config || (await api.getConfig().catch(() => null));
@@ -121,6 +122,30 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
     const eligible = r && r.ok && Array.isArray(r.eligible) ? r.eligible : [];
     setStep(eligible.length ? { type: 'logo' } : { type: 'none-eligible' });
   }, [enabled, signedIn, api, signInAgain]);
+
+  // "Remember my logo": the saved logo offered in the logo step (null = none / not loaded).
+  const [saved, setSaved] = useState(null);
+  const loadSavedLogo = useCallback(async () => {
+    if (!api || typeof api.getSavedLogo !== 'function') return;
+    let r = null;
+    try { r = await api.getSavedLogo(); } catch { r = null; }
+    if (isAuthFailure(r)) { signInAgain(); return; }
+    setSaved(r && r.ok && r.logo ? r : null);
+  }, [api, signInAgain]);
+  const applySavedLogo = useCallback(async () => {
+    if (!saved || !api) return;
+    const cfg = session.config || (await api.getConfig().catch(() => null));
+    polls.current = 0;
+    setSession({ logo: saved.logo, previewSrc: saved.previewUrl || null, catalog: saved.catalog || [], mockups: {}, approvals: {}, config: cfg && cfg.ok ? cfg : session.config });
+    setStep(null);
+  }, [api, saved]);
+  const deleteSavedLogo = useCallback(async () => {
+    if (!saved || !api) return;
+    const id = saved.logo.logoId;
+    setSaved(null);
+    if (session.logo && session.logo.logoId === id) setSession(initial());
+    await api.clearLogo(id, { forget: true });
+  }, [api, saved]);
 
   const clear = useCallback(async () => {
     if (!api || !session.logo) return;
@@ -204,7 +229,10 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
     const a = approvalFor(variant && variant.syncVariantId);
     if (!enabled || !a || !product) return null;
     return {
-      item: { branding: { approvalToken: a.approvalToken, logoId: a.logoId }, name: `${product.name} — ${variant.label} · ${S.cartWithLogo}` },
+      // The cart/checkout row keeps the EXISTING name (a longer name clips the existing phone cart row);
+      // "with your logo" rides the existing small category line instead (display only).
+      item: { branding: { approvalToken: a.approvalToken, logoId: a.logoId }, category: `Merch · ${S.cartWithLogo}` },
+      confirmationName: `${product.name} — ${variant.label} · ${S.cartWithLogo}`,
       imageUrl: a.mockupUrl,
     };
   }, [enabled]);
@@ -224,6 +252,10 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
     assortmentCards,
     applyFile,
     clear,
+    saved,
+    loadSavedLogo,
+    applySavedLogo,
+    deleteSavedLogo,
     cardBranding,
     interceptVariant,
     approve,
