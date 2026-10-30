@@ -12,9 +12,8 @@ import { useNavigate } from 'react-router-dom';
 import { BRANDING_STRINGS as S } from './brandingStrings.js';
 import { SPECS } from './brandingApi.js';
 
-// The branded cart line is not wired into checkout yet (Checkout.jsx / paymentRoutes.js are shared files;
-// Team 6 merges). Until it is, approval can never add a branded item to the cart. Q1 (prices) is also open.
-export const BRANDED_CHECKOUT_CONNECTED = false;
+// 153I: approval adds the branded line through the EXISTING add-to-cart (onApproved = Merch.jsx
+// addVariantToCart), and the line carries the signed approval through the existing checkout.
 
 const overlay = { position: 'fixed', inset: 0, background: 'rgba(17,12,30,.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', boxSizing: 'border-box' };
 const panel = { background: '#fff', borderRadius: '1rem', width: '100%', maxWidth: 560, maxHeight: 'calc(100vh - 2rem)', overflowY: 'auto', boxShadow: '0 24px 48px -16px rgba(44,29,70,.45)', boxSizing: 'border-box', fontFamily: 'inherit', color: '#2C1D46' };
@@ -118,7 +117,7 @@ export function PlacementProposal({ variantSpec, position, logoSrc, productKey }
   );
 }
 
-function PlacementOrApproval({ branding, products, mode }) {
+function PlacementOrApproval({ branding, products, mode, onApproved }) {
   const { syncProductId, syncVariantId } = branding.step;
   const entry = branding.catalogById[String(syncProductId)];
   const spec = SPECS[String(syncProductId)];
@@ -132,7 +131,9 @@ function PlacementOrApproval({ branding, products, mode }) {
   const ready = m && m.status === 'ready' && m.mockupUrl;
   const name = product ? product.name : 'This product';
   const close = () => branding.setStep(null);
-  const approvalBlocked = !BRANDED_CHECKOUT_CONNECTED || !ready || !v.ok || !rights;
+  const approvalBlocked = !ready || !v.ok || !rights || branding.busy;
+  const pv = product && Array.isArray(product.variants) ? product.variants.find((x) => String(x.syncVariantId) === String(v.syncVariantId)) : null;
+  const onApprove = () => { if (!approvalBlocked && pv) branding.approve({ product, variant: pv, rightsAccepted: rights, onApproved }); };
   const wording = branding.config && branding.config.rightsWording ? branding.config.rightsWording.text : null;
   const variantLabel = (id) => {
     const pv = product && Array.isArray(product.variants) ? product.variants.find((x) => String(x.syncVariantId) === String(id)) : null;
@@ -177,11 +178,11 @@ function PlacementOrApproval({ branding, products, mode }) {
               <span>{wording}</span>
             </label>
           ) : null}
-          {!BRANDED_CHECKOUT_CONNECTED ? <p data-testid="branding-not-open" style={{ margin: '0.75rem 0 0', fontSize: '0.8125rem', color: '#b45309', fontWeight: 600 }}>{S.notOpenYet}</p>
-            : !ready ? <p style={{ margin: '0.75rem 0 0', fontSize: '0.8125rem', color: '#b45309', fontWeight: 600 }}>{S.waitForPreview}</p> : null}
+          {!ready ? <p data-testid="branding-wait-preview" style={{ margin: '0.75rem 0 0', fontSize: '0.8125rem', color: '#b45309', fontWeight: 600 }}>{S.waitForPreview}</p> : null}
+          {branding.error ? <p role="alert" data-testid="branding-error" style={{ margin: '0.75rem 0 0', color: '#b4232f', fontSize: '0.875rem', fontWeight: 600 }}>{branding.error}</p> : null}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
             <button type="button" style={btnGhost} onClick={close}>{S.backToProducts}</button>
-            <button type="button" data-testid="branding-approve" disabled={approvalBlocked} style={{ ...btnPrimary, opacity: approvalBlocked ? 0.5 : 1, cursor: approvalBlocked ? 'not-allowed' : 'pointer' }}>{S.approveButton}</button>
+            <button type="button" data-testid="branding-approve" disabled={approvalBlocked} onClick={onApprove} style={{ ...btnPrimary, opacity: approvalBlocked ? 0.5 : 1, cursor: approvalBlocked ? 'not-allowed' : 'pointer' }}>{S.approveButton}</button>
           </div>
         </>
       ) : null}
@@ -189,13 +190,13 @@ function PlacementOrApproval({ branding, products, mode }) {
   );
 }
 
-export default function MerchBrandingLayer({ branding, products }) {
+export default function MerchBrandingLayer({ branding, products, onApproved }) {
   if (!branding || !branding.enabled || !branding.step) return null;
   if (branding.step.type === 'signin') return <SignInStep branding={branding} />;
   if (branding.step.type === 'none-eligible') return <NoneEligibleStep branding={branding} />;
   if (branding.step.type === 'logo') return <LogoStep branding={branding} />;
   if (branding.step.type === 'preview') return <PlacementOrApproval key={`p-${branding.step.syncProductId}`} branding={branding} products={products} mode="preview" />;
-  if (branding.step.type === 'approval') return <PlacementOrApproval key={`a-${branding.step.syncVariantId}`} branding={branding} products={products} mode="approval" />;
+  if (branding.step.type === 'approval') return <PlacementOrApproval key={`a-${branding.step.syncVariantId}`} branding={branding} products={products} mode="approval" onApproved={onApproved} />;
   return null;
 }
 

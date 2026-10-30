@@ -14,7 +14,7 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
-import { writeFileSync, rmSync } from "node:fs";
+import { writeFileSync, rmSync, readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import esbuild from "esbuild";
 
@@ -81,7 +81,8 @@ before(async () => {
     `import { createInMemoryBrandingApi } from ${JSON.stringify(join(HERE, "brandingApi.js").replace(/\\/g, "/"))};\n`
     + "export const __api = createInMemoryBrandingApi({ measure: async (f) => (f.name.startsWith('small') ? { widthPx: 300, heightPx: 300 } : { widthPx: 4000, heightPx: 4000 }),\n"
     + "  mockupFor: (id) => (id === 5298267871 ? 'https://example.test/mockup-mug.jpg' : null),\n"
-    + "  eligible: () => (globalThis.__TEST_ELIGIBLE || [431624815, 431623973, 431622804, 431621330]) });\n"
+    + "  eligible: () => (globalThis.__TEST_ELIGIBLE || [431624815, 431623973, 431622804, 431621330]),\n"
+    + "  approveOk: () => globalThis.__TEST_APPROVE_OK === true });\n"
     + "export function getBrandingApi() { return __api; }\n");
   writeFileSync(T("entry.jsx"),
     'export { default as Merch } from "./Merch.jsx";\nexport { MemoryRouter, Routes, Route } from "react-router-dom";\n'
@@ -248,11 +249,12 @@ test("ON: adding a branded product opens the artwork approval in the purchase jo
     assert.match(text(dlg), /This drawing is not a photo of the product/);
     assert.match(text(q(dlg, "branding-printed-size")), /^Printed size: [\d.]+ × [\d.]+ in$/);
     await act(async () => { q(dlg, "branding-rights").click(); });
-    assert.equal(q(dlg, "branding-approve").disabled, true, "approval stays disabled: checkout not connected (Q1 open)");
-    assert.ok(q(dlg, "branding-not-open"));
-    assert.equal(ON.cartCalls.length, 0);
+    assert.equal(q(dlg, "branding-approve").disabled, false, "153I: preview ready + rights ticked → approve is available");
+    await click(q(dlg, "branding-approve"));
+    assert.match(text(q(win.document.body, "branding-error")), /placement hasn’t been approved yet/, "the server refuses (no placement approval exists today)");
+    assert.equal(ON.cartCalls.length, 0, "nothing reaches the cart without a signed approval");
     // a product that is not designated keeps its normal path (after Clear branding it is back, unbranded)
-    await click([...dlg.querySelectorAll("button")].find((b) => /Back to products/.test(text(b))));
+    await click([...q(win.document.body, "branding-approval").querySelectorAll("button")].find((b) => /Back to products/.test(text(b))));
     await click(q(m.host, "branding-clear"));
     await click(q(m.host, "gift-card-action-999000111"));
     assert.equal(ON.cartCalls.length, 1);
@@ -370,4 +372,60 @@ test("ON, logo applied: an Americana product (founder design) is exactly as befo
     assert.equal(after.outerHTML, htmlBefore, "identical markup with a logo applied");
     assert.equal(m.host.querySelectorAll('[data-testid^="gift-card-branding-"]').length, 0);
   } finally { globalThis.__TEST_ELIGIBLE = undefined; await m.unmount(); }
+});
+
+// ── 153I: one upload, every designated product; the approved artwork rides the EXISTING add-to-cart ──
+test("ON: ONE logo upload brands every designated product; approving a variant adds the existing cart line carrying the approval", async () => {
+  ON.__resetBrandingSession();
+  globalThis.__TEST_APPROVE_OK = true;
+  const m = await mount(ON);
+  try {
+    const before = ON.__api.calls.filter((c) => c === "uploadLogo").length;
+    await click(brandButton(m.host));
+    await chooseFile(m.host, "logo.png");
+    await tick(); await tick();
+    assert.equal(ON.__api.calls.filter((c) => c === "uploadLogo").length - before, 1, "uploaded once");
+    for (const id of ["431622804", "431623973"]) assert.ok(q(m.host, `gift-card-branding-${id}`), `product ${id} branded from the same logo`);
+    ON.cartCalls.length = 0;
+    await click(q(m.host, "gift-card-action-431622804"));
+    await click([...win.document.querySelectorAll("button")].find((b) => /11 oz/.test(text(b))));
+    const dlg = q(win.document.body, "branding-approval");
+    await act(async () => { q(dlg, "branding-rights").click(); });
+    await click(q(dlg, "branding-approve"));
+    await tick(); await tick();
+    assert.ok(!q(win.document.body, "branding-approval"), "the approval step closes");
+    assert.equal(ON.cartCalls.length, 1, "one line, through the existing add-to-cart");
+    const line = ON.cartCalls[0];
+    assert.equal(line.printfulSyncVariantId, 5298267871, "the same store variant the existing checkout prices");
+    assert.equal(line.priceCents, 1400, "the existing price, unchanged");
+    assert.match(line.branding.approvalToken, /^memory-approval\..+\.5298267871$/);
+    assert.equal(line.branding.logoId, line.branding.approvalToken.split(".")[1]);
+    assert.match(line.name, /— 11 oz · with your logo$/);
+    assert.equal(ON.__api.calls.filter((c) => c === "uploadLogo").length - before, 1, "no second upload");
+  } finally { globalThis.__TEST_APPROVE_OK = false; await m.unmount(); }
+});
+
+test("Checkout sends each branded line's approval with its store variant; every other line is unchanged", () => {
+  const src = readFileSync(join(PAGES, "Checkout.jsx"), "utf8");
+  assert.match(src, /\.map\(\(i\) => \(\{ syncVariantId: i\.printfulSyncVariantId, \.\.\.\(i\.branding \? \{ branding: \{ approvalToken: i\.branding\.approvalToken, logoId: i\.branding\.logoId \} \} : \{\}\) \}\)\);/);
+});
+
+test("ON: switching variant in the placement view keeps the logo and updates preview, print area and printed size", async () => {
+  ON.__resetBrandingSession();
+  const m = await mount(ON);
+  try {
+    await click(brandButton(m.host));
+    await chooseFile(m.host, "logo.png");
+    await click(q(m.host, "gift-card-branding-431622804"));
+    const dlg = q(win.document.body, "branding-placement");
+    const size11 = text(q(dlg, "branding-printed-size"));
+    assert.ok(q(dlg, "branding-mockup"), "11 oz: Printful mockup shown");
+    const vb11 = dlg.querySelector('[data-testid="branding-placement-proposal"] svg').getAttribute("viewBox");
+    await click([...dlg.querySelectorAll("button")].find((b) => text(b) === "20 oz"));
+    const vb20 = dlg.querySelector('[data-testid="branding-placement-proposal"] svg').getAttribute("viewBox");
+    assert.notEqual(vb20, vb11, "the 20 oz print area is used");
+    assert.notEqual(text(q(dlg, "branding-printed-size")), size11, "printed size recomputed for the 20 oz area");
+    assert.ok(q(dlg, "branding-mockup-pending"), "20 oz: its own preview (preparing), never the 11 oz image");
+    assert.ok(dlg.querySelector('[data-testid="branding-placement-proposal"] image, [data-testid="branding-placement-proposal"] rect[opacity="0.15"]'), "the same logo is placed (jsdom has no blob URLs, so the logo box stands in)");
+  } finally { await m.unmount(); }
 });

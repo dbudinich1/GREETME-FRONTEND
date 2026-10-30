@@ -90,7 +90,7 @@ export function catalogFromSpecs(logo, specs = GOLDEN.specs, eligible = []) {
  * `mockupFor(syncVariantId)` returns a mockup image URL or null ("preparing"); `failFor` lists
  * variants whose mockup is "unavailable".
  */
-export function createInMemoryBrandingApi({ measure, mockupFor = () => null, failFor = [], specs = GOLDEN.specs, eligible = () => [] } = {}) {
+export function createInMemoryBrandingApi({ measure, mockupFor = () => null, failFor = [], specs = GOLDEN.specs, eligible = () => [], approveOk = false } = {}) {
   const eligibleNow = () => (typeof eligible === 'function' ? eligible() : eligible) || [];
   const logos = new Map();
   const calls = [];
@@ -125,7 +125,14 @@ export function createInMemoryBrandingApi({ measure, mockupFor = () => null, fai
       const ids = Object.entries(specs).filter(([pid]) => eligibleNow().map(Number).includes(Number(pid))).flatMap(([, p]) => Object.keys(p.variants)).map(Number);
       return { ok: true, mockups: ids.map((id) => (failFor.includes(id) ? { syncVariantId: id, status: 'unavailable' } : mockupFor(id) ? { syncVariantId: id, status: 'ready', mockupUrl: mockupFor(id) } : { syncVariantId: id, status: 'preparing' })) };
     },
-    async approve() { calls.push('approve'); return { ok: false, status: 409, code: 'BRANDING_PLACEMENT_NOT_APPROVED', error: 'This product’s logo placement hasn’t been approved yet.' }; },
+    // 153I: the double signs an approval when `approveOk` is set (tests/previews); otherwise it answers
+    // like today's server (placements not yet approved).
+    async approve(body) {
+      calls.push('approve');
+      if (!(typeof approveOk === 'function' ? approveOk() : approveOk)) return { ok: false, status: 409, code: 'BRANDING_PLACEMENT_NOT_APPROVED', error: 'This product’s logo placement hasn’t been approved yet.' };
+      if (!body || body.rightsAccepted !== true) return { ok: false, status: 409, code: 'BRANDING_RIGHTS_NOT_CONFIRMED', error: 'Please confirm you have the right to use this logo.' };
+      return { ok: true, status: 201, approvalToken: `memory-approval.${body.logoId}.${body.syncVariantId}`, approval: { syncVariantId: body.syncVariantId } };
+    },
     _logos: logos,
   };
 }

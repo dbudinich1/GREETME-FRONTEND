@@ -547,6 +547,8 @@ export default function Merch() {
   const addVariantToCart = (product, variant) => {
     // REPORT 153 — with a logo applied, a supported product goes to the artwork-approval step instead (inert while off).
     if (branding.enabled && branding.interceptVariant(product, variant)) { setShowCartModal(false); setPickerProduct(null); return; }
+    // REPORT 153I — an approved branded line carries its approval (inert while off).
+    const brandedLine = branding.enabled ? branding.cartFields(product, variant) : null;
     try {
       cartService.addItem({
         printfulSyncProductId: product.syncProductId,
@@ -563,6 +565,7 @@ export default function Merch() {
         // storefront visit never sets cameFromSendGreeting, so standalone
         // merchandise stays untagged and independent.
         ...(cameFromSendGreeting && { sendContext: 'greeting-flow' }),
+        ...(brandedLine ? brandedLine.item : {}),
       });
       // E01: inside a send, the pick decides the greeting's gift type, exactly as a provider pick
       // does above. `marketplace` is the type the review screen opens the cart checkout for.
@@ -584,11 +587,11 @@ export default function Merch() {
       setStandaloneFlower(null);
       setLastAddedItem({
         syncProductId: product.syncProductId,
-        name: `${product.name} — ${variant.label}`,
+        name: brandedLine ? brandedLine.item.name : `${product.name} — ${variant.label}`,
         price: variant.priceCents / 100,
         // The same picture the card was shown with. The confirmation renders it when it is there, so
         // every category confirms the same way.
-        imageUrl: product.imageUrl || null,
+        imageUrl: (brandedLine && brandedLine.imageUrl) || product.imageUrl || null,
         // Which return this confirmation belongs to. Merch returns to the greeting as merch.
         giftType: 'merch',
       });
@@ -1260,7 +1263,7 @@ export default function Merch() {
         />
       )}
 
-      {branding.enabled && <MerchBrandingLayer branding={branding} products={products} />}
+      {branding.enabled && <MerchBrandingLayer branding={branding} products={products} onApproved={addVariantToCart} />}
 
       {/* CHECKPOINT 2 — the modal renders OVER this page. No route change, no second page. */}
       {founder && (

@@ -53,5 +53,7 @@ export const BRANDING_STRINGS = Object.freeze({
   backToProducts: 'Back to products',
   notOpenYet: 'Branded ordering for this product isn’t open yet. You can still see how your logo will look.',
   waitForPreview: 'Your branded preview must be ready before you can approve it.',
+  approveFailed: 'We couldn’t approve your artwork just now. Please try again.',
+  cartWithLogo: 'with your logo',
   close: 'Close',
 });

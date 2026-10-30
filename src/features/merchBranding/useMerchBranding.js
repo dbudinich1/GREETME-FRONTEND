@@ -29,7 +29,9 @@ const POLL_MS = 15000;
 const MAX_POLLS = 40;
 const isAuthFailure = (r) => Boolean(r && r.status === 401);
 
-const initial = () => ({ logo: null, previewSrc: null, catalog: [], mockups: {}, config: null });
+// 153I: `approvals` = { [syncVariantId]: { approvalToken, logoId, mockupUrl } } — the signed artwork
+// approvals for the CURRENT logo; a cart line carries one through the existing checkout.
+const initial = () => ({ logo: null, previewSrc: null, catalog: [], mockups: {}, config: null, approvals: {} });
 let session = initial();
 const listeners = new Set();
 function setSession(patch) {
@@ -41,6 +43,11 @@ export function __resetBrandingSession() { session = initial(); listeners.forEac
 
 function toPreviewSrc(file) {
   try { return URL.createObjectURL(file); } catch { return null; }
+}
+
+function approvalFor(syncVariantId) {
+  const a = session.approvals && session.approvals[Number(syncVariantId)];
+  return a && session.logo && a.logoId === session.logo.logoId ? a : null;
 }
 
 export function useMerchBranding({ enabled = false, signedIn = true, api: apiOverride = null } = {}) {
@@ -94,7 +101,7 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
       if (!r || !r.ok) { setError((r && r.error) || S.uploadFailed); return { ok: false }; }
       const cfg = session.config || (await api.getConfig().catch(() => null));
       polls.current = 0;
-      setSession({ logo: r.logo, previewSrc: toPreviewSrc(file), catalog: r.catalog || [], mockups: {}, config: cfg && cfg.ok ? cfg : session.config });
+      setSession({ logo: r.logo, previewSrc: toPreviewSrc(file), catalog: r.catalog || [], mockups: {}, approvals: {}, config: cfg && cfg.ok ? cfg : session.config });
       setStep(null);
       return { ok: true };
     } finally {
@@ -159,9 +166,48 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
     if (!enabled || !session.logo || !product || !variant) return false;
     const entry = catalogById[String(product.syncProductId)];
     if (!entry || !entry.supported) return false;
+    // 153I: an approved variant goes straight to the existing add-to-cart, carrying its approval.
+    if (approvalFor(variant.syncVariantId)) return false;
     setStep({ type: 'approval', syncProductId: entry.syncProductId, syncVariantId: Number(variant.syncVariantId) });
     return true;
   }, [enabled, catalogById]);
+
+  /**
+   * 153I — artwork approval inside the existing purchase journey. Asks the server to sign the approval
+   * (it re-checks rights, the real mockup, the placement and the designation); on success the approval
+   * is kept for this variant and the EXISTING add-to-cart (Merch.jsx addVariantToCart) is run again.
+   */
+  const approve = useCallback(async ({ product, variant, rightsAccepted, onApproved }) => {
+    if (!api || !session.logo || !product || !variant) return { ok: false };
+    setBusy(true); setError(null);
+    try {
+      const r = await api.approve({
+        logoId: session.logo.logoId,
+        syncVariantId: Number(variant.syncVariantId),
+        rightsAccepted: rightsAccepted === true,
+        rightsWordingVersion: session.config && session.config.rightsWording ? session.config.rightsWording.version : null,
+      });
+      if (isAuthFailure(r)) { signInAgain(); return { ok: false }; }
+      if (!r || !r.ok || !r.approvalToken) { setError((r && r.error) || S.approveFailed); return { ok: false }; }
+      const m = session.mockups[Number(variant.syncVariantId)];
+      setSession((s) => ({ approvals: { ...s.approvals, [Number(variant.syncVariantId)]: { approvalToken: r.approvalToken, logoId: s.logo.logoId, mockupUrl: m && m.mockupUrl ? m.mockupUrl : null } } }));
+      setStep(null);
+      if (typeof onApproved === 'function') onApproved(product, variant);
+      return { ok: true };
+    } finally {
+      setBusy(false);
+    }
+  }, [api, signInAgain]);
+
+  /** The extra fields an approved variant's cart line carries (null = an ordinary line). */
+  const cartFields = useCallback((product, variant) => {
+    const a = approvalFor(variant && variant.syncVariantId);
+    if (!enabled || !a || !product) return null;
+    return {
+      item: { branding: { approvalToken: a.approvalToken, logoId: a.logoId }, name: `${product.name} — ${variant.label} · ${S.cartWithLogo}` },
+      imageUrl: a.mockupUrl,
+    };
+  }, [enabled]);
 
   return {
     enabled,
@@ -180,6 +226,8 @@ export function useMerchBranding({ enabled = false, signedIn = true, api: apiOve
     clear,
     cardBranding,
     interceptVariant,
+    approve,
+    cartFields,
     refreshMockups,
     api,
   };
